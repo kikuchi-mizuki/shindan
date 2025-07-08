@@ -473,53 +473,55 @@ OCRテキスト:
             'gemini', '今', '954', '57', '15', '200', '100', '82', '89',
             'keggid', 'kegg_id', 'kegg id', 'keggid', 'kegg_id', 'kegg id'
         }
+        
         # 行ごとに分割
         lines = text.split('\n')
-        # 表形式対応: 各行の1列目（タブ・スペース区切り）を優先抽出
+        
         for line in lines:
-            # 1列目だけ抽出
-            first_col = re.split(r'[\t\s]+', line)[0]
+            # 行全体から薬剤名を抽出（1列目だけでなく）
+            line_drug_names = []
             
             # ひらがな薬剤名パターン（カタカナに変換）
             hiragana_pattern = r'([あ-んー]{2,}(ぱむ|らむ|ろん|じあぜぱむ|ぴおん|ぺーと|じん|ぞらむ|ばみる|ばみど|ばみん|ーる|とーる|ちじん)?)'
-            m = re.match(hiragana_pattern, first_col)
-            if m:
-                name = m.group(0)
+            for match in re.finditer(hiragana_pattern, line):
+                name = match.group(0)
                 if name and name not in exclude_words:
                     # ひらがなをカタカナに変換してから正規化
                     katakana_name = self._hiragana_to_katakana(name)
                     normalized_name = self._normalize_drug_name(katakana_name)
-                    drug_names.append(normalized_name)
-                    continue
+                    line_drug_names.append(normalized_name)
             
             # カタカナ薬剤名パターン
-            m = re.match(r'([ァ-ヶー]{2,}(パム|ラム|ロン|ジアゼパム|ピオン|ペート|ジン|ゾラム|バミル|バミド|バミン|ール|トール|チジン)?)', first_col)
-            if m:
-                name = m.group(0)
+            katakana_pattern = r'([ァ-ヶー]{2,}(パム|ラム|ロン|ジアゼパム|ピオン|ペート|ジン|ゾラム|バミル|バミド|バミン|ール|トール|チジン)?)'
+            for match in re.finditer(katakana_pattern, line):
+                name = match.group(0)
                 if name and name not in exclude_words:
                     # 薬剤名の正規化・補完
                     normalized_name = self._normalize_drug_name(name)
-                    drug_names.append(normalized_name)
-                    continue
+                    line_drug_names.append(normalized_name)
             
             # 既存の他パターンも適用
             # ひらがな2文字以上の単語
             for n in re.findall(r'[あ-んー]{2,}', line):
-                if n not in exclude_words and n not in drug_names:
+                if n not in exclude_words and n not in line_drug_names:
                     # ひらがなをカタカナに変換してから正規化
                     katakana_name = self._hiragana_to_katakana(n)
                     normalized_name = self._normalize_drug_name(katakana_name)
-                    drug_names.append(normalized_name)
+                    line_drug_names.append(normalized_name)
             
             # カタカナ2文字以上の単語
             for n in re.findall(r'[ァ-ヶー]{2,}', line):
-                if n not in exclude_words and n not in drug_names:
+                if n not in exclude_words and n not in line_drug_names:
                     # 薬剤名の正規化・補完
                     normalized_name = self._normalize_drug_name(n)
-                    drug_names.append(normalized_name)
+                    line_drug_names.append(normalized_name)
+            
+            # 行から抽出された薬剤名を追加
+            drug_names.extend(line_drug_names)
         
         # 重複除去
         drug_names = list(dict.fromkeys(drug_names))
+        logger.info(f"Final extracted drug names: {drug_names}")
         return drug_names
 
     def extract_drug_names_from_image(self, image):
