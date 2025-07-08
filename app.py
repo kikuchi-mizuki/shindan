@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from services.ocr_service import OCRService
 from services.drug_service import DrugService
 from services.response_service import ResponseService
+from services.redis_service import RedisService
 
 # 環境変数の読み込み
 load_dotenv()
@@ -28,12 +29,13 @@ handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
 ocr_service = OCRService()
 drug_service = DrugService()
 response_service = ResponseService()
+redis_service = RedisService()
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ユーザーごとの薬剤名バッファ
+# ユーザーごとの薬剤名バッファ（Redisが利用できない場合のフォールバック）
 user_drug_buffer = {}
 
 def create_diagnosis_flex_message(drug_info: dict) -> FlexMessage:
@@ -405,10 +407,11 @@ def handle_text_message(event):
         
         # 診断コマンド
         if user_message.lower() in ['診断', 'しんだん', 'check', 'diagnosis']:
-            if user_id not in user_drug_buffer or not user_drug_buffer[user_id]:
-                drug_names = []
+            # Redisから薬剤リストを取得（フォールバック: メモリバッファ）
+            if redis_service.is_redis_available():
+                drug_names = redis_service.get_user_drugs(user_id)
             else:
-                drug_names = user_drug_buffer[user_id]
+                drug_names = user_drug_buffer.get(user_id, [])
             
             if not drug_names:
                 reply = """【薬剤名未登録】\n━━━━━━━━━━━━━━━\n❌ 薬剤名が登録されていません\n\n💡 推奨事項:\n・画像を送信してください\n・複数画像がある場合は順番に送信\n━━━━━━━━━━━━━━━"""
@@ -434,6 +437,10 @@ def handle_text_message(event):
                         'recommendations': ['薬剤師にご相談ください']
                     }
                 
+                # 診断履歴をRedisに保存
+                if redis_service.is_redis_available():
+                    redis_service.save_diagnosis_history(user_id, drug_info)
+                
                 # Flex Messageで診断結果を表示
                 print('=== DIAGNOSIS drug_info ===')
                 print(drug_info)
@@ -447,8 +454,13 @@ def handle_text_message(event):
         
         # リスト確認コマンド
         elif user_message.lower() in ['リスト確認', 'りすとかくにん', 'list', '確認']:
-            if user_id in user_drug_buffer and user_drug_buffer[user_id]:
-                drug_list = user_drug_buffer[user_id]
+            # Redisから薬剤リストを取得（フォールバック: メモリバッファ）
+            if redis_service.is_redis_available():
+                drug_list = redis_service.get_user_drugs(user_id)
+            else:
+                drug_list = user_drug_buffer.get(user_id, [])
+            
+            if drug_list:
                 reply = "【現在の薬剤リスト】\n━━━━━━━━━\n"
                 for i, drug in enumerate(drug_list, 1):
                     reply += f"{i}. {drug}\n"
