@@ -1003,13 +1003,13 @@ class DrugService:
                             match_info = self._select_best_kegg_match(lines, drug_name)
                             if match_info and isinstance(match_info.get('similarity'), (int, float)):
                                 score = int(match_info['similarity'])
-                                if score > best_score and score >= 25:
+                                if score > best_score and score >= 20:  # 閾値を下げてマッチしやすくする
                                     best_score = score
                                     best_match = match_info.get('kegg_name')
                                     logger.info(f"AI-optimized match: '{best_match}' (score: {score})")
                                     
                                     # 高スコアの場合は早期終了
-                                    if score >= 60:
+                                    if score >= 50:  # 閾値も調整
                                         break
                 except Exception as e:
                     logger.warning(f"KEGG API request failed for pattern '{pattern}': {e}")
@@ -1019,7 +1019,7 @@ class DrugService:
                 if best_match and best_score >= 60:
                     break
             
-            if best_match and best_score >= 25:
+            if best_match and best_score >= 20:  # 閾値を下げてマッチしやすくする
                 logger.info(f"AI-optimized KEGG match: '{drug_name}' -> '{best_match}' (score: {best_score})")
                 return best_match
             else:
@@ -1479,7 +1479,7 @@ class DrugService:
                         english_bonus = 0
                         for english_name in english_names:
                             if english_name.lower() in kegg_lower:
-                                english_bonus = 15
+                                english_bonus = 25  # 英語名一致のボーナスを増加
                                 break
                         
                         # 部分一致ボーナス
@@ -1488,11 +1488,21 @@ class DrugService:
                             for i in range(len(original_name) - 2):
                                 substring = original_name[i:i+3].lower()
                                 if substring in kegg_lower:
-                                    partial_bonus = 10
+                                    partial_bonus = 15  # 部分一致ボーナスを増加
                                     break
                         
-                        # 総合スコア計算
-                        total_score = max(exact_ratio, partial_ratio, token_sort_ratio, token_set_ratio, norm_ratio) + english_bonus + partial_bonus
+                        # 語尾パターンボーナス（ベンゾジアゼピン系など）
+                        suffix_bonus = 0
+                        if original_name.endswith('ゾラム') and 'alprazolam' in kegg_lower:
+                            suffix_bonus = 20
+                        elif original_name.endswith('パム') and 'pam' in kegg_lower:
+                            suffix_bonus = 20
+                        elif original_name.endswith('ラム') and 'lam' in kegg_lower:
+                            suffix_bonus = 20
+                        
+                        # 総合スコア計算（英語名ボーナスを重視）
+                        base_score = max(exact_ratio, partial_ratio, token_sort_ratio, token_set_ratio, norm_ratio)
+                        total_score = base_score + english_bonus + partial_bonus + suffix_bonus
                         
                         candidates.append({
                             'kegg_id': kegg_id,
@@ -1504,7 +1514,8 @@ class DrugService:
                             'token_set_ratio': token_set_ratio,
                             'norm_ratio': norm_ratio,
                             'english_bonus': english_bonus,
-                            'partial_bonus': partial_bonus
+                            'partial_bonus': partial_bonus,
+                            'suffix_bonus': suffix_bonus
                         })
             
             if candidates:
@@ -1514,7 +1525,7 @@ class DrugService:
                 
                 logger.info(f"Best KEGG match for '{original_name}': {best_match['kegg_name']} (score: {best_match['similarity']})")
                 logger.info(f"  - Exact: {best_match['exact_ratio']}, Partial: {best_match['partial_ratio']}, Token: {best_match['token_sort_ratio']}")
-                logger.info(f"  - English bonus: {best_match['english_bonus']}, Partial bonus: {best_match['partial_bonus']}")
+                logger.info(f"  - English bonus: {best_match['english_bonus']}, Partial bonus: {best_match['partial_bonus']}, Suffix bonus: {best_match['suffix_bonus']}")
                 
                 return best_match
             
