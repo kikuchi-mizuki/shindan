@@ -1,0 +1,1 @@
+# Services package for 薬局サポートBot 
