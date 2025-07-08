@@ -504,6 +504,9 @@ class DrugService:
         self._load_interaction_rules()
         self._create_diagnosis_templates()
         self._create_category_mapping()
+        
+        # 初期化完了のログ
+        logger.info(f"DrugService initialized successfully - Database: {len(self.drug_database) if self.drug_database is not None else 0} records")
 
     def _rate_limit_api_call(self):
         """API呼び出しのレート制限"""
@@ -519,20 +522,30 @@ class DrugService:
         try:
             # データベースファイルの存在確認
             import os
-            db_path = "data/processed_drug_database.csv"
-            if os.path.exists(db_path):
-                self.drug_database = pd.read_csv(db_path)
-                logger.info(f"Loaded drug database: {len(self.drug_database)} records")
-            else:
-                logger.warning("Drug database file not found, creating sample database")
-                self._create_sample_database()
+            db_paths = [
+                "data/processed_drug_database.csv",
+                "data/drug_database.csv",
+                "data/enhanced_drug_database.csv"
+            ]
+            
+            for db_path in db_paths:
+                if os.path.exists(db_path):
+                    self.drug_database = pd.read_csv(db_path)
+                    logger.info(f"Loaded drug database from {db_path}: {len(self.drug_database)} records")
+                    return
+            
+            # どのファイルも見つからない場合
+            logger.warning("No drug database file found, creating sample database")
+            self._create_sample_database()
+            
         except Exception as e:
             logger.error(f"Error loading drug database: {e}")
+            logger.info("Creating sample database as fallback")
             self._create_sample_database()
     
     def _load_therapeutic_categories(self):
         """治療分類による同効薬グループを定義"""
-        return {
+        self.therapeutic_categories = {
             '解熱鎮痛薬': {
                 'NSAIDs': ['アスピリン', 'イブプロフェン', 'ロキソプロフェン', 'ジクロフェナク', 'メフェナム酸'],
                 'アセトアミノフェン系': ['アセトアミノフェン', 'カロナール'],
@@ -561,10 +574,11 @@ class DrugService:
                 'β遮断薬': ['プロプラノロール', 'アテノロール', 'ビソプロロール']
             }
         }
+        logger.info(f"Loaded therapeutic categories: {len(self.therapeutic_categories)} categories")
     
     def _load_same_effect_drugs(self):
         """同効薬の詳細マッピング"""
-        return {
+        self.same_effect_drugs = {
             'アスピリン': {
                 'same_effect': ['イブプロフェン', 'ロキソプロフェン', 'ジクロフェナク'],
                 'mechanism': 'COX-1/COX-2阻害',
@@ -586,6 +600,7 @@ class DrugService:
                 'risk_level': 'medium'
             }
         }
+        logger.info(f"Loaded same effect drugs: {len(self.same_effect_drugs)} mappings")
     
     def _create_sample_database(self):
         """サンプル薬剤データベースを作成"""
@@ -617,11 +632,12 @@ class DrugService:
                 'ワルファリン,ダビガトラン', 'ワルファリン,リバーロキサバン', 'シンバスタチン,プラバスタチン'
             ]
         }
-        return pd.DataFrame(sample_data)
+        self.drug_database = pd.DataFrame(sample_data)
+        logger.info(f"Created sample drug database: {len(self.drug_database)} records")
     
     def _load_interaction_rules(self):
         """飲み合わせルールを読み込む（詳細版）"""
-        return {
+        self.interaction_rules = {
             'ワルファリン': {
                 'アスピリン': {'risk': 'high', 'description': '出血リスク増加', 'mechanism': '血小板機能阻害の重複'},
                 'NSAIDs': {'risk': 'high', 'description': '出血リスク増加', 'mechanism': '抗凝固作用の増強'},
@@ -643,6 +659,7 @@ class DrugService:
                 'NSAIDs': {'risk': 'high', 'description': '骨髄抑制リスク増加', 'mechanism': '腎排泄競合'}
             }
         }
+        logger.info(f"Loaded interaction rules: {len(self.interaction_rules)} drug mappings")
     
     def _deduplicate_drugs(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """薬剤リストの重複除去（共通関数）"""
