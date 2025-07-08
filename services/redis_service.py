@@ -19,13 +19,29 @@ class RedisService:
         try:
             import redis
             # 環境変数からRedis接続情報を取得
-            redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
-            self.redis_client = redis.from_url(redis_url, decode_responses=True)
+            redis_url = os.getenv('REDIS_URL')
+            redis_host = os.getenv('REDIS_HOST', 'localhost')
+            redis_port = int(os.getenv('REDIS_PORT', 6379))
+            redis_db = int(os.getenv('REDIS_DB', 0))
+            
+            if redis_url:
+                # REDIS_URLが設定されている場合はそれを使用
+                self.redis_client = redis.from_url(redis_url, decode_responses=True)
+            else:
+                # 個別の設定を使用
+                self.redis_client = redis.Redis(
+                    host=redis_host,
+                    port=redis_port,
+                    db=redis_db,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_timeout=5
+                )
             
             # 接続テスト
             self.redis_client.ping()
             self.redis_available = True
-            logger.info("Redis connection established successfully")
+            logger.info(f"Redis connection established successfully to {redis_host}:{redis_port}")
             
         except ImportError:
             logger.warning("Redis library not available. Using in-memory storage.")
