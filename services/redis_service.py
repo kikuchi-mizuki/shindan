@@ -235,3 +235,7 @@ class RedisService:
     def is_redis_available(self) -> bool:
         """Redisが利用可能かどうかを確認"""
         return self.redis_available 
+
+    def set_user_drugs(self, user_id: str, drug_list: list) -> bool:
+        """ユーザーの薬剤リストを保存（エイリアス）"""
+        return self.save_user_drugs(user_id, drug_list) 
