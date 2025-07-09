@@ -91,6 +91,10 @@ class AIDrugMatcher:
     """AIを活用した薬剤マッチングシステム"""
     
     def __init__(self):
+        # 分析結果のキャッシュ
+        self.analysis_cache = {}
+        self.cache_max_size = 1000  # 最大キャッシュサイズ
+        
         self.drug_patterns = {
             'benzodiazepines': [
                 'パム', 'ラム', 'ゾラム', 'ジアゼパム', 'クロナゼパム', 'アルプラゾラム', 'ロラゼパム',
@@ -188,7 +192,12 @@ class AIDrugMatcher:
         ]
         
     def analyze_drug_name(self, drug_name: str) -> Dict[str, Any]:
-        """薬剤名をAI的に分析"""
+        """薬剤名をAI的に分析（キャッシュ対応版）"""
+        # キャッシュチェック
+        if drug_name in self.analysis_cache:
+            logger.info(f"Using cached analysis for '{drug_name}'")
+            return self.analysis_cache[drug_name]
+        
         analysis = {
             'original': drug_name,
             'normalized': self._normalize_name(drug_name),
@@ -204,7 +213,20 @@ class AIDrugMatcher:
         # 検索優先度の決定
         analysis['search_priority'] = self._determine_search_priority(drug_name, analysis)
         
+        # キャッシュに保存
+        self._cache_analysis(drug_name, analysis)
+        
         return analysis
+    
+    def _cache_analysis(self, drug_name: str, analysis: Dict[str, Any]):
+        """分析結果をキャッシュに保存"""
+        # キャッシュサイズ制限
+        if len(self.analysis_cache) >= self.cache_max_size:
+            # 最も古いエントリを削除（簡易的なLRU）
+            oldest_key = next(iter(self.analysis_cache))
+            del self.analysis_cache[oldest_key]
+        
+        self.analysis_cache[drug_name] = analysis
     
     def _normalize_name(self, name: str) -> str:
         """薬剤名の正規化（強化版）"""
@@ -431,19 +453,24 @@ class AIDrugMatcher:
         return list(set(variants))  # 重複除去
     
     def _determine_search_priority(self, drug_name: str, analysis: Dict[str, Any]) -> List[str]:
-        """検索優先度の決定"""
+        """検索優先度の決定（AI最適化版）"""
         priority = []
         
-        # 1. 元の薬剤名
-        priority.append(drug_name)
+        # 信頼度が低すぎる場合は早期終了
+        if analysis['confidence'] < 0.2:
+            return []
         
-        # 2. 正規化された名前
-        if analysis['normalized'] != drug_name:
+        # 1. 元の薬剤名（高信頼度の場合のみ）
+        if analysis['confidence'] >= 0.4:
+            priority.append(drug_name)
+        
+        # 2. 正規化された名前（信頼度に応じて）
+        if analysis['normalized'] != drug_name and analysis['confidence'] >= 0.3:
             priority.append(analysis['normalized'])
         
-        # 3. 英語名（高信頼度のもの）
+        # 3. 英語名（高信頼度のもののみ）
         english_variants = analysis['english_variants']
-        if english_variants:
+        if english_variants and analysis['confidence'] >= 0.5:
             # 一般的な英語名を優先
             common_names = ['aspirin', 'ibuprofen', 'warfarin', 'insulin', 'metformin']
             for name in english_variants:
@@ -452,8 +479,8 @@ class AIDrugMatcher:
                 else:
                     priority.append(name)
         
-        # 4. カテゴリベースの検索
-        if analysis['category'] != 'unknown':
+        # 4. カテゴリベースの検索（信頼度が高い場合のみ）
+        if analysis['category'] != 'unknown' and analysis['confidence'] >= 0.6:
             # カテゴリ固有の検索パターンを追加
             category_patterns = {
                 'benzodiazepines': ['pam', 'lam', 'zolam'],
@@ -473,12 +500,15 @@ class AIDrugMatcher:
                     if pattern not in priority:
                         priority.append(pattern)
         
-        # 5. 一般的な接尾辞
-        for suffix in self.common_suffixes:
-            if drug_name.endswith(suffix) and suffix not in priority:
-                priority.append(suffix)
+        # 5. 一般的な接尾辞（信頼度が高い場合のみ）
+        if analysis['confidence'] >= 0.7:
+            for suffix in self.common_suffixes:
+                if drug_name.endswith(suffix) and suffix not in priority:
+                    priority.append(suffix)
         
-        return priority[:5]  # 最大5つまで
+        # 信頼度に基づいて検索パターン数を制限
+        max_patterns = min(3, int(analysis['confidence'] * 5))  # 信頼度に応じて1-3個
+        return priority[:max_patterns]
 
 class DrugService:
     def __init__(self):
@@ -894,92 +924,63 @@ class DrugService:
         return set(analysis['search_priority'])
 
     def match_to_database(self, ocr_names: list) -> list:
-        """AIを活用した効率的な薬剤データベース照合"""
-        if self.drug_database is None:
-            logger.error("Drug database not loaded")
+        """OCRで検出された薬剤名をデータベースにマッチング（AI最適化版）"""
+        if not ocr_names:
             return []
-            
-        # 一般的な除外ワード
-        common_words = {
-            '場合', '調剤', '交付', '請求', '保険', '医師', '署名', '年月日', '分', '回', 'mg', 'g', 'ml', 'L',
-            '歳', '未満', '以上', '以下', '内用', '注射用', 'TEL', 'ID', '県', '郡', '町', '市', '区',
-            '製剤', '製薬', '製', '剤', '用', '液', '散', '錠', 'カプセル', '軟膏', '点眼', '坐剤',
-            'チェック', 'gemini', 'google', 'KEGGID', 'OD15mg'
-        }
         
-        matched_drugs = []
+        # AIベースのバッチ処理最適化
+        optimized_names = self._ai_batch_optimize(ocr_names)
         
-        # OCR名の前処理
-        valid_ocr_names = [
-            name for name in ocr_names 
-            if name not in common_words and len(name) >= 2 and not name.isdigit()
-        ]
-        
-        for drug_name in valid_ocr_names:
-            # AIマッチャーで薬剤名を分析
-            analysis = self.ai_matcher.analyze_drug_name(drug_name)
-            logger.info(f"AI analysis for '{drug_name}': category={analysis['category']}, confidence={analysis['confidence']:.2f}")
-            
-            # 正規化された名前を使用
-            normalized_name = analysis['normalized']
-            
-            # ローカルDBキャッシュをチェック
-            if normalized_name in self.local_db_cache:
-                cached_result = self.local_db_cache[normalized_name]
-                if cached_result:
-                    cached_result['ai_analysis'] = analysis
-                    matched_drugs.append(cached_result)
-                    logger.info(f"Cache hit for '{drug_name}'")
+        results = []
+        for drug_name in optimized_names:
+            # ローカルDBキャッシュチェック
+            if drug_name in self.local_db_cache:
+                cached_result = self.local_db_cache[drug_name]
+                if cached_result is not None:
+                    results.append(cached_result)
                     continue
             
-            # 信頼度に基づく検索戦略
-            if analysis['confidence'] >= 0.7:
-                # 高信頼度: ローカルDBを優先
-                local_match = self._find_drug_info(normalized_name)
-                if local_match:
-                    local_match['ai_analysis'] = analysis
-                    self.local_db_cache[normalized_name] = local_match
-                    matched_drugs.append(local_match)
-                    logger.info(f"High confidence local match for '{drug_name}'")
-                    continue
+            # 薬剤情報を検索
+            drug_info = self._find_drug_info(drug_name)
             
-            # 中程度の信頼度: KEGG APIを試行
-            if analysis['confidence'] >= 0.4:
-                kegg_match = self._try_kegg_matching(normalized_name)
-                if kegg_match:
-                    kegg_result = {
-                        'name': kegg_match,
-                        'generic_name': 'KEGG検索結果',
-                        'category': analysis['category'],
-                        'interactions': [],
-                        'ai_analysis': analysis
-                    }
-                    matched_drugs.append(kegg_result)
-                    logger.info(f"KEGG match for '{drug_name}'")
-                    continue
+            # キャッシュに保存
+            self.local_db_cache[drug_name] = drug_info
             
-            # 低信頼度: 部分一致で検索
-            partial_match = self._find_partial_match(normalized_name)
-            if partial_match:
-                partial_match['ai_analysis'] = analysis
-                matched_drugs.append(partial_match)
-                logger.info(f"Partial match for '{drug_name}'")
-                continue
-            
-            # マッチしなかった場合
-            logger.info(f"No match found for '{drug_name}' (confidence: {analysis['confidence']:.2f})")
+            if drug_info is not None:
+                results.append(drug_info)
         
-        # 重複除去
-        matched_drugs = self._deduplicate_drugs(matched_drugs)
+        return results
+    
+    def _ai_batch_optimize(self, drug_names: List[str]) -> List[str]:
+        """AIベースのバッチ処理最適化"""
+        optimized_names = []
         
-        # 薬剤名のリストを返す
-        unique_drug_names = [drug['name'] for drug in matched_drugs]
-        logger.info(f"Final result: {len(unique_drug_names)} unique drugs found: {unique_drug_names}")
+        # 1. 重複除去
+        unique_names = list(set(drug_names))
         
-        return unique_drug_names
+        # 2. 信頼度による優先度付け
+        name_priorities = []
+        for name in unique_names:
+            analysis = self.ai_matcher.analyze_drug_name(name)
+            priority_score = analysis['confidence']
+            name_priorities.append((name, priority_score))
+        
+        # 3. 信頼度の高い順にソート
+        name_priorities.sort(key=lambda x: x[1], reverse=True)
+        
+        # 4. 高信頼度のもののみを選択（最大10個まで）
+        high_confidence_names = [name for name, score in name_priorities if score >= 0.3][:10]
+        
+        # 5. 低信頼度のものも含める（最大5個まで）
+        low_confidence_names = [name for name, score in name_priorities if score < 0.3][:5]
+        
+        optimized_names = high_confidence_names + low_confidence_names
+        
+        logger.info(f"AI batch optimization: {len(drug_names)} -> {len(optimized_names)} names")
+        return optimized_names
 
     def _try_kegg_matching(self, drug_name: str) -> Optional[str]:
-        """AIベースの効率的なKEGG API検索"""
+        """AIベースの効率的なKEGG API検索（インテリジェント最適化版）"""
         try:
             # 不要な薬剤名をフィルタリング
             if len(drug_name) < 3 or drug_name.lower() in ['com', 'google', 'check', 'kegg', 'mg', 'id']:
@@ -990,12 +991,25 @@ class DrugService:
             logger.info(f"AI analysis for '{drug_name}': category={analysis['category']}, confidence={analysis['confidence']:.2f}")
             
             # 信頼度が低い場合は早期終了
-            if analysis['confidence'] < 0.3:
+            if analysis['confidence'] < 0.2:
                 logger.info(f"Low confidence for '{drug_name}', skipping KEGG search")
                 return None
             
-            # 優先度の高い検索パターンを使用（最大2つまで）
-            search_patterns = analysis['search_priority'][:2]
+            # 優先度の高い検索パターンを使用（信頼度に基づいて制限）
+            search_patterns = analysis['search_priority']
+            
+            # 信頼度が低い場合は検索パターンを1つに制限
+            if analysis['confidence'] < 0.4:
+                search_patterns = search_patterns[:1]
+            elif analysis['confidence'] < 0.6:
+                search_patterns = search_patterns[:2]
+            else:
+                search_patterns = search_patterns[:2]  # 最大2つまで
+            
+            if not search_patterns:
+                logger.info(f"No search patterns for '{drug_name}', skipping KEGG search")
+                return None
+            
             best_match = None
             best_score = 0
             
@@ -1008,7 +1022,7 @@ class DrugService:
                 self._rate_limit_api_call()
                 
                 search_url = f"{self.kegg_api_base}/find/drug/{pattern}"
-                logger.info(f"AI-optimized KEGG search ({i+1}/2): {search_url}")
+                logger.info(f"AI-optimized KEGG search ({i+1}/{len(search_patterns)}): {search_url}")
                 
                 try:
                     response = requests.get(search_url, timeout=5)
@@ -1021,13 +1035,18 @@ class DrugService:
                             match_info = self._select_best_kegg_match(lines, drug_name)
                             if match_info and isinstance(match_info.get('similarity'), (int, float)):
                                 score = int(match_info['similarity'])
-                                if score > best_score and score >= 20:  # 閾値を下げてマッチしやすくする
+                                
+                                # 信頼度に基づいて閾値を調整
+                                threshold = 15 if analysis['confidence'] < 0.4 else 20
+                                if score > best_score and score >= threshold:
                                     best_score = score
                                     best_match = match_info.get('kegg_name')
                                     logger.info(f"AI-optimized match: '{best_match}' (score: {score})")
                                     
                                     # 高スコアの場合は早期終了
-                                    if score >= 50:  # 閾値も調整
+                                    early_exit_threshold = 40 if analysis['confidence'] < 0.5 else 50
+                                    if score >= early_exit_threshold:
+                                        logger.info(f"High score match found, early exit: {score}")
                                         break
                 except Exception as e:
                     logger.warning(f"KEGG API request failed for pattern '{pattern}': {e}")
@@ -1037,7 +1056,9 @@ class DrugService:
                 if best_match and best_score >= 60:
                     break
             
-            if best_match and best_score >= 20:  # 閾値を下げてマッチしやすくする
+            # 信頼度に基づいて閾値を調整
+            final_threshold = 15 if analysis['confidence'] < 0.4 else 20
+            if best_match and best_score >= final_threshold:
                 logger.info(f"AI-optimized KEGG match: '{drug_name}' -> '{best_match}' (score: {best_score})")
                 return best_match
             else:
