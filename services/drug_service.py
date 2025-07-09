@@ -994,8 +994,8 @@ class DrugService:
                 logger.info(f"Low confidence for '{drug_name}', skipping KEGG search")
                 return None
             
-            # 優先度の高い検索パターンを使用（最大3つまで）
-            search_patterns = analysis['search_priority'][:3]
+            # 優先度の高い検索パターンを使用（最大2つまで）
+            search_patterns = analysis['search_priority'][:2]
             best_match = None
             best_score = 0
             
@@ -1008,10 +1008,10 @@ class DrugService:
                 self._rate_limit_api_call()
                 
                 search_url = f"{self.kegg_api_base}/find/drug/{pattern}"
-                logger.info(f"AI-optimized KEGG search ({i+1}/3): {search_url}")
+                logger.info(f"AI-optimized KEGG search ({i+1}/2): {search_url}")
                 
                 try:
-                    response = requests.get(search_url, timeout=10)
+                    response = requests.get(search_url, timeout=5)
                     if response.status_code == 200 and response.text.strip():
                         lines = response.text.strip().split('\n')
                         if lines and lines[0]:
@@ -1394,7 +1394,7 @@ class DrugService:
                     
                 # KEGG APIで検索
                 search_url = f"{self.kegg_api_base}/find/drug/{pattern}"
-                response = requests.get(search_url, timeout=15)
+                response = requests.get(search_url, timeout=5)
                 
                 if response.status_code == 200 and response.text.strip():
                     lines = response.text.strip().split('\n')
@@ -1406,7 +1406,7 @@ class DrugService:
                             
                             # 薬剤の詳細情報を取得
                             info_url = f"{self.kegg_api_base}/get/{kegg_id}"
-                            info_response = requests.get(info_url, timeout=15)
+                            info_response = requests.get(info_url, timeout=5)
                             
                             if info_response.status_code == 200:
                                 kegg_text = info_response.text
