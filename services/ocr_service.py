@@ -37,7 +37,9 @@ class OCRService:
         self.openai_available = OPENAI_AVAILABLE and os.getenv('OPENAI_API_KEY')
         if self.openai_available:
             try:
-                self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+                # 環境変数でAPIキーを設定し、api_key引数は渡さない
+                os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "")
+                self.openai_client = OpenAI()
                 logger.info("OpenAI API available for ChatGPT integration")
             except Exception as e:
                 logger.warning(f"Failed to initialize OpenAI client: {e}")
