@@ -617,6 +617,9 @@ def handle_image_message(event):
             if matched_drugs:
                 for matched_drug_name in matched_drugs:
                     user_drug_buffer[user_id].append(matched_drug_name)
+                # Redisにも保存
+                if redis_service.is_redis_available():
+                    redis_service.set_user_drugs(user_id, user_drug_buffer[user_id])
             
             # KEGG情報を含む詳細な薬剤情報を取得
             if matched_drugs:
