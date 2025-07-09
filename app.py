@@ -153,20 +153,20 @@ def create_diagnosis_flex_message(drug_info: dict) -> FlexMessage:
                     ]
                 }
                 contents.append(box)
-    # 6. 参考情報の注意書き
-    disclaimer_box = {
-        "type": "box",
-        "layout": "vertical",
-        "margin": "lg",
-        "backgroundColor": "#FFFDE7",
-        "cornerRadius": "md",
-        "contents": [
-            {"type": "separator", "margin": "md"},
-            {"type": "text", "text": "📋 参考情報・注意事項", "weight": "bold", "size": "md", "color": "#FF6F00"},
-            {"type": "text", "text": "この診断結果は参考情報です。最終的な判断は医師・薬剤師にご相談ください。", "size": "xs", "color": "#666666", "wrap": True, "margin": "sm"}
-        ]
-    }
-    contents.append(disclaimer_box)
+        # 6. 参考情報の注意書き
+        disclaimer_box = {
+            "type": "box",
+            "layout": "vertical",
+            "margin": "lg",
+            "backgroundColor": "#FFFDE7",
+            "cornerRadius": "md",
+            "contents": [
+                {"type": "separator", "margin": "md"},
+                {"type": "text", "text": "📋 参考情報・注意事項", "weight": "bold", "size": "md", "color": "#FF6F00"},
+                {"type": "text", "text": "この診断結果は参考情報です。最終的な判断は医師・薬剤師にご相談ください。", "size": "xs", "color": "#666666", "wrap": True, "margin": "sm"}
+            ]
+        }
+        contents.append(disclaimer_box)
 
     flex_message = {
         "type": "bubble",

@@ -58,56 +58,56 @@ class ResponseService:
                             f"■ 種類数: {duplicate['count']}\n" +
                             f"■ 薬剤: {', '.join(duplicate['drugs'])}\n" +
                             f"\n{'='*15}\n")
-            
-            # 4. その他の相互作用
-            other_interactions = [i for i in drug_info['interactions'] if i.get('risk') not in ['critical', 'high']]
-            if other_interactions:
-                for interaction in other_interactions:
-                    response_parts.append("🟦【その他の相互作用】")
+                
+                # 4. その他の相互作用
+                other_interactions = [i for i in drug_info['interactions'] if i.get('risk') not in ['critical', 'high']]
+                if other_interactions:
+                    for interaction in other_interactions:
+                        response_parts.append("🟦【その他の相互作用】")
+                        response_parts.append("")
+                        response_parts.append(f"対象の薬: {interaction['drug1']}、{interaction['drug2']}")
+                        response_parts.append(f"リスク: {interaction.get('description', '相互作用あり')}")
+                        if 'mechanism' in interaction:
+                            response_parts.append(f"機序: {interaction['mechanism']}")
+                        response_parts.append("\n━━━━━━━━━━━━━━\n")
+                
+                # 5. KEGG情報（利用可能な場合）
+                if drug_info['kegg_info']:
+                    for kegg in drug_info['kegg_info']:
+                        response_parts.append("🟦【KEGG情報】")
+                        response_parts.append("")
+                        response_parts.append(f"薬剤名: {kegg['drug_name']}")
+                        if kegg.get('kegg_id'):
+                            response_parts.append(f"KEGG ID: {kegg['kegg_id']}")
+                        if kegg.get('pathways'):
+                            response_parts.append(f"パスウェイ: {', '.join(kegg['pathways'][:2])}")
+                        if kegg.get('targets'):
+                            response_parts.append(f"ターゲット: {', '.join(kegg['targets'][:2])}")
+                        response_parts.append("\n━━━━━━━━━━━━━━\n")
+                
+                # 6. 相互作用なしの場合
+                if not drug_info['interactions'] and not drug_info['same_effect_warnings']:
+                    response_parts.append("🟦【相互作用チェック】")
                     response_parts.append("")
-                    response_parts.append(f"対象の薬: {interaction['drug1']}、{interaction['drug2']}")
-                    response_parts.append(f"リスク: {interaction.get('description', '相互作用あり')}")
-                    if 'mechanism' in interaction:
-                        response_parts.append(f"機序: {interaction['mechanism']}")
+                    response_parts.append("確認された相互作用はありませんでした")
                     response_parts.append("\n━━━━━━━━━━━━━━\n")
-            
-            # 5. KEGG情報（利用可能な場合）
-            if drug_info['kegg_info']:
-                for kegg in drug_info['kegg_info']:
-                    response_parts.append("🟦【KEGG情報】")
-                    response_parts.append("")
-                    response_parts.append(f"薬剤名: {kegg['drug_name']}")
-                    if kegg.get('kegg_id'):
-                        response_parts.append(f"KEGG ID: {kegg['kegg_id']}")
-                    if kegg.get('pathways'):
-                        response_parts.append(f"パスウェイ: {', '.join(kegg['pathways'][:2])}")
-                    if kegg.get('targets'):
-                        response_parts.append(f"ターゲット: {', '.join(kegg['targets'][:2])}")
+                
+                # 7. 警告事項
+                if drug_info['warnings']:
+                    response_parts.append("🟦【警告事項】")
+                    for warning in drug_info['warnings']:
+                        response_parts.append(f"・{warning}")
                     response_parts.append("\n━━━━━━━━━━━━━━\n")
-            
-            # 6. 相互作用なしの場合
-            if not drug_info['interactions'] and not drug_info['same_effect_warnings']:
-                response_parts.append("🟦【相互作用チェック】")
-                response_parts.append("")
-                response_parts.append("確認された相互作用はありませんでした")
-                response_parts.append("\n━━━━━━━━━━━━━━\n")
-            
-            # 7. 警告事項
-            if drug_info['warnings']:
-                response_parts.append("🟦【警告事項】")
-                for warning in drug_info['warnings']:
-                    response_parts.append(f"・{warning}")
-                response_parts.append("\n━━━━━━━━━━━━━━\n")
-            
-            # 8. 推奨事項
-            if drug_info['recommendations']:
-                response_parts.append("🟦【推奨事項】")
-                for recommendation in drug_info['recommendations']:
-                    response_parts.append(f"・{recommendation}")
-                response_parts.append("\n━━━━━━━━━━━━━━\n")
-            
-            # 9. 参考情報の注意書き
-            response_parts.append("この結果はあくまで参考情報です。最終的な判断は医師・薬剤師にご相談ください。\n")
+                
+                # 8. 推奨事項
+                if drug_info['recommendations']:
+                    response_parts.append("🟦【推奨事項】")
+                    for recommendation in drug_info['recommendations']:
+                        response_parts.append(f"・{recommendation}")
+                    response_parts.append("\n━━━━━━━━━━━━━━\n")
+                
+                # 9. 参考情報の注意書き
+                response_parts.append("この結果はあくまで参考情報です。最終的な判断は医師・薬剤師にご相談ください。\n")
             
             return "\n".join(response_parts)
             

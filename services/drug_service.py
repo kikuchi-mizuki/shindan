@@ -759,9 +759,9 @@ class DrugService:
             result = exact_match or partial_match
             if result is None:  # 型安全性のため
                 result = {
-                    'name': drug_name,
-                    'generic_name': '不明',
-                    'category': '不明',
+            'name': drug_name,
+            'generic_name': '不明',
+            'category': '不明',
                     'interactions': []
                 }
         else:
@@ -771,8 +771,8 @@ class DrugService:
                 'name': drug_name,
                 'generic_name': '不明',
                 'category': self._map_ai_category_to_japanese(ai_category),
-                'interactions': []
-            }
+            'interactions': []
+        }
         
         # AI分析結果を追加
         if analysis:
@@ -927,7 +927,7 @@ class DrugService:
         """OCRで検出された薬剤名をデータベースにマッチング（AI最適化版）"""
         if not ocr_names:
             return []
-        
+            
         # AIベースのバッチ処理最適化
         optimized_names = self._ai_batch_optimize(ocr_names)
         
