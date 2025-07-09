@@ -1000,7 +1000,8 @@ class DrugService:
             best_score = 0
             
             for i, pattern in enumerate(search_patterns):
-                if len(pattern) < 2:
+                # 2文字以下の曖昧なパターンはスキップ
+                if len(pattern) < 3:
                     continue
                 
                 # レート制限を適用
