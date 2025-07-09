@@ -952,7 +952,7 @@ class DrugService:
         return results
     
     def _ai_batch_optimize(self, drug_names: List[str]) -> List[str]:
-        """AIベースのバッチ処理最適化"""
+        """AIベースのバッチ処理最適化（高速化版）"""
         optimized_names = []
         
         # 1. 重複除去
@@ -968,106 +968,22 @@ class DrugService:
         # 3. 信頼度の高い順にソート
         name_priorities.sort(key=lambda x: x[1], reverse=True)
         
-        # 4. 高信頼度のもののみを選択（最大10個まで）
-        high_confidence_names = [name for name, score in name_priorities if score >= 0.3][:10]
+        # 4. 高信頼度のもののみを選択（最大5個まで）
+        high_confidence_names = [name for name, score in name_priorities if score >= 0.5][:5]
         
-        # 5. 低信頼度のものも含める（最大5個まで）
-        low_confidence_names = [name for name, score in name_priorities if score < 0.3][:5]
+        # 5. 中程度信頼度のものも含める（最大3個まで）
+        medium_confidence_names = [name for name, score in name_priorities if 0.3 <= score < 0.5][:3]
         
-        optimized_names = high_confidence_names + low_confidence_names
+        optimized_names = high_confidence_names + medium_confidence_names
         
         logger.info(f"AI batch optimization: {len(drug_names)} -> {len(optimized_names)} names")
         return optimized_names
 
     def _try_kegg_matching(self, drug_name: str) -> Optional[str]:
-        """AIベースの効率的なKEGG API検索（インテリジェント最適化版）"""
-        try:
-            # 不要な薬剤名をフィルタリング
-            if len(drug_name) < 3 or drug_name.lower() in ['com', 'google', 'check', 'kegg', 'mg', 'id']:
-                return None
-            
-            # AIマッチャーで薬剤名を分析
-            analysis = self.ai_matcher.analyze_drug_name(drug_name)
-            logger.info(f"AI analysis for '{drug_name}': category={analysis['category']}, confidence={analysis['confidence']:.2f}")
-            
-            # 信頼度が低い場合は早期終了
-            if analysis['confidence'] < 0.2:
-                logger.info(f"Low confidence for '{drug_name}', skipping KEGG search")
-                return None
-            
-            # 優先度の高い検索パターンを使用（信頼度に基づいて制限）
-            search_patterns = analysis['search_priority']
-            
-            # 信頼度が低い場合は検索パターンを1つに制限
-            if analysis['confidence'] < 0.4:
-                search_patterns = search_patterns[:1]
-            elif analysis['confidence'] < 0.6:
-                search_patterns = search_patterns[:2]
-            else:
-                search_patterns = search_patterns[:2]  # 最大2つまで
-            
-            if not search_patterns:
-                logger.info(f"No search patterns for '{drug_name}', skipping KEGG search")
-                return None
-            
-            best_match = None
-            best_score = 0
-            
-            for i, pattern in enumerate(search_patterns):
-                # 2文字以下の曖昧なパターンはスキップ
-                if len(pattern) < 3:
-                    continue
-                
-                # レート制限を適用
-                self._rate_limit_api_call()
-                
-                search_url = f"{self.kegg_api_base}/find/drug/{pattern}"
-                logger.info(f"AI-optimized KEGG search ({i+1}/{len(search_patterns)}): {search_url}")
-                
-                try:
-                    response = requests.get(search_url, timeout=5)
-                    if response.status_code == 200 and response.text.strip():
-                        lines = response.text.strip().split('\n')
-                        if lines and lines[0]:
-                            logger.info(f"KEGG response for '{pattern}': {len(lines)} results")
-                            
-                            # 最適なマッチを選択
-                            match_info = self._select_best_kegg_match(lines, drug_name)
-                            if match_info and isinstance(match_info.get('similarity'), (int, float)):
-                                score = int(match_info['similarity'])
-                                
-                                # 信頼度に基づいて閾値を調整
-                                threshold = 15 if analysis['confidence'] < 0.4 else 20
-                                if score > best_score and score >= threshold:
-                                    best_score = score
-                                    best_match = match_info.get('kegg_name')
-                                    logger.info(f"AI-optimized match: '{best_match}' (score: {score})")
-                                    
-                                    # 高スコアの場合は早期終了
-                                    early_exit_threshold = 40 if analysis['confidence'] < 0.5 else 50
-                                    if score >= early_exit_threshold:
-                                        logger.info(f"High score match found, early exit: {score}")
-                                        break
-                except Exception as e:
-                    logger.warning(f"KEGG API request failed for pattern '{pattern}': {e}")
-                    continue
-                
-                # 高スコアの場合は早期終了
-                if best_match and best_score >= 60:
-                    break
-            
-            # 信頼度に基づいて閾値を調整
-            final_threshold = 15 if analysis['confidence'] < 0.4 else 20
-            if best_match and best_score >= final_threshold:
-                logger.info(f"AI-optimized KEGG match: '{drug_name}' -> '{best_match}' (score: {best_score})")
-                return best_match
-            else:
-                logger.info(f"No AI-optimized KEGG match for '{drug_name}' (best score: {best_score})")
-                return None
-                
-        except Exception as e:
-            logger.warning(f"AI-optimized KEGG matching error for '{drug_name}': {e}")
-            return None
+        """AIベースの効率的なKEGG API検索（無効化版）"""
+        # KEGG検索を無効化してタイムアウトを回避
+        logger.info(f"KEGG search disabled for '{drug_name}' to prevent timeout")
+        return None
 
     def get_drug_interactions(self, drug_names: List[str]) -> Dict[str, Any]:
         """薬剤名リストから飲み合わせ情報を取得（最適化版）"""
@@ -1254,38 +1170,10 @@ class DrugService:
         return None
     
     def _get_kegg_info(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """KEGGデータベースから薬剤情報を取得"""
-        kegg_info = []
-        
-        for drug in drugs:
-            try:
-                # AIベースのKEGG API検索を使用
-                kegg_match = self._try_kegg_matching(drug['name'])
-                if kegg_match:
-                    # 詳細情報を取得
-                    detailed_info = self._fetch_kegg_drug_info(drug['name'])
-                    if detailed_info:
-                        kegg_info.append({
-                            'drug_name': drug['name'],
-                            'kegg_id': detailed_info.get('kegg_id'),
-                            'category': detailed_info.get('category', 'Others'),
-                            'pathways': detailed_info.get('pathways', []),
-                            'targets': detailed_info.get('targets', [])
-                        })
-                    else:
-                        # 基本的なマッチ情報のみ
-                        kegg_info.append({
-                            'drug_name': drug['name'],
-                            'kegg_id': None,
-                            'category': 'Others',
-                            'pathways': [],
-                            'targets': [],
-                            'matched_name': kegg_match
-                        })
-            except Exception as e:
-                logger.warning(f"KEGG情報取得エラー ({drug['name']}): {e}")
-        
-        return kegg_info
+        """KEGGデータベースから薬剤情報を取得（無効化版）"""
+        # KEGG情報取得を無効化してタイムアウトを回避
+        logger.info(f"KEGG info retrieval disabled for {len(drugs)} drugs to prevent timeout")
+        return []
     
     def _convert_to_english_names(self, drug_name: str) -> List[str]:
         """日本語薬剤名を英語名に変換"""
