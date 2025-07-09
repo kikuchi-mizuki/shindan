@@ -7,6 +7,15 @@ import numpy as np
 import unicodedata
 from typing import List, Optional
 import base64
+import tempfile
+
+# Railway等でGOOGLE_APPLICATION_CREDENTIALSにJSONの中身が直接入っている場合の対応
+creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if creds and isinstance(creds, str) and creds.strip().startswith("{"):
+    fd, path = tempfile.mkstemp(suffix=".json")
+    with os.fdopen(fd, "w") as tmp:
+        tmp.write(str(creds))
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
 
 # OpenAIライブラリのインポート
 try:
