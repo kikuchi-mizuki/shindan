@@ -937,7 +937,7 @@ class DrugService:
             if drug_name in self.local_db_cache:
                 cached_result = self.local_db_cache[drug_name]
                 if cached_result is not None:
-                    results.append(cached_result)
+                    results.append(drug_name)  # 薬剤名のみを追加
                     continue
             
             # 薬剤情報を検索
@@ -947,7 +947,7 @@ class DrugService:
             self.local_db_cache[drug_name] = drug_info
             
             if drug_info is not None:
-                results.append(drug_info)
+                results.append(drug_name)  # 薬剤名のみを追加
         
         return results
     
@@ -1188,7 +1188,6 @@ class DrugService:
                     interaction['symptoms'] = symptoms
 
             # 診断結果をキャッシュ
-            from services.drug_service import AIDrugMatcher
             norm_names = [self.normalize_name(n) for n in drug_names]
             cache_key = tuple(sorted(norm_names))
             self.diagnosis_cache[cache_key] = results
