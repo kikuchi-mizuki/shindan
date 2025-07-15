@@ -25,10 +25,22 @@ except ImportError:
     OPENAI_AVAILABLE = False
     logging.warning("OpenAI library not available. ChatGPT features will be disabled.")
 
+# Tesseract OCRライブラリのインポート
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+except ImportError:
+    TESSERACT_AVAILABLE = False
+    logging.warning("Tesseract library not available. Local OCR will be disabled.")
+
 logger = logging.getLogger(__name__)
 
 class OCRService:
     def __init__(self):
+        # Tesseract OCRの利用可能性をチェック
+        self.tesseract_available = TESSERACT_AVAILABLE
+        logger.info(f"Tesseract OCR available: {self.tesseract_available}")
+        
         # Google Cloud Vision APIの認証情報が設定されているかチェック
         self.vision_available = self._check_vision_availability()
         logger.info(f"Vision API available: {self.vision_available}")
@@ -59,7 +71,7 @@ class OCRService:
                 logger.warning(f"Failed to initialize Google Cloud Vision API: {e}")
                 self.vision_available = False
         else:
-            logger.info("Google Cloud Vision API not available, using mock OCR")
+            logger.info("Google Cloud Vision API not available, using local OCR")
     
     def _check_vision_availability(self):
         """Google Cloud Vision APIが利用可能かチェック"""
@@ -212,8 +224,8 @@ OCRテキスト:
                 logger.info("Using Vision API for OCR")
                 ocr_text = self._extract_with_vision(image_content)
             else:
-                logger.info("Using mock OCR processing")
-                ocr_text = self._extract_mock(image_content)
+                logger.info("Using local OCR processing")
+                ocr_text = self._extract_local_ocr(image_content)
             
             # OCRテキストが空の場合は前処理した画像で再試行
             if not ocr_text or len(ocr_text.strip()) < 10:
@@ -222,7 +234,7 @@ OCRテキスト:
                 if self.vision_available:
                     ocr_text = self._extract_with_vision(processed_image)
                 else:
-                    ocr_text = self._extract_mock(processed_image)
+                    ocr_text = self._extract_local_ocr(processed_image)
             
             # OCR結果を必ずログ出力
             logger.info(f"[OCR raw text]:\n{ocr_text}")
@@ -272,6 +284,10 @@ OCRテキスト:
             
             if response.error.message:
                 logger.error(f"Vision API error: {response.error.message}")
+                # 請求エラーの場合はローカルOCRにフォールバック
+                if "BILLING_DISABLED" in response.error.message:
+                    logger.info("Billing disabled, falling back to local OCR")
+                    return self._extract_local_ocr(image_content)
                 return ""
             
             # テキストを抽出
@@ -291,33 +307,48 @@ OCRテキスト:
             return full_text
         except ImportError as e:
             logger.error(f"Vision API import failed: {e}")
-            return ""
+            return self._extract_local_ocr(image_content)
         except Exception as e:
             logger.error(f"Vision API processing error: {e}")
             import traceback
             logger.error(f"Vision API traceback: {traceback.format_exc()}")
+            # エラーの場合はローカルOCRにフォールバック
+            if "BILLING_DISABLED" in str(e) or "PermissionDenied" in str(e):
+                logger.info("Billing or permission error, falling back to local OCR")
+                return self._extract_local_ocr(image_content)
             return ""
     
-    def _extract_mock(self, image_content):
-        """モックOCR処理（テスト用）"""
-        logger.info("Using mock OCR processing")
-        
-        # テスト用のサンプルテキストを返す
-        sample_text = """
-アルプラゾラム
-ブロマゼパム
-クロルジアゼポキシド
-クロバザム
-クロナゼパム
-ジアゼパム
-エチゾラム
-フルニトラゼパム
-ゾルピデム
-        """
-        
-        logger.info(f"Mock extracted text: {sample_text}")
-        return sample_text
-    
+    def _extract_local_ocr(self, image_content):
+        """Tesseractを使用してOCRテキストを抽出"""
+        if not self.tesseract_available:
+            logger.warning("Tesseract OCR is not available. Cannot perform local OCR.")
+            return ""
+
+        try:
+            # 画像をPIL Imageオブジェクトに変換
+            image = Image.open(io.BytesIO(image_content))
+            
+            # 画像をバイトデータに変換
+            image_byte_array = io.BytesIO()
+            image.save(image_byte_array, format='PNG')
+            image_byte_array.seek(0)
+            
+            # TesseractでOCRを実行
+            # 日本語モデルを使用
+            ocr_result = pytesseract.image_to_string(
+                image_byte_array,
+                lang='jpn',
+                config='--psm 11 --oem 3' # テキストブロックを1つのテキスト行として認識
+            )
+            
+            logger.info(f"Tesseract OCR result: {ocr_result}")
+            return ocr_result
+        except Exception as e:
+            logger.error(f"Tesseract OCR error: {e}")
+            import traceback
+            logger.error(f"Tesseract traceback: {traceback.format_exc()}")
+            return ""
+
     def _normalize_text(self, text):
         """OCR後の文字列正規化・誤認識補正"""
         import unicodedata
@@ -541,7 +572,7 @@ OCRテキスト:
         if self.vision_available:
             ocr_texts = self._extract_with_vision(image)
         else:
-            ocr_texts = self._extract_mock(image)
+            ocr_texts = self._extract_local_ocr(image)
         
         # OCR結果を必ずログ出力
         import logging
