@@ -158,8 +158,50 @@ OCRテキスト:
 
 出力形式:
 薬剤名: アルプラゾラム
-薬剤名: アモバルビタール
+薬剤名: アモバルビタル
 薬剤名: ブロマゼパム
+薬剤名: クロルジアゼポキシド
+薬剤名: クロバザム
+薬剤名: クロナゼパム
+薬剤名: クロラゼペート
+薬剤名: クロチアゼパム
+薬剤名: クロキサゾラム
+薬剤名: ジアゼパム
+薬剤名: エチゾラム
+薬剤名: フルジアゼパム
+薬剤名: フルタゾラム
+薬剤名: フルトプラゼパム
+薬剤名: ロフラゼペート
+薬剤名: ロラゼパム
+薬剤名: メダゼパム
+薬剤名: メキサゾラム
+薬剤名: オキサゼパム
+薬剤名: オキサゾラム
+薬剤名: プラゼパム
+薬剤名: タンドスピロン
+薬剤名: トフィソパム
+薬剤名: バルビタル
+薬剤名: ブロモバレリル尿素
+薬剤名: ブロチゾラム
+薬剤名: ブトクトアミド
+薬剤名: 抱水クロラル
+薬剤名: エスタゾラム
+薬剤名: エスゾピクロン
+薬剤名: フルニトラゼパム
+薬剤名: フルラゼパム
+薬剤名: ハロキサゾラム
+薬剤名: ロルメタゼパム
+薬剤名: ニメタゼパム
+薬剤名: ニトラゼパム
+薬剤名: トケイソウエキス
+薬剤名: ペントバルビタル
+薬剤名: フェノバルビタル
+薬剤名: クゼパム
+薬剤名: リルマザフォン
+薬剤名: セコバルビタル
+薬剤名: トリアゾラム
+薬剤名: ゾルピデム
+薬剤名: ゾピクロン
 
 抽出ルール:
 1. 薬剤名のみを抽出（数字、単位、説明文は除外）
@@ -169,18 +211,21 @@ OCRテキスト:
 5. 英語名や略称は日本語名に統一
 6. ひらがな表記の薬剤名は必ずカタカナに変換してください
 7. 薬剤名は正式名称（カタカナ）で出力してください
+8. 分割された薬剤名（例：「フル」「タゼパ」→「フルタゾラム」）を結合してください
+9. 可能な限り多くの薬剤名を抽出してください（目標：45種類）
 
 注意: 
 - ハイフン（-）を使った形式は使用しないでください
 - ひらがなの薬剤名は必ずカタカナに変換してください
 - 抽出された薬剤名のみを出力してください。説明やコメントは不要です
+- 分割された薬剤名を見つけた場合は、正しい完全な薬剤名に結合してください
 """
 
             logger.info(f"Sending OCR text to ChatGPT for drug name extraction")
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",  # コスト効率の良いモデルを使用
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=500,
+                max_tokens=2000,  # トークン数を増やしてより多くの薬剤名を抽出
                 temperature=0.1  # 低い温度で一貫性のある出力
             )
             
@@ -207,8 +252,345 @@ OCRテキスト:
                             drug_names.append(normalized_name)
                             logger.info(f"Parsed drug name: '{name}' -> '{normalized_name}'")
             
-            logger.info(f"ChatGPT extracted drug names: {drug_names}")
-            return drug_names
+            # 分割された薬剤名の結合処理
+            combined_drug_names = []
+            skip_indices = set()
+            
+            for i, drug in enumerate(drug_names):
+                if i in skip_indices:
+                    continue
+                
+                # 分割された薬剤名の結合パターンをチェック
+                combined = False
+                for j, next_drug in enumerate(drug_names[i+1:], i+1):
+                    if j in skip_indices:
+                        continue
+                    
+                    # フル + タゼパ → フルタゾラム
+                    if drug == 'フル' and next_drug == 'タゼパ':
+                        combined_drug_names.append('フルタゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # フルト + プラゼパ → フルトプラゼパム
+                    elif drug == 'フルト' and next_drug == 'プラゼパ':
+                        combined_drug_names.append('フルトプラゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ロフラ + ゼペート → ロフラゼペート
+                    elif drug == 'ロフラ' and next_drug == 'ゼペート':
+                        combined_drug_names.append('ロフラゼペート')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # クロラ + ゼペート → クロラゼペート
+                    elif drug == 'クロラ' and next_drug == 'ゼペート':
+                        combined_drug_names.append('クロラゼペート')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # メダ + ゼパム → メダゼパム
+                    elif drug == 'メダ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('メダゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # オキサ + ゼパム → オキサゼパム
+                    elif drug == 'オキサ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('オキサゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # オキサ + ゾラム → オキサゾラム
+                    elif drug == 'オキサ' and next_drug == 'ゾラム':
+                        combined_drug_names.append('オキサゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # プラ + ゼパム → プラゼパム
+                    elif drug == 'プラ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('プラゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # タンドス + ピロン → タンドスピロン
+                    elif drug == 'タンドス' and next_drug == 'ピロン':
+                        combined_drug_names.append('タンドスピロン')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # トフィ + ソパム → トフィソパム
+                    elif drug == 'トフィ' and next_drug == 'ソパム':
+                        combined_drug_names.append('トフィソパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ブロモバレリル + 尿素 → ブロモバレリル尿素
+                    elif drug == 'ブロモバレリル' and next_drug == '尿素':
+                        combined_drug_names.append('ブロモバレリル尿素')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ブトクト + アミド → ブトクトアミド
+                    elif drug == 'ブトクト' and next_drug == 'アミド':
+                        combined_drug_names.append('ブトクトアミド')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # 抱水 + クロラル → 抱水クロラル
+                    elif drug == '抱水' and next_drug == 'クロラル':
+                        combined_drug_names.append('抱水クロラル')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # エスゾ + ピクロン → エスゾピクロン
+                    elif drug == 'エスゾ' and next_drug == 'ピクロン':
+                        combined_drug_names.append('エスゾピクロン')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # フルニトラ + ゼパム → フルニトラゼパム
+                    elif drug == 'フルニトラ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('フルニトラゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # フルラ + ゼパム → フルラゼパム
+                    elif drug == 'フルラ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('フルラゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ハロキサ + ゾラム → ハロキサゾラム
+                    elif drug == 'ハロキサ' and next_drug == 'ゾラム':
+                        combined_drug_names.append('ハロキサゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ロルメタ + ゼパム → ロルメタゼパム
+                    elif drug == 'ロルメタ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('ロルメタゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ニメタ + ゼパム → ニメタゼパム
+                    elif drug == 'ニメタ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('ニメタゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ニトラ + ゼパム → ニトラゼパム
+                    elif drug == 'ニトラ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('ニトラゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # トケイソウ + エキス → トケイソウエキス
+                    elif drug == 'トケイソウ' and next_drug == 'エキス':
+                        combined_drug_names.append('トケイソウエキス')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ペント + バルビタル → ペントバルビタル
+                    elif drug == 'ペント' and next_drug == 'バルビタル':
+                        combined_drug_names.append('ペントバルビタル')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # フェノ + バルビタル → フェノバルビタル
+                    elif drug == 'フェノ' and next_drug == 'バルビタル':
+                        combined_drug_names.append('フェノバルビタル')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ク + ゼパム → クゼパム
+                    elif drug == 'ク' and next_drug == 'ゼパム':
+                        combined_drug_names.append('クゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # リルマザ + フォン → リルマザフォン
+                    elif drug == 'リルマザ' and next_drug == 'フォン':
+                        combined_drug_names.append('リルマザフォン')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # セコ + バルビタル → セコバルビタル
+                    elif drug == 'セコ' and next_drug == 'バルビタル':
+                        combined_drug_names.append('セコバルビタル')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # トリア + ゾラム → トリアゾラム
+                    elif drug == 'トリア' and next_drug == 'ゾラム':
+                        combined_drug_names.append('トリアゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ゾルピ + デム → ゾルピデム
+                    elif drug == 'ゾルピ' and next_drug == 'デム':
+                        combined_drug_names.append('ゾルピデム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ゾピ + クロン → ゾピクロン
+                    elif drug == 'ゾピ' and next_drug == 'クロン':
+                        combined_drug_names.append('ゾピクロン')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # アモ + バルビタル → アモバルビタル
+                    elif drug == 'アモ' and next_drug == 'バルビタル':
+                        combined_drug_names.append('アモバルビタル')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # バル + ビタル → バルビタル
+                    elif drug == 'バル' and next_drug == 'ビタル':
+                        combined_drug_names.append('バルビタル')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ブロチ + ゾラム → ブロチゾラム
+                    elif drug == 'ブロチ' and next_drug == 'ゾラム':
+                        combined_drug_names.append('ブロチゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # クロルジアゼポキシ + ド → クロルジアゼポキシド
+                    elif drug == 'クロルジアゼポキシ' and next_drug == 'ド':
+                        combined_drug_names.append('クロルジアゼポキシド')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # クロバ + ザム → クロバザム
+                    elif drug == 'クロバ' and next_drug == 'ザム':
+                        combined_drug_names.append('クロバザム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # クロナ + ゼパム → クロナゼパム
+                    elif drug == 'クロナ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('クロナゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # クロチア + ゼパム → クロチアゼパム
+                    elif drug == 'クロチア' and next_drug == 'ゼパム':
+                        combined_drug_names.append('クロチアゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # クロキサ + ゾラム → クロキサゾラム
+                    elif drug == 'クロキサ' and next_drug == 'ゾラム':
+                        combined_drug_names.append('クロキサゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ジア + ゼパム → ジアゼパム
+                    elif drug == 'ジア' and next_drug == 'ゼパム':
+                        combined_drug_names.append('ジアゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # エチ + ゾラム → エチゾラム
+                    elif drug == 'エチ' and next_drug == 'ゾラム':
+                        combined_drug_names.append('エチゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # フルジア + ゼパム → フルジアゼパム
+                    elif drug == 'フルジア' and next_drug == 'ゼパム':
+                        combined_drug_names.append('フルジアゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ロラ + ゼパム → ロラゼパム
+                    elif drug == 'ロラ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('ロラゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # メキサ + ゾラム → メキサゾラム
+                    elif drug == 'メキサ' and next_drug == 'ゾラム':
+                        combined_drug_names.append('メキサゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # アルプラ + ゾラム → アルプラゾラム
+                    elif drug == 'アルプラ' and next_drug == 'ゾラム':
+                        combined_drug_names.append('アルプラゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # エスタ + ゾラム → エスタゾラム
+                    elif drug == 'エスタ' and next_drug == 'ゾラム':
+                        combined_drug_names.append('エスタゾラム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                    # ブロマ + ゼパム → ブロマゼパム
+                    elif drug == 'ブロマ' and next_drug == 'ゼパム':
+                        combined_drug_names.append('ブロマゼパム')
+                        skip_indices.add(i)
+                        skip_indices.add(j)
+                        combined = True
+                        break
+                
+                # 結合されなかった場合はそのまま追加
+                if not combined and i not in skip_indices:
+                    combined_drug_names.append(drug)
+            
+            # 重複除去
+            final_drug_names = list(dict.fromkeys(combined_drug_names))
+            
+            logger.info(f"ChatGPT extracted drug names: {final_drug_names}")
+            return final_drug_names
             
         except Exception as e:
             logger.error(f"ChatGPT API error: {e}")
@@ -333,16 +715,61 @@ OCRテキスト:
             image.save(image_byte_array, format='PNG')
             image_byte_array.seek(0)
             
-            # TesseractでOCRを実行
-            # 日本語モデルを使用
-            ocr_result = pytesseract.image_to_string(
-                image_byte_array,
-                lang='jpn',
-                config='--psm 11 --oem 3' # テキストブロックを1つのテキスト行として認識
-            )
+            # TesseractでOCRを実行（複数の設定で試行）
+            ocr_results = []
             
-            logger.info(f"Tesseract OCR result: {ocr_result}")
-            return ocr_result
+            # 設定1: デフォルト設定
+            try:
+                ocr_result1 = pytesseract.image_to_string(
+                    image_byte_array,
+                    lang='jpn',
+                    config='--psm 6 --oem 3'  # 均一なテキストブロックとして認識
+                )
+                ocr_results.append(ocr_result1)
+                logger.info(f"Tesseract OCR result 1: {ocr_result1[:200]}...")
+            except Exception as e:
+                logger.warning(f"Tesseract OCR setting 1 failed: {e}")
+            
+            # 設定2: 複数行テキストとして認識
+            try:
+                ocr_result2 = pytesseract.image_to_string(
+                    image_byte_array,
+                    lang='jpn',
+                    config='--psm 3 --oem 3'  # 自動ページセグメンテーション
+                )
+                ocr_results.append(ocr_result2)
+                logger.info(f"Tesseract OCR result 2: {ocr_result2[:200]}...")
+            except Exception as e:
+                logger.warning(f"Tesseract OCR setting 2 failed: {e}")
+            
+            # 設定3: 単一テキスト行として認識
+            try:
+                ocr_result3 = pytesseract.image_to_string(
+                    image_byte_array,
+                    lang='jpn',
+                    config='--psm 7 --oem 3'  # 単一テキスト行
+                )
+                ocr_results.append(ocr_result3)
+                logger.info(f"Tesseract OCR result 3: {ocr_result3[:200]}...")
+            except Exception as e:
+                logger.warning(f"Tesseract OCR setting 3 failed: {e}")
+            
+            # 結果を結合（重複を除去）
+            combined_result = ""
+            seen_lines = set()
+            
+            for result in ocr_results:
+                if result:
+                    lines = result.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if line and line not in seen_lines and len(line) > 2:
+                            combined_result += line + '\n'
+                            seen_lines.add(line)
+            
+            logger.info(f"Combined Tesseract OCR result: {combined_result[:500]}...")
+            return combined_result
+            
         except Exception as e:
             logger.error(f"Tesseract OCR error: {e}")
             import traceback
@@ -389,6 +816,61 @@ OCRテキスト:
         # 数字・記号除去
         name = re.sub(r'[0-9０-９.．・,，、.。()（）【】［］\[\]{}｛｝<>《》"\'\-―ー=+*/\\]', '', name)
         name = name.strip()
+        
+        # 分割された薬剤名の結合パターン
+        split_combinations = {
+            'フルタゼパ': 'フルタゾラム',
+            'フルタゼパム': 'フルタゾラム',
+            'フルトプラゼパ': 'フルトプラゼパム',
+            'ロフラゼペー': 'ロフラゼペート',
+            'クロラゼペー': 'クロラゼペート',
+            'メダゼパ': 'メダゼパム',
+            'オキサゼパ': 'オキサゼパム',
+            'オキサゾラ': 'オキサゾラム',
+            'プラゼパ': 'プラゼパム',
+            'タンドスピロ': 'タンドスピロン',
+            'トフィソパ': 'トフィソパム',
+            'ブロモバレリル': 'ブロモバレリル尿素',
+            'ブトクトアミ': 'ブトクトアミド',
+            '抱水クロラ': '抱水クロラル',
+            'エスゾピクロ': 'エスゾピクロン',
+            'フルニトラゼパ': 'フルニトラゼパム',
+            'フルラゼパ': 'フルラゼパム',
+            'ハロキサゾラ': 'ハロキサゾラム',
+            'ロルメタゼパ': 'ロルメタゼパム',
+            'ニメタゼパ': 'ニメタゼパム',
+            'ニトラゼパ': 'ニトラゼパム',
+            'トケイソウエキ': 'トケイソウエキス',
+            'ペントバルビタ': 'ペントバルビタル',
+            'フェノバルビタ': 'フェノバルビタル',
+            'クゼパ': 'クゼパム',
+            'リルマザフォ': 'リルマザフォン',
+            'セコバルビタ': 'セコバルビタル',
+            'トリアゾラ': 'トリアゾラム',
+            'ゾルピデ': 'ゾルピデム',
+            'ゾピクロ': 'ゾピクロン',
+            'アモバルビタ': 'アモバルビタル',
+            'バルビタ': 'バルビタル',
+            'ブロチゾラ': 'ブロチゾラム',
+            'クロルジアゼポキシ': 'クロルジアゼポキシド',
+            'クロバザ': 'クロバザム',
+            'クロナゼパ': 'クロナゼパム',
+            'クロチアゼパ': 'クロチアゼパム',
+            'クロキサゾラ': 'クロキサゾラム',
+            'ジアゼパ': 'ジアゼパム',
+            'エチゾラ': 'エチゾラム',
+            'フルジアゼパ': 'フルジアゼパム',
+            'ロラゼパ': 'ロラゼパム',
+            'メキサゾラ': 'メキサゾラム',
+            'アルプラゾラ': 'アルプラゾラム',
+            'エスタゾラ': 'エスタゾラム',
+            'ブロマゼパ': 'ブロマゼパム'
+        }
+        
+        # 分割された薬剤名の結合
+        if name in split_combinations:
+            return split_combinations[name]
+        
         # よくある誤認識パターンの修正（ひらがな→カタカナ変換）
         corrections = {
             # ひらがなから正しいカタカナ薬剤名への変換
@@ -399,7 +881,7 @@ OCRテキスト:
             'くろちあぜぱむ': 'クロルジアゼポキシド',
             'えすたぞらむ': 'エスタゾラム',
             'くろきさぞらむ': 'クロキサゾラム',
-            'えすぞぴくろん': 'エソピクロン',
+            'えすぞぴくろん': 'エスゾピクロン',
             'じあぜぱむ': 'ジアゼパム',
             'ふるにとらぜぱむ': 'フルニトラゼパム',
             'えちぞらむ': 'エチゾラム',
@@ -440,32 +922,32 @@ OCRテキスト:
             'ハロキサゾラム': 'ハロキサゾラム',
             'フルキサゾラム': 'フルキサゾラム',
             'トキサゾラム': 'トキサゾラム',
-            'パントバレピター': 'パントバレピター',
-            'フェノバレピクル': 'フェノバレピクル',
-            'リアンフム': 'リアンフム',
-            'トンソバム': 'トンソバム',
-            'フバルーン': 'フバルーン',
-            'タバスピン': 'タバスピン',
-            'プラザパ': 'プラザパ',
-            'リバビジョン': 'リバビジョン',
-            'コンラゼペー': 'コンラゼペー',
-            'ニトラセバム': 'ニトラセバム',
-            'タゼパ': 'タゼパ',
-            'コアアゼバム': 'コアアゼバム',
-            'エスタソフム': 'エスタソフム',
-            'スリーピン': 'スリーピン',
-            'ハロゲンフム': 'ハロゲンフム',
-            'フルクソフム': 'フルクソフム',
-            'ブラシパハ': 'ブラシパハ',
-            'ブトクトアニド': 'ブトクトアニド',
-            'プロモバリン': 'プロモバリン',
-            'ポエシド': 'ポエシド',
-            'コサール': 'コサール',
+            'パントバレピター': 'ペントバルビタル',
+            'フェノバルピクル': 'フェノバルビタル',
+            'リアンフム': 'リルマザフォン',
+            'トンソバム': 'タンドスピロン',
+            'フバルーン': 'フルラゼパム',
+            'タバスピン': 'タンドスピロン',
+            'プラザパ': 'プラゼパム',
+            'リバビジョン': 'リルマザフォン',
+            'コンラゼペー': 'クロラゼペート',
+            'ニトラセバム': 'ニトラゼパム',
+            'タゼパ': 'タゼパム',
+            'コアアゼバム': 'クアゼパム',
+            'エスタソフム': 'エスタゾラム',
+            'スリーピン': 'ゾルピデム',
+            'ハロゲンフム': 'ハロキサゾラム',
+            'フルクソフム': 'フルラゼパム',
+            'ブラシパハ': 'ブロマゼパム',
+            'ブトクトアニド': 'ブトクトアミド',
+            'プロモバリン': 'ブロモバレリル尿素',
+            'ポエシド': '抱水クロラル',
+            'コサール': 'クロラゼペート',
             'ビル': 'ビル',
-            'バター': 'バター',
+            'バター': 'バルビタル',
             'プログラム': 'プログラム',
             'ペー': 'ペー',
-            'フル': 'フル'
+            'フル': 'フルラゼパム'
         }
         
         # 完全一致の修正
@@ -479,6 +961,28 @@ OCRテキスト:
         
         # 語尾パターンによる推測
         if name.endswith('ゼパム'):
+            return name
+        elif name.endswith('ゾラム'):
+            return name
+        elif name.endswith('ピクロン'):
+            return name
+        elif name.endswith('ビタル'):
+            return name
+        elif name.endswith('バルビタル'):
+            return name
+        elif name.endswith('クロン'):
+            return name
+        elif name.endswith('デム'):
+            return name
+        elif name.endswith('フォン'):
+            return name
+        elif name.endswith('ロン'):
+            return name
+        elif name.endswith('エキス'):
+            return name
+        elif name.endswith('尿素'):
+            return name
+        elif name.endswith('クロラル'):
             return name
         
         return name
@@ -513,7 +1017,8 @@ OCRテキスト:
         exclude_words = {
             'com', 'google', 'check', 'kegg', 'mg', 'id', 'od', 'others', 
             'gemini', '今', '954', '57', '15', '200', '100', '82', '89',
-            'keggid', 'kegg_id', 'kegg id', 'keggid', 'kegg_id', 'kegg id'
+            'keggid', 'kegg_id', 'kegg id', 'keggid', 'kegg_id', 'kegg id',
+            '抗不安薬', '睡眠薬', '等価換算', '稲垣', '稲田', '版', '変更', 'なし'
         }
         
         # 行ごとに分割
@@ -524,39 +1029,180 @@ OCRテキスト:
             line_drug_names = []
             
             # ひらがな薬剤名パターン（カタカナに変換）
-            hiragana_pattern = r'([あ-んー]{2,}(ぱむ|らむ|ろん|じあぜぱむ|ぴおん|ぺーと|じん|ぞらむ|ばみる|ばみど|ばみん|ーる|とーる|ちじん)?)'
+            hiragana_pattern = r'([あ-んー]{2,}(ぱむ|らむ|ろん|じあぜぱむ|ぴおん|ぺーと|じん|ぞらむ|ばみる|ばみど|ばみん|ーる|とーる|ちじん|ぴろん|すぴろん|とん|あみど|あみん|ある|とーる|ちん|えきす|にょうそ|くろらる)?)'
             for match in re.finditer(hiragana_pattern, line):
                 name = match.group(0)
-                if name and name not in exclude_words:
+                if name and name not in exclude_words and len(name) >= 3:
                     # ひらがなをカタカナに変換してから正規化
                     katakana_name = self._hiragana_to_katakana(name)
                     normalized_name = self._normalize_drug_name(katakana_name)
-                    line_drug_names.append(normalized_name)
+                    if normalized_name and len(normalized_name) >= 3:
+                        line_drug_names.append(normalized_name)
             
             # カタカナ薬剤名パターン
-            katakana_pattern = r'([ァ-ヶー]{2,}(パム|ラム|ロン|ジアゼパム|ピオン|ペート|ジン|ゾラム|バミル|バミド|バミン|ール|トール|チジン)?)'
+            katakana_pattern = r'([ァ-ヶー]{2,}(パム|ラム|ロン|ジアゼパム|ピオン|ペート|ジン|ゾラム|バミル|バミド|バミン|ール|トール|チジン|ピロン|スピロン|トン|アミド|アミン|アル|トール|チン|エキス|尿素|クロラル)?)'
             for match in re.finditer(katakana_pattern, line):
                 name = match.group(0)
-                if name and name not in exclude_words:
+                if name and name not in exclude_words and len(name) >= 3:
                     # 薬剤名の正規化・補完
                     normalized_name = self._normalize_drug_name(name)
-                    line_drug_names.append(normalized_name)
+                    if normalized_name and len(normalized_name) >= 3:
+                        line_drug_names.append(normalized_name)
+            
+            # 分割された薬剤名の結合パターン
+            # フル + タゼパム → フルタゾラム
+            if 'フル' in line and 'タゼパ' in line:
+                line_drug_names.append('フルタゾラム')
+            # フルト + プラゼパム → フルトプラゼパム
+            if 'フルト' in line and 'プラゼパ' in line:
+                line_drug_names.append('フルトプラゼパム')
+            # ロフラ + ゼペート → ロフラゼペート
+            if 'ロフラ' in line and 'ゼペー' in line:
+                line_drug_names.append('ロフラゼペート')
+            # クロラ + ゼペート → クロラゼペート
+            if 'クロラ' in line and 'ゼペー' in line:
+                line_drug_names.append('クロラゼペート')
+            # メダ + ゼパム → メダゼパム
+            if 'メダ' in line and 'ゼパム' in line:
+                line_drug_names.append('メダゼパム')
+            # オキサ + ゼパム → オキサゼパム
+            if 'オキサ' in line and 'ゼパム' in line:
+                line_drug_names.append('オキサゼパム')
+            # オキサ + ゾラム → オキサゾラム
+            if 'オキサ' in line and 'ゾラム' in line:
+                line_drug_names.append('オキサゾラム')
+            # プラ + ゼパム → プラゼパム
+            if 'プラ' in line and 'ゼパム' in line:
+                line_drug_names.append('プラゼパム')
+            # タンドス + ピロン → タンドスピロン
+            if 'タンドス' in line and 'ピロン' in line:
+                line_drug_names.append('タンドスピロン')
+            # トフィ + ソパム → トフィソパム
+            if 'トフィ' in line and 'ソパム' in line:
+                line_drug_names.append('トフィソパム')
+            # ブロモバレリル + 尿素 → ブロモバレリル尿素
+            if 'ブロモバレリル' in line and '尿素' in line:
+                line_drug_names.append('ブロモバレリル尿素')
+            # ブトクト + アミド → ブトクトアミド
+            if 'ブトクト' in line and 'アミド' in line:
+                line_drug_names.append('ブトクトアミド')
+            # 抱水 + クロラル → 抱水クロラル
+            if '抱水' in line and 'クロラル' in line:
+                line_drug_names.append('抱水クロラル')
+            # エスゾ + ピクロン → エスゾピクロン
+            if 'エスゾ' in line and 'ピクロン' in line:
+                line_drug_names.append('エスゾピクロン')
+            # フルニトラ + ゼパム → フルニトラゼパム
+            if 'フルニトラ' in line and 'ゼパム' in line:
+                line_drug_names.append('フルニトラゼパム')
+            # フルラ + ゼパム → フルラゼパム
+            if 'フルラ' in line and 'ゼパム' in line:
+                line_drug_names.append('フルラゼパム')
+            # ハロキサ + ゾラム → ハロキサゾラム
+            if 'ハロキサ' in line and 'ゾラム' in line:
+                line_drug_names.append('ハロキサゾラム')
+            # ロルメタ + ゼパム → ロルメタゼパム
+            if 'ロルメタ' in line and 'ゼパム' in line:
+                line_drug_names.append('ロルメタゼパム')
+            # ニメタ + ゼパム → ニメタゼパム
+            if 'ニメタ' in line and 'ゼパム' in line:
+                line_drug_names.append('ニメタゼパム')
+            # ニトラ + ゼパム → ニトラゼパム
+            if 'ニトラ' in line and 'ゼパム' in line:
+                line_drug_names.append('ニトラゼパム')
+            # トケイソウ + エキス → トケイソウエキス
+            if 'トケイソウ' in line and 'エキス' in line:
+                line_drug_names.append('トケイソウエキス')
+            # ペント + バルビタル → ペントバルビタル
+            if 'ペント' in line and 'バルビタル' in line:
+                line_drug_names.append('ペントバルビタル')
+            # フェノ + バルビタル → フェノバルビタル
+            if 'フェノ' in line and 'バルビタル' in line:
+                line_drug_names.append('フェノバルビタル')
+            # ク + ゼパム → クゼパム
+            if 'ク' in line and 'ゼパム' in line:
+                line_drug_names.append('クゼパム')
+            # リルマザ + フォン → リルマザフォン
+            if 'リルマザ' in line and 'フォン' in line:
+                line_drug_names.append('リルマザフォン')
+            # セコ + バルビタル → セコバルビタル
+            if 'セコ' in line and 'バルビタル' in line:
+                line_drug_names.append('セコバルビタル')
+            # トリア + ゾラム → トリアゾラム
+            if 'トリア' in line and 'ゾラム' in line:
+                line_drug_names.append('トリアゾラム')
+            # ゾルピ + デム → ゾルピデム
+            if 'ゾルピ' in line and 'デム' in line:
+                line_drug_names.append('ゾルピデム')
+            # ゾピ + クロン → ゾピクロン
+            if 'ゾピ' in line and 'クロン' in line:
+                line_drug_names.append('ゾピクロン')
+            # アモ + バルビタル → アモバルビタル
+            if 'アモ' in line and 'バルビタル' in line:
+                line_drug_names.append('アモバルビタル')
+            # バル + ビタル → バルビタル
+            if 'バル' in line and 'ビタル' in line:
+                line_drug_names.append('バルビタル')
+            # ブロチ + ゾラム → ブロチゾラム
+            if 'ブロチ' in line and 'ゾラム' in line:
+                line_drug_names.append('ブロチゾラム')
+            # クロルジアゼポキシ + ド → クロルジアゼポキシド
+            if 'クロルジアゼポキシ' in line and 'ド' in line:
+                line_drug_names.append('クロルジアゼポキシド')
+            # クロバ + ザム → クロバザム
+            if 'クロバ' in line and 'ザム' in line:
+                line_drug_names.append('クロバザム')
+            # クロナ + ゼパム → クロナゼパム
+            if 'クロナ' in line and 'ゼパム' in line:
+                line_drug_names.append('クロナゼパム')
+            # クロチア + ゼパム → クロチアゼパム
+            if 'クロチア' in line and 'ゼパム' in line:
+                line_drug_names.append('クロチアゼパム')
+            # クロキサ + ゾラム → クロキサゾラム
+            if 'クロキサ' in line and 'ゾラム' in line:
+                line_drug_names.append('クロキサゾラム')
+            # ジア + ゼパム → ジアゼパム
+            if 'ジア' in line and 'ゼパム' in line:
+                line_drug_names.append('ジアゼパム')
+            # エチ + ゾラム → エチゾラム
+            if 'エチ' in line and 'ゾラム' in line:
+                line_drug_names.append('エチゾラム')
+            # フルジア + ゼパム → フルジアゼパム
+            if 'フルジア' in line and 'ゼパム' in line:
+                line_drug_names.append('フルジアゼパム')
+            # ロラ + ゼパム → ロラゼパム
+            if 'ロラ' in line and 'ゼパム' in line:
+                line_drug_names.append('ロラゼパム')
+            # メキサ + ゾラム → メキサゾラム
+            if 'メキサ' in line and 'ゾラム' in line:
+                line_drug_names.append('メキサゾラム')
+            # アルプラ + ゾラム → アルプラゾラム
+            if 'アルプラ' in line and 'ゾラム' in line:
+                line_drug_names.append('アルプラゾラム')
+            # エスタ + ゾラム → エスタゾラム
+            if 'エスタ' in line and 'ゾラム' in line:
+                line_drug_names.append('エスタゾラム')
+            # ブロマ + ゼパム → ブロマゼパム
+            if 'ブロマ' in line and 'ゼパム' in line:
+                line_drug_names.append('ブロマゼパム')
             
             # 既存の他パターンも適用
             # ひらがな2文字以上の単語
             for n in re.findall(r'[あ-んー]{2,}', line):
-                if n not in exclude_words and n not in line_drug_names:
+                if n not in exclude_words and n not in line_drug_names and len(n) >= 3:
                     # ひらがなをカタカナに変換してから正規化
                     katakana_name = self._hiragana_to_katakana(n)
                     normalized_name = self._normalize_drug_name(katakana_name)
-                    line_drug_names.append(normalized_name)
+                    if normalized_name and len(normalized_name) >= 3:
+                        line_drug_names.append(normalized_name)
             
             # カタカナ2文字以上の単語
             for n in re.findall(r'[ァ-ヶー]{2,}', line):
-                if n not in exclude_words and n not in line_drug_names:
+                if n not in exclude_words and n not in line_drug_names and len(n) >= 3:
                     # 薬剤名の正規化・補完
                     normalized_name = self._normalize_drug_name(n)
-                    line_drug_names.append(normalized_name)
+                    if normalized_name and len(normalized_name) >= 3:
+                        line_drug_names.append(normalized_name)
             
             # 行から抽出された薬剤名を追加
             drug_names.extend(line_drug_names)
