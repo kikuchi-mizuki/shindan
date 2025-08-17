@@ -228,82 +228,38 @@ class AIDrugMatcher:
         
         self.analysis_cache[drug_name] = analysis
     
-    def _normalize_name(self, name: str) -> str:
-        """薬剤名の正規化（強化版）"""
-        if not name:
-            return ''
-        
-        # 基本的な正規化
-        normalized = name.strip()
-        
-        # 全角→半角変換
-        normalized = re.sub(r'[Ａ-Ｚａ-ｚ０-９]', lambda x: chr(ord(x.group(0)) - 0xFEE0), normalized)
-        
-        # ひらがな→カタカナ変換（薬剤名はカタカナ表記が標準）
-        hiragana_to_katakana = str.maketrans({
-            'あ': 'ア', 'い': 'イ', 'う': 'ウ', 'え': 'エ', 'お': 'オ',
-            'か': 'カ', 'き': 'キ', 'く': 'ク', 'け': 'ケ', 'こ': 'コ',
-            'さ': 'サ', 'し': 'シ', 'す': 'ス', 'せ': 'セ', 'そ': 'ソ',
-            'た': 'タ', 'ち': 'チ', 'つ': 'ツ', 'て': 'テ', 'と': 'ト',
-            'な': 'ナ', 'に': 'ニ', 'ぬ': 'ヌ', 'ね': 'ネ', 'の': 'ノ',
-            'は': 'ハ', 'ひ': 'ヒ', 'ふ': 'フ', 'へ': 'ヘ', 'ほ': 'ホ',
-            'ま': 'マ', 'み': 'ミ', 'む': 'ム', 'め': 'メ', 'も': 'モ',
-            'や': 'ヤ', 'ゆ': 'ユ', 'よ': 'ヨ',
-            'ら': 'ラ', 'り': 'リ', 'る': 'ル', 'れ': 'レ', 'ろ': 'ロ',
-            'わ': 'ワ', 'を': 'ヲ', 'ん': 'ン',
-            'が': 'ガ', 'ぎ': 'ギ', 'ぐ': 'グ', 'げ': 'ゲ', 'ご': 'ゴ',
-            'ざ': 'ザ', 'じ': 'ジ', 'ず': 'ズ', 'ぜ': 'ゼ', 'ぞ': 'ゾ',
-            'だ': 'ダ', 'ぢ': 'ヂ', 'づ': 'ヅ', 'で': 'デ', 'ど': 'ド',
-            'ば': 'バ', 'び': 'ビ', 'ぶ': 'ブ', 'べ': 'ベ', 'ぼ': 'ボ',
-            'ぱ': 'パ', 'ぴ': 'ピ', 'ぷ': 'プ', 'ぺ': 'ペ', 'ぽ': 'ポ',
-            'ゃ': 'ャ', 'ゅ': 'ュ', 'ょ': 'ョ', 'っ': 'ッ'
-        })
-        normalized = normalized.translate(hiragana_to_katakana)
-        
-        # 括弧とその中身を除去
-        normalized = re.sub(r'[\(\)（）].*?[\(\)（）]', '', normalized)
-        normalized = re.sub(r'[\(\)（）]', '', normalized)
-        
-        # 剤形の除去（より詳細）
-        dosage_forms = [
-            '錠', 'カプセル', '散', '液', '注射', '軟膏', 'クリーム', 'テープ', '坐剤', '点眼',
-            'mg', 'g', 'ml', 'L', 'μg', 'mcg', 'IU', '単位'
-        ]
-        for form in dosage_forms:
-            # 剤形の前の数字も含めて除去
-            normalized = re.sub(rf'\d*{re.escape(form)}', '', normalized, flags=re.IGNORECASE)
-        
-        # 製薬会社名の除去
-        company_patterns = [
-            r'「[^」]*」',  # 「」で囲まれた文字列
-            r'\[[^\]]*\]',  # []で囲まれた文字列
-            r'\([^)]*\)',   # ()で囲まれた文字列
-        ]
-        for pattern in company_patterns:
-            normalized = re.sub(pattern, '', normalized)
-        
-        # 記号・空白の除去
-        normalized = re.sub(r'[\s\-・,，、.。()（）【】［］\[\]{}｛｝<>《》"\'\-―ー=+*/\\]', '', normalized)
-        
-        # 複数スペースを単一に
-        normalized = re.sub(r'\s+', ' ', normalized)
-        
-        return normalized.strip()
-    
-
+    def _calculate_confidence(self, drug_name: str, analysis: Dict[str, Any]) -> float:
+        """マッチング信頼度の計算"""
+        confidence = 0.0
         
         # 長さによる基本スコア
         if len(drug_name) >= 4:
             confidence += 0.2
         
         # カテゴリ予測によるスコア
-        if analysis['category'] != 'unknown':
+        category = analysis.get('category', 'unknown')
+        if category != 'unknown':
             confidence += 0.3
+        
+        # 正規化された名前の長さによるスコア
+        normalized = analysis.get('normalized', '')
+        if len(normalized) >= 3:
+            confidence += 0.2
+        
+        # 英語バリアントの存在によるスコア
+        english_variants = analysis.get('english_variants', [])
+        if english_variants:
+            confidence += 0.1
+        
+        # 検索優先度によるスコア
+        search_priority = analysis.get('search_priority', [])
+        if search_priority:
+            confidence += 0.1
         
         # 一般的な接尾辞/接頭辞によるスコア
         for suffix in self.common_suffixes:
             if drug_name.endswith(suffix):
-                confidence += 0.2
+                confidence += 0.1
                 break
         
         for prefix in self.common_prefixes:
@@ -311,11 +267,35 @@ class AIDrugMatcher:
                 confidence += 0.1
                 break
         
-        # 英語名の存在によるスコア
-        if analysis['english_variants']:
-            confidence += 0.2
-        
         return min(confidence, 1.0)
+
+    def _normalize_name(self, name: str) -> str:
+        """薬剤名の正規化"""
+        if not name:
+            return ""
+        
+        # 基本的な正規化
+        normalized = name.strip()
+        
+        # 剤形の除去
+        dosage_forms = ['錠', 'カプセル', '散剤', '液剤', '注射剤', '軟膏', 'クリーム', '貼付剤', '吸入剤', '点眼剤', '点鼻剤']
+        for form in dosage_forms:
+            normalized = normalized.replace(form, '')
+        
+        # 数字と単位の除去
+        normalized = re.sub(r'\d+\.?\d*\s*(mg|g|ml|μg|mcg)', '', normalized)
+        normalized = re.sub(r'\d+', '', normalized)
+        
+        # 製薬会社名の除去（括弧内）
+        normalized = re.sub(r'[（(].*?[）)]', '', normalized)
+        
+        # 特殊文字の除去
+        normalized = re.sub(r'[^\w\s]', '', normalized)
+        
+        return normalized.strip()
+    
+
+
     
     def _generate_english_variants(self, drug_name: str) -> List[str]:
         """英語名の変形を生成"""
@@ -421,16 +401,22 @@ class AIDrugMatcher:
         if analysis['category'] != 'unknown' and analysis['confidence'] >= 0.6:
             # カテゴリ固有の検索パターンを追加
             category_patterns = {
-                'benzodiazepines': ['pam', 'lam', 'zolam'],
-                'barbiturates': ['barbital', 'barbital'],
-                'opioids': ['morphine', 'codeine', 'fentanyl'],
-                'nsaids': ['profen', 'fenac', 'aspirin'],
-                'statins': ['statin'],
-                'ace_inhibitors': ['pril'],
+                'benzodiazepine': ['pam', 'lam', 'zolam'],
+                'barbiturate': ['barbital', 'barbital'],
+                'opioid': ['morphine', 'codeine', 'fentanyl'],
+                'nsaid': ['profen', 'fenac', 'aspirin'],
+                'statin': ['statin'],
+                'ace_inhibitor': ['pril'],
                 'arb': ['sartan'],
-                'beta_blockers': ['olol'],
-                'calcium_blockers': ['dipine'],
-                'diuretics': ['ide']
+                'beta_blocker': ['olol'],
+                'ca_antagonist': ['dipine'],
+                'diuretic': ['ide'],
+                'pde5_inhibitor': ['afil'],
+                'nitrate': ['nitrate', 'nitro'],
+                'arni': ['arni', 'sacubitril'],
+                'ca_antagonist_arb_combination': ['combination'],
+                'p_cab': ['p-cab', 'p cab'],
+                'ppi': ['prazole']
             }
             
             if analysis['category'] in category_patterns:
