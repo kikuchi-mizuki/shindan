@@ -2196,6 +2196,8 @@ class DrugService:
         drug_lower = drug_name.lower()
         normalized_name = self._normalize_name(drug_name).lower()
         
+        logger.info(f"薬剤分類開始: 元の名前='{drug_name}', 小文字='{drug_lower}', 正規化='{normalized_name}'")
+        
         # 正確な薬剤分類マッピング
         exact_drug_mapping = {
             # PDE5阻害薬
@@ -2491,6 +2493,20 @@ class DrugService:
         for flexible_name, category in flexible_mappings.items():
             if flexible_name.lower() in drug_lower:
                 logger.info(f"柔軟マッチング検出: {drug_name} -> {flexible_name} -> {category}")
+                return category
+        
+        # 0.7. 画像で確認された正確な薬剤名の直接マッチング
+        exact_image_mappings = {
+            '炭酸ランタンロ腔内崩壊錠mg': 'phosphate_binder',
+            'フェブキソスタット錠mg': 'uric_acid_lowering',
+            'リオナ錠mg': 'phosphate_binder',
+            'アルファカルシドル錠µg': 'vitamin_d',
+            'ルパフィン錠mg': 'antihistamine',
+        }
+        
+        for exact_name, category in exact_image_mappings.items():
+            if exact_name.lower() == drug_lower:
+                logger.info(f"画像完全一致検出: {drug_name} -> {exact_name} -> {category}")
                 return category
         
         # 1. 完全一致チェック（最も信頼性が高い）
