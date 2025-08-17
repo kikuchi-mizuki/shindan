@@ -625,8 +625,8 @@ def handle_image_message(event):
             if matched_drugs:
                 drug_info = drug_service.get_drug_interactions(matched_drugs)
                 
-                # 改善されたresponse_serviceを使用してメッセージを生成
-                response_text = response_service.generate_simple_response(matched_drugs)
+                # 新しいAI分析結果を使用してメッセージを生成
+                response_text = response_service.generate_response(drug_info)
                 
                 # テキストメッセージとクイックアクションボタンを送信
                 messaging_api.push_message(

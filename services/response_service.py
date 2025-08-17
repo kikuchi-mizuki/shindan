@@ -10,6 +10,8 @@ class ResponseService:
     def generate_response(self, drug_info: Dict[str, Any]) -> str:
         """薬剤情報からLINE Bot用の応答メッセージを生成（AI強化版）"""
         try:
+            logger.info(f"Generating response for drug_info keys: {list(drug_info.keys())}")
+            
             response_parts = []
             
             # ヘッダー
@@ -23,10 +25,18 @@ class ResponseService:
                     category = drug.get('ai_category', drug.get('category', '不明'))
                     response_parts.append(f"・{drug['name']} ({category})")
                 response_parts.append("")
+            else:
+                response_parts.append("📋 **検出された薬剤**")
+                response_parts.append("薬剤情報が見つかりませんでした")
+                response_parts.append("")
+            
+            # AI分析結果の確認
+            ai_analysis = drug_info.get('ai_analysis', {})
+            logger.info(f"AI analysis keys: {list(ai_analysis.keys()) if ai_analysis else 'None'}")
             
             # 全体的なリスク評価の表示
-            if drug_info.get('ai_analysis', {}).get('overall_risk_assessment'):
-                risk_assessment = drug_info['ai_analysis']['overall_risk_assessment']
+            if ai_analysis.get('overall_risk_assessment'):
+                risk_assessment = ai_analysis['overall_risk_assessment']
                 risk_level = risk_assessment.get('overall_risk_level', 'low')
                 risk_emoji = self._get_risk_emoji(risk_level)
                 response_parts.append(f"{risk_emoji} **全体的なリスク評価: {risk_level.upper()}**")
@@ -34,8 +44,8 @@ class ResponseService:
                 response_parts.append("")
             
             # 患者安全性アラートの表示（優先度順）
-            if drug_info.get('ai_analysis', {}).get('patient_safety_alerts'):
-                alerts = drug_info['ai_analysis']['patient_safety_alerts']
+            if ai_analysis.get('patient_safety_alerts'):
+                alerts = ai_analysis['patient_safety_alerts']
                 # 優先度順にソート（critical > high > medium）
                 priority_order = {'critical': 1, 'high': 2, 'medium': 3}
                 alerts.sort(key=lambda x: priority_order.get(x.get('priority', 'medium'), 4))
@@ -63,8 +73,8 @@ class ResponseService:
                     response_parts.append("")
             
             # 詳細な臨床分析の表示
-            if drug_info.get('ai_analysis', {}).get('detailed_analysis'):
-                detailed = drug_info['ai_analysis']['detailed_analysis']
+            if ai_analysis.get('detailed_analysis'):
+                detailed = ai_analysis['detailed_analysis']
                 
                 # 患者プロファイル
                 if detailed.get('patient_profile'):
@@ -110,6 +120,13 @@ class ResponseService:
                     if interaction.get('mechanism'):
                         response_parts.append(f"機序: {interaction['mechanism']}")
                     response_parts.append("")
+            
+            # AI分析結果が空の場合のフォールバック
+            if not ai_analysis or not ai_analysis.get('patient_safety_alerts'):
+                response_parts.append("⚠️ **診断結果**")
+                response_parts.append("AI分析が完了しませんでした。")
+                response_parts.append("従来の相互作用チェック結果を表示します。")
+                response_parts.append("")
             
             # 参考情報の注意書き
             response_parts.append("━━━━━━━━━━━━━━━━━━━━━━")
