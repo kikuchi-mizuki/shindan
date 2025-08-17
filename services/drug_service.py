@@ -2055,8 +2055,23 @@ class DrugService:
                 
                 # PDE5阻害薬と硝酸薬の併用チェック
                 elif risk_name == 'pde5_nitrate_contraindication':
-                    additional_impact = "重度の低血圧、失神、心筋梗塞のリスクが非常に高くなります。"
-                    additional_recommendation = "緊急の医療対応が必要です。絶対に併用してはいけません。"
+                    pde5_drugs = [drug for drug, cat in drug_categories.items() if cat == 'pde5_inhibitor']
+                    nitrate_drugs = [drug for drug, cat in drug_categories.items() if cat == 'nitrate']
+                    logger.info(f"PDE5-硝酸薬禁忌チェック: PDE5={pde5_drugs}, 硝酸薬={nitrate_drugs}")
+                    if pde5_drugs and nitrate_drugs:
+                        additional_impact = "重度の低血圧、失神、心筋梗塞のリスクが非常に高くなります。"
+                        additional_recommendation = "緊急の医療対応が必要です。絶対に併用してはいけません。"
+                        logger.info(f"PDE5-硝酸薬禁忌検出: {pde5_drugs} + {nitrate_drugs}")
+                
+                # ACE/ARB/ARNI禁忌チェック
+                elif risk_name == 'ace_arb_arni_contraindication':
+                    ace_drugs = [drug for drug, cat in drug_categories.items() if cat == 'ace_inhibitor']
+                    arb_arni_drugs = [drug for drug, cat in drug_categories.items() if cat in ['arb', 'arni']]
+                    logger.info(f"ACE-ARB/ARNI禁忌チェック: ACE={ace_drugs}, ARB/ARNI={arb_arni_drugs}")
+                    if ace_drugs and arb_arni_drugs:
+                        additional_impact = "特に腎機能障害、高K血症、血管浮腫のリスクが高まります。"
+                        additional_recommendation = "腎機能と電解質の定期的なモニタリングが必須です。"
+                        logger.info(f"ACE-ARB/ARNI禁忌検出: {ace_drugs} + {arb_arni_drugs}")
                 
                 # Ca拮抗薬多剤併用チェック
                 elif risk_name == 'ca_antagonist_polypharmacy':
