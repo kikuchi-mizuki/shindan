@@ -623,10 +623,11 @@ def handle_image_message(event):
             
             # KEGG情報を含む詳細な薬剤情報を取得
             if matched_drugs:
-                drug_info = drug_service.get_drug_interactions(matched_drugs)
-                
-                # 新しいAI分析結果を使用してメッセージを生成
-                response_text = response_service.generate_response(drug_info)
+                # 薬剤検出結果のみを表示（診断は行わない）
+                response_text = f"【薬剤検出完了】\n━━━━━━━━━━━━━━\n✅ {len(matched_drugs)}剤の薬剤を検出しました\n\n📋 検出された薬剤:\n"
+                for i, drug_name in enumerate(matched_drugs, 1):
+                    response_text += f"{i}. {drug_name}\n"
+                response_text += "\n💡 「診断」ボタンを押すか、「診断」と入力して飲み合わせチェックを実行してください。\n━━━━━━━━━━━━━━"
                 
                 # テキストメッセージとクイックアクションボタンを送信
                 messaging_api.push_message(
