@@ -2518,8 +2518,11 @@ class DrugService:
             'ルパフィン': 'antihistamine',
         }
         
+        logger.info(f"画像柔軟マッチング開始: 薬剤名='{drug_name}', 小文字='{drug_lower}'")
         for flexible_name, category in flexible_image_mappings.items():
-            if flexible_name.lower() in drug_lower:
+            flexible_lower = flexible_name.lower()
+            logger.info(f"  部分一致チェック: '{flexible_lower}' in '{drug_lower}' -> {flexible_lower in drug_lower}")
+            if flexible_lower in drug_lower:
                 logger.info(f"画像柔軟マッチング検出: {drug_name} -> {flexible_name} -> {category}")
                 return category
         
@@ -2532,8 +2535,11 @@ class DrugService:
             'アルファカルシドル錠μg': 'vitamin_d',
         }
         
+        logger.info(f"OCR完全一致マッチング開始: 薬剤名='{drug_name}', 小文字='{drug_lower}'")
         for ocr_name, category in ocr_exact_mappings.items():
-            if ocr_name.lower() == drug_lower:
+            ocr_lower = ocr_name.lower()
+            logger.info(f"  比較: '{drug_lower}' vs '{ocr_lower}' -> {drug_lower == ocr_lower}")
+            if ocr_lower == drug_lower:
                 logger.info(f"OCR完全一致検出: {drug_name} -> {ocr_name} -> {category}")
                 return category
         
