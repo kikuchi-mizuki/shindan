@@ -208,15 +208,25 @@ class AIDrugMatcher:
             'english_variants': self._generate_english_variants(drug_name)
         }
         
-        # 1. パターンベースの分類（AI分類は一時的に無効化）
+        # 1. パターンベースの分類
         pattern_category = self._simple_category_prediction(drug_name)
         
-        # 2. AI駆動の分類（一時的に無効化）
-        # ai_category = self._ai_category_prediction(drug_name)
-        
-        # 3. パターンベース分類を使用
-        analysis['category'] = pattern_category
-        analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
+        # 2. AI駆動の分類（エラーハンドリング付き）
+        try:
+            ai_category = self._ai_category_prediction(drug_name)
+            if ai_category and ai_category != 'unknown':
+                analysis['category'] = ai_category
+                analysis['confidence'] = 0.9  # AI分類の場合は高信頼度
+                logger.info(f"AI分類成功: {drug_name} -> {ai_category}")
+            else:
+                analysis['category'] = pattern_category
+                analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
+                logger.info(f"AI分類失敗、パターンベース使用: {drug_name} -> {pattern_category}")
+        except Exception as e:
+            # AI分類でエラーが発生した場合はパターンベース分類を使用
+            analysis['category'] = pattern_category
+            analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
+            logger.warning(f"AI分類エラー、パターンベース使用: {drug_name} -> {pattern_category} (エラー: {e})")
         
         # 検索優先度の決定
         analysis['search_priority'] = self._determine_search_priority(drug_name, analysis)
@@ -341,7 +351,7 @@ class AIDrugMatcher:
             if category in valid_categories:
                 logger.info(f"AI分類成功: {drug_name} -> {category}")
                 return category
-        else:
+            else:
                 logger.info(f"AI分類失敗: {drug_name} -> {category} (無効なカテゴリ)")
                 return 'unknown'
                 
