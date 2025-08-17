@@ -684,20 +684,20 @@ class DrugService:
             },
             # 胃薬の重複投与（詳細化）
             'タケキャブ': {
-                'ランソプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
-                'オメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
-                'エソメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
-                'ラベプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
-                'パントプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'}
+                'ランソプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'},
+                'オメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'},
+                'エソメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'},
+                'ラベプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'},
+                'パントプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'}
             },
             'ランソプラゾール': {
-                'タケキャブ': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
-                'ボノプラザン': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'}
+                'タケキャブ': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'},
+                'ボノプラザン': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'}
             },
             'ボノプラザン': {
-                'ランソプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
-                'オメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
-                'エソメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'}
+                'ランソプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'},
+                'オメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'},
+                'エソメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク'}
             },
             # ACE阻害薬とARB/ARNIの併用禁忌
             'エナラプリル': {
