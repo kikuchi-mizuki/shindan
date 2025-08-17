@@ -291,28 +291,273 @@ class AIDrugMatcher:
         return normalized.strip()
     
     def _predict_category(self, drug_name: str) -> str:
-        """薬剤カテゴリの予測（強化版）"""
+        """薬剤カテゴリの予測（修正版）"""
         drug_lower = drug_name.lower()
         normalized_name = self._normalize_name(drug_name).lower()
         
-        # 完全一致チェック
-        for category, patterns in self.drug_patterns.items():
-            for pattern in patterns:
-                pattern_lower = pattern.lower()
-                if pattern_lower in drug_lower or pattern_lower in normalized_name:
-                    return category
+        # 正確な薬剤分類マッピング
+        exact_drug_mapping = {
+            # PDE5阻害薬
+            'タダラフィル': 'pde5_inhibitor',
+            'シルデナフィル': 'pde5_inhibitor',
+            'バルデナフィル': 'pde5_inhibitor',
+            'アバナフィル': 'pde5_inhibitor',
+            'ウデナフィル': 'pde5_inhibitor',
+            
+            # 硝酸薬
+            'ニコランジル': 'nitrate',
+            'ニトログリセリン': 'nitrate',
+            'イソソルビド': 'nitrate',
+            'ニトロプルシド': 'nitrate',
+            
+            # ARNI（心不全治療薬）
+            'エンレスト': 'arni',
+            'サクビトリル': 'arni',
+            'バルサルタン': 'arb',  # ARNIの成分
+            
+            # Ca拮抗薬+ARB配合剤
+            'テラムロ': 'ca_antagonist_arb_combination',
+            'アムロジピン': 'ca_antagonist',
+            'テルミサルタン': 'arb',
+            
+            # ACE阻害薬
+            'エナラプリル': 'ace_inhibitor',
+            'カプトプリル': 'ace_inhibitor',
+            'リシノプリル': 'ace_inhibitor',
+            'ペリンドプリル': 'ace_inhibitor',
+            
+            # P-CAB（胃薬）
+            'タケキャブ': 'p_cab',
+            'ボノプラザン': 'p_cab',
+            'フォノプラザン': 'p_cab',
+            
+            # PPI（胃薬）
+            'ランソプラゾール': 'ppi',
+            'オメプラゾール': 'ppi',
+            'エソメプラゾール': 'ppi',
+            'ラベプラゾール': 'ppi',
+            'パントプラゾール': 'ppi',
+            
+            # ベンゾジアゼピン系（正確な分類）
+            'ジアゼパム': 'benzodiazepine',
+            'クロナゼパム': 'benzodiazepine',
+            'アルプラゾラム': 'benzodiazepine',
+            'ロラゼパム': 'benzodiazepine',
+            'テマゼパム': 'benzodiazepine',
+            'ミダゾラム': 'benzodiazepine',
+            'エスタゾラム': 'benzodiazepine',
+            'フルラゼパム': 'benzodiazepine',
+            'ニトラゼパム': 'benzodiazepine',
+            'ブロマゼパム': 'benzodiazepine',
+            'クロチアゼパム': 'benzodiazepine',
+            'クロキサゾラム': 'benzodiazepine',
+            'ハロキサゾラム': 'benzodiazepine',
+            'メキサゾラム': 'benzodiazepine',
+            'オキサゼパム': 'benzodiazepine',
+            'オキサゾラム': 'benzodiazepine',
+            'プラゼパム': 'benzodiazepine',
+            'トリアゾラム': 'benzodiazepine',
+            'エチゾラム': 'benzodiazepine',
+            'フルニトラゼパム': 'benzodiazepine',
+            'ブロチゾラム': 'benzodiazepine',
+            
+            # バルビツール酸系
+            'フェノバルビタール': 'barbiturate',
+            'アモバルビタール': 'barbiturate',
+            'ペントバルビタール': 'barbiturate',
+            'チオペンタール': 'barbiturate',
+            'セコバルビタール': 'barbiturate',
+            
+            # オピオイド
+            'モルヒネ': 'opioid',
+            'コデイン': 'opioid',
+            'フェンタニル': 'opioid',
+            'オキシコドン': 'opioid',
+            'ヒドロコドン': 'opioid',
+            'トラマドール': 'opioid',
+            'ペンタゾシン': 'opioid',
+            'ブプレノルフィン': 'opioid',
+            'メタドン': 'opioid',
+            
+            # NSAIDs
+            'アスピリン': 'nsaid',
+            'イブプロフェン': 'nsaid',
+            'ロキソプロフェン': 'nsaid',
+            'ジクロフェナク': 'nsaid',
+            'メフェナム酸': 'nsaid',
+            'インドメタシン': 'nsaid',
+            'ナプロキセン': 'nsaid',
+            'ケトプロフェン': 'nsaid',
+            'セレコキシブ': 'nsaid',
+            'メロキシカム': 'nsaid',
+            'アセトアミノフェン': 'nsaid',
+            
+            # スタチン
+            'シンバスタチン': 'statin',
+            'アトルバスタチン': 'statin',
+            'プラバスタチン': 'statin',
+            'ロスバスタチン': 'statin',
+            'フルバスタチン': 'statin',
+            'ピタバスタチン': 'statin',
+            
+            # ARB
+            'ロサルタン': 'arb',
+            'カンデサルタン': 'arb',
+            'イルベサルタン': 'arb',
+            'オルメサルタン': 'arb',
+            'アジルサルタン': 'arb',
+            
+            # β遮断薬
+            'プロプラノロール': 'beta_blocker',
+            'アテノロール': 'beta_blocker',
+            'ビソプロロール': 'beta_blocker',
+            'メトプロロール': 'beta_blocker',
+            'カルベジロール': 'beta_blocker',
+            'ネビボロール': 'beta_blocker',
+            
+            # Ca拮抗薬
+            'ニフェジピン': 'ca_antagonist',
+            'ベラパミル': 'ca_antagonist',
+            'ジルチアゼム': 'ca_antagonist',
+            'ニカルジピン': 'ca_antagonist',
+            'ニソルジピン': 'ca_antagonist',
+            'ベニジピン': 'ca_antagonist',
+            'シルニジピン': 'ca_antagonist',
+            
+            # 利尿薬
+            'フロセミド': 'diuretic',
+            'ヒドロクロロチアジド': 'diuretic',
+            'スピロノラクトン': 'diuretic',
+            'トリアムテレン': 'diuretic',
+            'アミロライド': 'diuretic',
+            'ブメタニド': 'diuretic',
+            
+            # 抗ヒスタミン薬
+            'フェニラミン': 'antihistamine',
+            'クロルフェニラミン': 'antihistamine',
+            'ジフェンヒドラミン': 'antihistamine',
+            'セチリジン': 'antihistamine',
+            'ロラタジン': 'antihistamine',
+            'フェキソフェナジン': 'antihistamine',
+            
+            # 制酸薬
+            'アルミニウム': 'antacid',
+            'マグネシウム': 'antacid',
+            'カルシウム': 'antacid',
+            
+            # 抗凝固薬
+            'ワルファリン': 'anticoagulant',
+            'ダビガトラン': 'anticoagulant',
+            'リバーロキサバン': 'anticoagulant',
+            'アピキサバン': 'anticoagulant',
+            'エドキサバン': 'anticoagulant',
+            'ヘパリン': 'anticoagulant',
+            'エノキサパリン': 'anticoagulant',
+            
+            # 糖尿病治療薬
+            'メトホルミン': 'diabetes_medication',
+            'インスリン': 'diabetes_medication',
+            'グリクラジド': 'diabetes_medication',
+            'グリメピリド': 'diabetes_medication',
+            'ピオグリタゾン': 'diabetes_medication',
+            'シタグリプチン': 'diabetes_medication',
+            'ビルダグリプチン': 'diabetes_medication',
+            'リナグリプチン': 'diabetes_medication',
+            'アログリプチン': 'diabetes_medication',
+            'テネリグリプチン': 'diabetes_medication',
+            
+            # 抗生物質
+            'アモキシシリン': 'antibiotic',
+            'セファレキシン': 'antibiotic',
+            'エリスロマイシン': 'antibiotic',
+            'クラリスロマイシン': 'antibiotic',
+            'アジスロマイシン': 'antibiotic',
+            'ドキシサイクリン': 'antibiotic',
+            'ミノサイクリン': 'antibiotic',
+            'レボフロキサシン': 'antibiotic',
+            'シプロフロキサシン': 'antibiotic',
+            'ノルフロキサシン': 'antibiotic',
+            'バンコマイシン': 'antibiotic',
+            'テイコプラニン': 'antibiotic',
+            'メロペネム': 'antibiotic',
+            'イミペネム': 'antibiotic',
+            'セフトリアキソン': 'antibiotic',
+            
+            # 抗うつ薬
+            'フルオキセチン': 'antidepressant',
+            'パロキセチン': 'antidepressant',
+            'セルトラリン': 'antidepressant',
+            'エスシタロプラム': 'antidepressant',
+            'ベンラファキシン': 'antidepressant',
+            'デュロキセチン': 'antidepressant',
+            
+            # 抗精神病薬
+            'アリピプラゾール': 'antipsychotic',
+            'リスペリドン': 'antipsychotic',
+            'オランザピン': 'antipsychotic',
+            'クエチアピン': 'antipsychotic',
+            
+            # 気管支拡張薬
+            'テオフィリン': 'bronchodilator',
+            'サルブタモール': 'bronchodilator',
+            'フォルモテロール': 'bronchodilator',
+            'サルメテロール': 'bronchodilator',
+            
+            # 吸入ステロイド薬
+            'ブデソニド': 'inhaled_corticosteroid',
+            'フルチカゾン': 'inhaled_corticosteroid',
+            
+            # ロイコトリエン受容体拮抗薬
+            'モンテルカスト': 'leukotriene_receptor_antagonist',
+            'ザフィルルカスト': 'leukotriene_receptor_antagonist',
+            
+            # 去痰薬
+            'アセチルシステイン': 'mucolytic',
+            'カルボシステイン': 'mucolytic',
+            
+            # 前立腺肥大症治療薬
+            'フィナステリド': 'bph_medication',
+            'デュタステリド': 'bph_medication',
+            'タムスロシン': 'bph_medication',
+            'シルドシン': 'bph_medication',
+            'ナフトピジル': 'bph_medication',
+            'ウラピジル': 'bph_medication',
+            
+            # その他の薬剤
+            'ジゴキシン': 'cardiac_glycoside',
+            'アミオダロン': 'antiarrhythmic',
+            'メトトレキサート': 'antirheumatic',
+            'プレドニゾロン': 'corticosteroid',
+            'シクロスポリン': 'immunosuppressant',
+            'タクロリムス': 'immunosuppressant',
+            'アザチオプリン': 'immunosuppressant',
+            'ミコフェノール酸': 'immunosuppressant',
+            'レフルノミド': 'antirheumatic',
+            'サラゾスルファピリジン': 'antirheumatic',
+            'ブシラミン': 'antirheumatic',
+            'ペニシラミン': 'antirheumatic'
+        }
         
-        # 部分一致チェック（より柔軟）
+        # 1. 完全一致チェック（最も信頼性が高い）
+        for drug, category in exact_drug_mapping.items():
+            if drug.lower() in drug_lower or drug.lower() in normalized_name:
+                return category
+        
+        # 2. 部分一致チェック（より厳密な条件）
         best_category = 'unknown'
         best_score = 0
         
-        for category, patterns in self.drug_patterns.items():
-            for pattern in patterns:
-                pattern_lower = pattern.lower()
+        for drug, category in exact_drug_mapping.items():
+            drug_lower_match = drug.lower()
+            
+            # より厳密な部分一致チェック
+            if (drug_lower_match in drug_lower or 
+                drug_lower_match in normalized_name or
+                drug_lower in drug_lower_match):
                 
                 # 類似度スコアを計算
-                score = self._calculate_pattern_similarity(drug_lower, pattern_lower)
-                if score > best_score and score >= 0.6:  # 60%以上の類似度
+                score = self._calculate_pattern_similarity(drug_lower, drug_lower_match)
+                if score > best_score and score >= 0.8:  # 80%以上の類似度に引き上げ
                     best_score = score
                     best_category = category
         
@@ -986,8 +1231,11 @@ class DrugService:
         return None
 
     def get_drug_interactions(self, drug_names: List[str]) -> Dict[str, Any]:
-        """薬剤名リストから飲み合わせ情報を取得（最適化版）"""
+        """薬剤名リストから飲み合わせ情報を取得（AI強化版）"""
         try:
+            # AI診断の実行
+            ai_analysis = self.analyze_drug_interactions_ai(drug_names)
+            
             results = {
                 'detected_drugs': [],
                 'interactions': [],
@@ -996,117 +1244,52 @@ class DrugService:
                 'kegg_info': [],
                 'warnings': [],
                 'recommendations': [],
-                'diagnosis_details': []  # 追加
+                'diagnosis_details': [],
+                'ai_analysis': ai_analysis,  # AI分析結果を追加
+                'clinical_risks': ai_analysis['risk_summary'],  # 臨床リスク情報
+                'drug_categories': ai_analysis['drug_categories']  # 薬剤カテゴリ情報
             }
             
-            # 検出された薬剤の情報を取得（効率化：リスト内包表記）
+            # 検出された薬剤の情報を取得
             detected_drugs = []
             for drug_name in drug_names:
                 drug_info = self._find_drug_info(drug_name)
                 if drug_info is not None:
+                    # AI分析で得られたカテゴリ情報を追加
+                    category = ai_analysis['drug_categories'].get(drug_name, 'unknown')
+                    drug_info['ai_category'] = category
                     detected_drugs.append(drug_info)
             
-            # 重複除去（共通関数を使用）
+            # 重複除去
             results['detected_drugs'] = self._deduplicate_drugs(detected_drugs)
             
-            # 飲み合わせチェック
+            # 従来の相互作用チェック（補完的）
             if len(results['detected_drugs']) > 1:
                 interactions = self._check_interactions(results['detected_drugs'])
-                risk_templates = {
-                    'critical': self.diagnosis_templates.get('併用禁忌', {}),
-                    'high': self.diagnosis_templates.get('併用注意', {})
-                }
-                for interaction in interactions:
-                    risk = interaction['risk'] if 'risk' in interaction and isinstance(interaction['risk'], str) else ''
-                    template = risk_templates[risk] if risk in risk_templates and isinstance(risk_templates[risk], dict) else {}
-                    interaction['reason'] = template['reason'] if 'reason' in template and isinstance(template['reason'], str) else ''
-                    interaction['symptoms'] = template['symptoms'] if 'symptoms' in template and isinstance(template['symptoms'], str) else ''
-                    # 構造化診断詳細を追加
-                    results['diagnosis_details'].append({
-                        'type': '相互作用',
-                        'drugs': [interaction['drug1'] if 'drug1' in interaction and isinstance(interaction['drug1'], str) else '', interaction['drug2'] if 'drug2' in interaction and isinstance(interaction['drug2'], str) else ''],
-                        'category': '',
-                        'reason': interaction['reason'] if ('reason' in interaction and isinstance(interaction['reason'], str)) else (interaction['description'] if 'description' in interaction and isinstance(interaction['description'], str) else ''),
-                        'symptoms': interaction['symptoms'] if ('symptoms' in interaction and isinstance(interaction['symptoms'], str)) else ''
-                    })
                 results['interactions'] = interactions
+            
             # 同効薬チェック
             same_effect_warnings = self._check_same_effect_drugs(results['detected_drugs'])
-            drug_info_dict = {drug['name']: drug for drug in results['detected_drugs']}
-            for warning in same_effect_warnings:
-                drug1_name = warning['drug1'] if 'drug1' in warning and isinstance(warning['drug1'], str) else ''
-                drug2_name = warning['drug2'] if 'drug2' in warning and isinstance(warning['drug2'], str) else ''
-                drug1 = drug_info_dict[drug1_name] if drug1_name in drug_info_dict else None
-                drug2 = drug_info_dict[drug2_name] if drug2_name in drug_info_dict else None
-                # カテゴリ推定
-                category = ''
-                if drug1 and 'category' in drug1 and isinstance(drug1['category'], str) and drug1['category'] != '不明':
-                    category = self.category_mapping[drug1['category']] if drug1['category'] in self.category_mapping else drug1['category']
-                elif drug2 and 'category' in drug2 and isinstance(drug2['category'], str) and drug2['category'] != '不明':
-                    category = self.category_mapping[drug2['category']] if drug2['category'] in self.category_mapping else drug2['category']
-                else:
-                    category = ''
-                template = self.diagnosis_templates.get(category, {})
-                warning['reason'] = template.get('reason', '')
-                warning['symptoms'] = template.get('symptoms', '')
-                warning['category'] = category
-                # 構造化診断詳細を追加
-                results['diagnosis_details'].append({
-                    'type': '同効薬の重複',
-                    'drugs': [drug1_name, drug2_name],
-                    'category': category,
-                    'reason': warning['reason'] if ('reason' in warning and isinstance(warning['reason'], str)) else (warning['description'] if 'description' in warning and isinstance(warning['description'], str) else ''),
-                    'symptoms': warning['symptoms'] if ('symptoms' in warning and isinstance(warning['symptoms'], str)) else ''
-                })
             results['same_effect_warnings'] = same_effect_warnings
             
             # 薬剤分類による重複チェック
             results['category_duplicates'] = self._check_category_duplicates(results['detected_drugs'])
-            # diagnosis_detailsにも追加
-            for duplicate in results['category_duplicates']:
-                results['diagnosis_details'].append({
-                    'type': '薬剤分類重複',
-                    'drugs': duplicate['drugs'],
-                    'category': duplicate['category'],
-                    'reason': f"{duplicate['category']}の薬剤が複数検出されました。同じ分類の薬剤を複数服用すると、効果や副作用が強く出る可能性があります。",
-                    'symptoms': "副作用のリスク増加や、効果の過剰が考えられます。"
-                })
             
             # KEGG情報の取得
             results['kegg_info'] = self._get_kegg_info(results['detected_drugs'])
             
-            # 警告と推奨事項を生成
-            results['warnings'] = self._generate_warnings(results)
-            results['recommendations'] = self._generate_recommendations(results)
+            # AI分析に基づく警告と推奨事項を生成
+            results['warnings'] = self._generate_ai_warnings(ai_analysis)
+            results['recommendations'] = ai_analysis['risk_summary']['clinical_recommendations']
             
-            # 診断データに理由・症状を付与（効率化：共通関数化）
-            def get_reason_and_symptoms(category):
-                mapped = self.category_mapping.get(category, category)
-                template = self.diagnosis_templates.get(mapped)
-                if template:
-                    return template['reason'], template['symptoms']
-                else:
-                    return '情報がありません', '情報がありません'
-
-            # 一括で理由・症状を付与（効率化）
-            for warning in results.get('same_effect_warnings', []):
-                cat = str(warning.get('category', '') or '')
-                if cat:
-                    reason, symptoms = get_reason_and_symptoms(cat)
-                    warning['reason'] = reason
-                    warning['symptoms'] = symptoms
-
-            for interaction in results.get('interactions', []):
-                cat = str(interaction.get('category', '') or '')
-                if cat:
-                    reason, symptoms = get_reason_and_symptoms(cat)
-                    interaction['reason'] = reason
-                    interaction['symptoms'] = symptoms
-
+            # 診断詳細の生成
+            results['diagnosis_details'] = self._generate_ai_diagnosis_details(ai_analysis)
+            
             # 診断結果をキャッシュ
             norm_names = [self.normalize_name(n) for n in drug_names]
             cache_key = tuple(sorted(norm_names))
             self.diagnosis_cache[cache_key] = results
+            
             return results
             
         except Exception as e:
@@ -1118,11 +1301,92 @@ class DrugService:
                 'category_duplicates': [],
                 'kegg_info': [],
                 'warnings': ['薬剤情報の取得中にエラーが発生しました'],
-                'recommendations': ['薬剤師にご相談ください']
+                'recommendations': ['薬剤師にご相談ください'],
+                'ai_analysis': {},
+                'clinical_risks': {},
+                'drug_categories': {},
+                'diagnosis_details': []
             }
-
-
     
+    def _generate_ai_warnings(self, ai_analysis: Dict) -> List[str]:
+        """AI分析に基づく警告の生成"""
+        warnings = []
+        
+        # 高リスクの警告
+        if ai_analysis['high_risk_count'] > 0:
+            warnings.append(f"🚨 高リスク相互作用が{ai_analysis['high_risk_count']}件検出されました")
+        
+        # 中リスクの警告
+        if ai_analysis['medium_risk_count'] > 0:
+            warnings.append(f"⚠️ 中リスク相互作用が{ai_analysis['medium_risk_count']}件検出されました")
+        
+        # 低リスクの警告
+        if ai_analysis['low_risk_count'] > 0:
+            warnings.append(f"ℹ️ 低リスク相互作用が{ai_analysis['low_risk_count']}件検出されました")
+        
+        # 薬剤カテゴリの警告
+        drug_categories = ai_analysis['drug_categories']
+        
+        # 血圧降下薬の多剤併用
+        bp_meds = [drug for drug, cat in drug_categories.items() 
+                  if cat in ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni']]
+        if len(bp_meds) >= 3:
+            warnings.append(f"💊 血圧降下薬が{len(bp_meds)}剤検出されました（低血圧リスク）")
+        
+        # 胃薬の重複
+        gastric_meds = [drug for drug, cat in drug_categories.items() 
+                       if cat in ['ppi', 'p_cab']]
+        if len(gastric_meds) >= 2:
+            warnings.append(f"🫀 胃酸分泌抑制薬が{len(gastric_meds)}剤検出されました（重複投与リスク）")
+        
+        # 向精神薬の多剤併用
+        psychotropics = [drug for drug, cat in drug_categories.items() 
+                        if cat in ['benzodiazepine', 'barbiturate', 'antidepressant', 'antipsychotic']]
+        if len(psychotropics) >= 2:
+            warnings.append(f"🧠 向精神薬が{len(psychotropics)}剤検出されました（中枢抑制作用増強リスク）")
+        
+        return warnings
+    
+    def _generate_ai_diagnosis_details(self, ai_analysis: Dict) -> List[Dict]:
+        """AI分析に基づく診断詳細の生成"""
+        diagnosis_details = []
+        
+        # 検出されたリスクの詳細
+        for risk in ai_analysis['detected_risks']:
+            diagnosis_details.append({
+                'type': 'AI検出リスク',
+                'risk_level': risk['risk_level'],
+                'drugs': risk['involved_drugs'],
+                'category': risk['risk_name'],
+                'reason': risk['description'],
+                'symptoms': risk['clinical_impact'],
+                'recommendation': risk['recommendation']
+            })
+        
+        # 薬剤カテゴリ別の詳細
+        drug_categories = ai_analysis['drug_categories']
+        category_groups = {}
+        
+        for drug, category in drug_categories.items():
+            if category not in category_groups:
+                category_groups[category] = []
+            category_groups[category].append(drug)
+        
+        # 同一カテゴリの薬剤が複数ある場合の警告
+        for category, drugs in category_groups.items():
+            if len(drugs) >= 2:
+                diagnosis_details.append({
+                    'type': '同一カテゴリ重複',
+                    'risk_level': 'medium',
+                    'drugs': drugs,
+                    'category': category,
+                    'reason': f"{category}カテゴリの薬剤が{len(drugs)}剤検出されました",
+                    'symptoms': '同効薬の重複投与による副作用リスクの増加',
+                    'recommendation': '重複投与を避け、必要に応じて剤形を変更してください'
+                })
+        
+        return diagnosis_details
+
     def _check_interaction_rule(self, drug1: str, drug2: str) -> Optional[Dict[str, str]]:
         """2つの薬剤間の相互作用ルールをチェック"""
         # 相互作用ルールをチェック
@@ -1727,6 +1991,178 @@ class DrugService:
             'ニューキノロン系抗生物質': '抗生物質',
             # 必要に応じて追加
         }
+
+    def analyze_drug_interactions_ai(self, drug_names: List[str]) -> Dict[str, Any]:
+        """AIを活用した薬剤相互作用分析（臨床的に重要なリスクを特定）"""
+        
+        # 薬剤カテゴリの取得
+        drug_categories = {}
+        for drug in drug_names:
+            category = self._predict_category(drug)
+            drug_categories[drug] = category
+        
+        # 臨床的に重要な相互作用パターンの定義
+        clinical_risks = {
+            'blood_pressure_medications': {
+                'categories': ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni'],
+                'risk_level': 'high',
+                'description': '血圧降下薬の多剤併用による低血圧リスク',
+                'clinical_impact': 'めまい、失神、腎機能障害のリスク増加',
+                'recommendation': '血圧の定期的なモニタリングが必要'
+            },
+            'gastric_medications': {
+                'categories': ['ppi', 'p_cab'],
+                'risk_level': 'medium',
+                'description': '胃酸分泌抑制薬の重複投与',
+                'clinical_impact': '胃酸分泌の過度な抑制、栄養吸収障害のリスク',
+                'recommendation': '重複投与を避け、必要に応じて剤形を変更'
+            },
+            'anticoagulants': {
+                'categories': ['anticoagulant', 'nsaid'],
+                'risk_level': 'high',
+                'description': '抗凝固薬とNSAIDsの併用による出血リスク',
+                'clinical_impact': '消化管出血、脳出血のリスク増加',
+                'recommendation': '出血の兆候に注意し、定期的な血液検査が必要'
+            },
+            'diabetes_medications': {
+                'categories': ['diabetes_medication', 'corticosteroid'],
+                'risk_level': 'medium',
+                'description': '糖尿病治療薬とステロイドの併用',
+                'clinical_impact': '血糖値の上昇、糖尿病コントロールの悪化',
+                'recommendation': '血糖値の頻回モニタリングが必要'
+            },
+            'psychotropic_medications': {
+                'categories': ['benzodiazepine', 'barbiturate', 'antidepressant', 'antipsychotic'],
+                'risk_level': 'high',
+                'description': '向精神薬の多剤併用による中枢抑制作用の増強',
+                'clinical_impact': '過度の眠気、呼吸抑制、認知機能障害のリスク',
+                'recommendation': '段階的な投与開始と慎重な用量調整が必要'
+            },
+            'cardiac_medications': {
+                'categories': ['cardiac_glycoside', 'diuretic', 'ace_inhibitor'],
+                'risk_level': 'high',
+                'description': '心臓薬の多剤併用による電解質異常リスク',
+                'clinical_impact': '低カリウム血症、ジゴキシン中毒のリスク増加',
+                'recommendation': '電解質の定期的なモニタリングが必要'
+            },
+            'statin_interactions': {
+                'categories': ['statin', 'antibiotic'],
+                'risk_level': 'medium',
+                'description': 'スタチンと抗生物質の併用による筋障害リスク',
+                'clinical_impact': '横紋筋融解症、CK上昇のリスク増加',
+                'recommendation': '筋肉痛などの症状に注意し、CK値のモニタリング'
+            }
+        }
+        
+        # リスク分析の実行
+        detected_risks = []
+        risk_summary = {
+            'high_risk': [],
+            'medium_risk': [],
+            'low_risk': [],
+            'clinical_recommendations': []
+        }
+        
+        # 各リスクパターンのチェック
+        for risk_name, risk_info in clinical_risks.items():
+            matching_categories = []
+            matching_drugs = []
+            
+            for drug, category in drug_categories.items():
+                if category in risk_info['categories']:
+                    matching_categories.append(category)
+                    matching_drugs.append(drug)
+            
+            # リスク条件の判定
+            if len(matching_drugs) >= 2:  # 2剤以上の併用でリスク判定
+                risk_detail = {
+                    'risk_name': risk_name,
+                    'risk_level': risk_info['risk_level'],
+                    'description': risk_info['description'],
+                    'clinical_impact': risk_info['clinical_impact'],
+                    'recommendation': risk_info['recommendation'],
+                    'involved_drugs': matching_drugs,
+                    'involved_categories': matching_categories
+                }
+                
+                detected_risks.append(risk_detail)
+                
+                # リスクレベル別に分類
+                if risk_info['risk_level'] == 'high':
+                    risk_summary['high_risk'].append(risk_detail)
+                elif risk_info['risk_level'] == 'medium':
+                    risk_summary['medium_risk'].append(risk_detail)
+                else:
+                    risk_summary['low_risk'].append(risk_detail)
+        
+        # 臨床推奨事項の生成
+        clinical_recommendations = self._generate_clinical_recommendations(risk_summary, drug_categories)
+        risk_summary['clinical_recommendations'] = clinical_recommendations
+        
+        return {
+            'drug_categories': drug_categories,
+            'detected_risks': detected_risks,
+            'risk_summary': risk_summary,
+            'total_risks': len(detected_risks),
+            'high_risk_count': len(risk_summary['high_risk']),
+            'medium_risk_count': len(risk_summary['medium_risk']),
+            'low_risk_count': len(risk_summary['low_risk'])
+        }
+    
+    def _generate_clinical_recommendations(self, risk_summary: Dict, drug_categories: Dict) -> List[str]:
+        """臨床推奨事項の生成"""
+        recommendations = []
+        
+        # 高リスクの推奨事項
+        if risk_summary['high_risk']:
+            recommendations.append("🚨 **高リスク相互作用が検出されました**")
+            recommendations.append("・薬剤師への緊急相談が必要です")
+            recommendations.append("・患者の状態を慎重にモニタリングしてください")
+        
+        # 血圧降下薬の多剤併用
+        bp_meds = [drug for drug, cat in drug_categories.items() 
+                  if cat in ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni']]
+        if len(bp_meds) >= 3:
+            recommendations.append("💊 **血圧降下薬の多剤併用**")
+            recommendations.append("・低血圧によるめまい、失神のリスク")
+            recommendations.append("・腎機能の定期的なモニタリングが必要")
+            recommendations.append("・段階的な投与開始を推奨")
+        
+        # 胃薬の重複
+        gastric_meds = [drug for drug, cat in drug_categories.items() 
+                       if cat in ['ppi', 'p_cab']]
+        if len(gastric_meds) >= 2:
+            recommendations.append("🫀 **胃酸分泌抑制薬の重複投与**")
+            recommendations.append("・PPIとP-CABの併用は避けるべき")
+            recommendations.append("・剤形の変更を検討してください")
+        
+        # 抗凝固薬との併用
+        anticoagulants = [drug for drug, cat in drug_categories.items() 
+                         if cat == 'anticoagulant']
+        nsaids = [drug for drug, cat in drug_categories.items() 
+                 if cat == 'nsaid']
+        if anticoagulants and nsaids:
+            recommendations.append("🩸 **抗凝固薬とNSAIDsの併用**")
+            recommendations.append("・出血リスクの増加")
+            recommendations.append("・消化管出血の兆候に注意")
+            recommendations.append("・定期的な血液検査が必要")
+        
+        # 向精神薬の多剤併用
+        psychotropics = [drug for drug, cat in drug_categories.items() 
+                        if cat in ['benzodiazepine', 'barbiturate', 'antidepressant', 'antipsychotic']]
+        if len(psychotropics) >= 2:
+            recommendations.append("🧠 **向精神薬の多剤併用**")
+            recommendations.append("・中枢抑制作用の増強")
+            recommendations.append("・呼吸抑制のリスク")
+            recommendations.append("・段階的な投与開始を推奨")
+        
+        # 一般的な推奨事項
+        recommendations.append("📋 **一般的な注意事項**")
+        recommendations.append("・この情報は参考情報です")
+        recommendations.append("・最終判断は薬剤師にお任せください")
+        recommendations.append("・患者の状態変化に注意してください")
+        
+        return recommendations
 
 
 
