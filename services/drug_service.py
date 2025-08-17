@@ -1904,12 +1904,12 @@ class DrugService:
                 'priority': 1
             },
             'blood_pressure_medications': {
-                'categories': ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni'],
+                'categories': ['ace_inhibitor', 'arb', 'beta_blocker', 'diuretic', 'nitrate', 'arni'],  # ca_antagonistを除外
                 'risk_level': 'high',
                 'description': '血圧降下薬の多剤併用による低血圧リスク',
                 'clinical_impact': 'めまい、失神、腎機能障害のリスク増加',
                 'recommendation': '血圧の定期的なモニタリングが必要',
-                'priority': 2
+                'priority': 3  # 優先度を下げて重複を避ける
             },
             'gastric_medications': {
                 'categories': ['ppi', 'p_cab'],
@@ -2229,6 +2229,7 @@ class DrugService:
             
             # 活性型ビタミンD製剤
             'アルファカルシドール': 'vitamin_d',
+            'アルファカルシドル': 'vitamin_d',  # OCRで抽出される可能性のある表記
             'カルシトリオール': 'vitamin_d',
             'エルデカルシトール': 'vitamin_d',
             
