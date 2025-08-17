@@ -184,23 +184,48 @@ class ResponseService:
             'unknown': '分類不明'
         }
         
-        # 薬剤サービスをインポートしてカテゴリを取得
-        try:
-            from .drug_service import DrugService
-            drug_service = DrugService()
+        # 薬剤名からカテゴリを推定する簡易的なマッピング
+        drug_category_mapping = {
+            'タダラフィル': 'pde5_inhibitor',
+            'シルデナフィル': 'pde5_inhibitor',
+            'バルデナフィル': 'pde5_inhibitor',
+            'ニコランジル': 'nitrate',
+            'ニトログリセリン': 'nitrate',
+            'エンレスト': 'arni',
+            'サクビトリル': 'arni',
+            'テラムロ': 'ca_antagonist_arb_combination',
+            'アムロジピン': 'ca_antagonist',
+            'テルミサルタン': 'arb',
+            'エナラプリル': 'ace_inhibitor',
+            'カプトプリル': 'ace_inhibitor',
+            'リシノプリル': 'ace_inhibitor',
+            'タケキャブ': 'p_cab',
+            'ボノプラザン': 'p_cab',
+            'ランソプラゾール': 'ppi',
+            'オメプラゾール': 'ppi',
+            'エソメプラゾール': 'ppi',
+            'ジアゼパム': 'benzodiazepine',
+            'クロナゼパム': 'benzodiazepine',
+            'アルプラゾラム': 'benzodiazepine',
+            'ロラゼパム': 'benzodiazepine',
+            'アスピリン': 'nsaid',
+            'イブプロフェン': 'nsaid',
+            'ロキソプロフェン': 'nsaid',
+            'ワルファリン': 'anticoagulant',
+            'ダビガトラン': 'anticoagulant',
+            'シンバスタチン': 'statin',
+            'アトルバスタチン': 'statin',
+            'メトホルミン': 'diabetes_medication',
+            'インスリン': 'diabetes_medication'
+        }
+        
+        for i, drug in enumerate(drug_names, 1):
+            # 薬剤名からカテゴリを推定
+            category = drug_category_mapping.get(drug, 'unknown')
+            category_jp = category_mapping.get(category, category)
             
-            for i, drug in enumerate(drug_names, 1):
-                # 薬剤カテゴリを取得
-                category = drug_service._predict_category(drug)
-                category_jp = category_mapping.get(category, category)
-                
-                response_parts.append(f"① {drug}")
-                response_parts.append(f"   分類: {category_jp}")
-                response_parts.append("")
-        except Exception as e:
-            # エラーが発生した場合は薬剤名のみ表示
-            for i, drug in enumerate(drug_names, 1):
-                response_parts.append(f"① {drug}")
+            response_parts.append(f"① {drug}")
+            response_parts.append(f"   分類: {category_jp}")
             response_parts.append("")
         
         response_parts.append("💡 「診断」で飲み合わせチェックを実行できます")

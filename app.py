@@ -625,32 +625,8 @@ def handle_image_message(event):
             if matched_drugs:
                 drug_info = drug_service.get_drug_interactions(matched_drugs)
                 
-                # レスポンステキストの作成（KEGG情報付き）
-                response_text = f"【薬剤検出完了】\n━━━━━━━━━\n✅ {len(matched_drugs)}件の薬剤を検出しました\n\n"
-                
-                # 検出された薬剤の詳細情報を表示
-                for i, drug in enumerate(drug_info['detected_drugs'], 1):
-                    response_text += f"{i}. {drug['name']}\n"
-                    if drug.get('category'):
-                        response_text += f"   分類: {drug['category']}\n"
-                    if drug.get('generic_name'):
-                        response_text += f"   一般名: {drug['generic_name']}\n"
-                    response_text += "\n"
-                
-                # KEGG情報がある場合は表示
-                if drug_info['kegg_info']:
-                    response_text += "【KEGG情報】\n━━━━━━━━━\n"
-                    for kegg_data in drug_info['kegg_info']:
-                        response_text += f"• {kegg_data['drug_name']}\n"
-                        if kegg_data.get('kegg_id'):
-                            response_text += f"  KEGG ID: {kegg_data['kegg_id']}\n"
-                        if kegg_data.get('pathways'):
-                            response_text += f"  パスウェイ: {', '.join(kegg_data['pathways'][:2])}\n"
-                        if kegg_data.get('targets'):
-                            response_text += f"  ターゲット: {', '.join(kegg_data['targets'][:2])}\n"
-                        response_text += "\n"
-                
-                response_text += f"現在のリスト: {len(user_drug_buffer[user_id])}件\n━━━━━━━━━\n💡 「診断」で飲み合わせチェックを実行できます"
+                # 改善されたresponse_serviceを使用してメッセージを生成
+                response_text = response_service.generate_simple_response(matched_drugs)
                 
                 # テキストメッセージとクイックアクションボタンを送信
                 messaging_api.push_message(
