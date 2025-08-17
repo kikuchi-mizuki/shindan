@@ -192,23 +192,35 @@ class AIDrugMatcher:
         ]
         
     def analyze_drug_name(self, drug_name: str) -> Dict[str, Any]:
-        """薬剤名をAI的に分析（キャッシュ対応版）"""
+        """薬剤名をAI的に分析（AI強化版）"""
         # キャッシュチェック
         if drug_name in self.analysis_cache:
             logger.info(f"Using cached analysis for '{drug_name}'")
             return self.analysis_cache[drug_name]
         
+        # 基本的な分析
         analysis = {
             'original': drug_name,
             'normalized': self._normalize_name(drug_name),
-            'category': self._simple_category_prediction(drug_name),
+            'category': 'unknown',
             'confidence': 0.0,
             'search_priority': [],
             'english_variants': self._generate_english_variants(drug_name)
         }
         
-        # 信頼度スコアの計算
-        analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
+        # 1. パターンベースの分類
+        pattern_category = self._simple_category_prediction(drug_name)
+        
+        # 2. AI駆動の分類（ChatGPT APIを使用）
+        ai_category = self._ai_category_prediction(drug_name)
+        
+        # 3. より信頼度の高い方を選択
+        if ai_category and ai_category != 'unknown':
+            analysis['category'] = ai_category
+            analysis['confidence'] = 0.9  # AI分類の場合は高信頼度
+        else:
+            analysis['category'] = pattern_category
+            analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
         
         # 検索優先度の決定
         analysis['search_priority'] = self._determine_search_priority(drug_name, analysis)
@@ -268,6 +280,78 @@ class AIDrugMatcher:
                 break
         
         return min(confidence, 1.0)
+
+    def _ai_category_prediction(self, drug_name: str) -> str:
+        """ChatGPT APIを使用した薬剤分類予測"""
+        try:
+            import openai
+            
+            # 薬剤分類のプロンプト
+            prompt = f"""
+以下の薬剤名の薬効分類を予測してください。
+薬剤名: {drug_name}
+
+以下のカテゴリから最も適切なものを選択してください：
+- benzodiazepine (ベンゾジアゼピン系)
+- sleep_medication (睡眠薬・催眠薬)
+- ca_antagonist (カルシウム拮抗薬)
+- ace_inhibitor (ACE阻害薬)
+- arb (ARB)
+- beta_blocker (β遮断薬)
+- diuretic (利尿薬)
+- statin (スタチン)
+- nsaid (NSAIDs)
+- antibiotic (抗生物質)
+- antihistamine (抗ヒスタミン薬)
+- ppi (PPI・胃薬)
+- p_cab (P-CAB・胃薬)
+- uric_acid_lowering (尿酸生成抑制薬)
+- phosphate_binder (リン吸着薬)
+- vitamin_d (活性型ビタミンD製剤)
+- diabetes_medication (糖尿病治療薬)
+- antidepressant (抗うつ薬)
+- antipsychotic (抗精神病薬)
+- anticoagulant (抗凝固薬)
+- opioid (オピオイド)
+- barbiturate (バルビツール酸系)
+
+分類できない場合は 'unknown' を返してください。
+回答は英語のカテゴリ名のみを返してください。
+"""
+            
+            # ChatGPT APIを呼び出し
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "あなたは薬剤分類の専門家です。薬剤名から適切な薬効分類を予測してください。"},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=50,
+                temperature=0.1
+            )
+            
+            # レスポンスから分類を抽出
+            category = response.choices[0].message.content.strip().lower()
+            
+            # 有効なカテゴリかチェック
+            valid_categories = [
+                'benzodiazepine', 'sleep_medication', 'ca_antagonist', 'ace_inhibitor',
+                'arb', 'beta_blocker', 'diuretic', 'statin', 'nsaid', 'antibiotic',
+                'antihistamine', 'ppi', 'p_cab', 'uric_acid_lowering', 'phosphate_binder',
+                'vitamin_d', 'diabetes_medication', 'antidepressant', 'antipsychotic',
+                'anticoagulant', 'opioid', 'barbiturate'
+            ]
+            
+            if category in valid_categories:
+                logger.info(f"AI分類成功: {drug_name} -> {category}")
+                return category
+            else:
+                logger.info(f"AI分類失敗: {drug_name} -> {category} (無効なカテゴリ)")
+                return 'unknown'
+                
+        except Exception as e:
+            logger.warning(f"AI分類エラー: {drug_name} - {e}")
+            return 'unknown'
 
     def _normalize_name(self, name: str) -> str:
         """薬剤名の正規化"""
