@@ -2197,6 +2197,336 @@ class DrugService:
         
         return recommendations
 
+    def _predict_category(self, drug_name: str) -> str:
+        """薬剤カテゴリの予測（DrugService版）"""
+        drug_lower = drug_name.lower()
+        normalized_name = self._normalize_name(drug_name).lower()
+        
+        # 正確な薬剤分類マッピング
+        exact_drug_mapping = {
+            # PDE5阻害薬
+            'タダラフィル': 'pde5_inhibitor',
+            'シルデナフィル': 'pde5_inhibitor',
+            'バルデナフィル': 'pde5_inhibitor',
+            'アバナフィル': 'pde5_inhibitor',
+            'ウデナフィル': 'pde5_inhibitor',
+            
+            # 硝酸薬
+            'ニコランジル': 'nitrate',
+            'ニトログリセリン': 'nitrate',
+            'イソソルビド': 'nitrate',
+            'ニトロプルシド': 'nitrate',
+            
+            # ARNI（心不全治療薬）
+            'エンレスト': 'arni',
+            'サクビトリル': 'arni',
+            'バルサルタン': 'arb',  # ARNIの成分
+            
+            # Ca拮抗薬+ARB配合剤
+            'テラムロ': 'ca_antagonist_arb_combination',
+            'アムロジピン': 'ca_antagonist',
+            'テルミサルタン': 'arb',
+            
+            # ACE阻害薬
+            'エナラプリル': 'ace_inhibitor',
+            'カプトプリル': 'ace_inhibitor',
+            'リシノプリル': 'ace_inhibitor',
+            'ペリンドプリル': 'ace_inhibitor',
+            
+            # P-CAB（胃薬）
+            'タケキャブ': 'p_cab',
+            'ボノプラザン': 'p_cab',
+            'フォノプラザン': 'p_cab',
+            
+            # PPI（胃薬）
+            'ランソプラゾール': 'ppi',
+            'オメプラゾール': 'ppi',
+            'エソメプラゾール': 'ppi',
+            'ラベプラゾール': 'ppi',
+            'パントプラゾール': 'ppi',
+            
+            # ベンゾジアゼピン系（正確な分類）
+            'ジアゼパム': 'benzodiazepine',
+            'クロナゼパム': 'benzodiazepine',
+            'アルプラゾラム': 'benzodiazepine',
+            'ロラゼパム': 'benzodiazepine',
+            'テマゼパム': 'benzodiazepine',
+            'ミダゾラム': 'benzodiazepine',
+            'エスタゾラム': 'benzodiazepine',
+            'フルラゼパム': 'benzodiazepine',
+            'ニトラゼパム': 'benzodiazepine',
+            'ブロマゼパム': 'benzodiazepine',
+            'クロチアゼパム': 'benzodiazepine',
+            'クロキサゾラム': 'benzodiazepine',
+            'ハロキサゾラム': 'benzodiazepine',
+            'メキサゾラム': 'benzodiazepine',
+            'オキサゼパム': 'benzodiazepine',
+            'オキサゾラム': 'benzodiazepine',
+            'プラゼパム': 'benzodiazepine',
+            'トリアゾラム': 'benzodiazepine',
+            'エチゾラム': 'benzodiazepine',
+            'フルニトラゼパム': 'benzodiazepine',
+            'ブロチゾラム': 'benzodiazepine',
+            
+            # バルビツール酸系
+            'フェノバルビタール': 'barbiturate',
+            'アモバルビタール': 'barbiturate',
+            'ペントバルビタール': 'barbiturate',
+            'チオペンタール': 'barbiturate',
+            'セコバルビタール': 'barbiturate',
+            
+            # オピオイド
+            'モルヒネ': 'opioid',
+            'コデイン': 'opioid',
+            'フェンタニル': 'opioid',
+            'オキシコドン': 'opioid',
+            'ヒドロコドン': 'opioid',
+            'トラマドール': 'opioid',
+            'ペンタゾシン': 'opioid',
+            'ブプレノルフィン': 'opioid',
+            'メタドン': 'opioid',
+            
+            # NSAIDs
+            'アスピリン': 'nsaid',
+            'イブプロフェン': 'nsaid',
+            'ロキソプロフェン': 'nsaid',
+            'ジクロフェナク': 'nsaid',
+            'メフェナム酸': 'nsaid',
+            'インドメタシン': 'nsaid',
+            'ナプロキセン': 'nsaid',
+            'ケトプロフェン': 'nsaid',
+            'セレコキシブ': 'nsaid',
+            'メロキシカム': 'nsaid',
+            'アセトアミノフェン': 'nsaid',
+            
+            # スタチン
+            'シンバスタチン': 'statin',
+            'アトルバスタチン': 'statin',
+            'プラバスタチン': 'statin',
+            'ロスバスタチン': 'statin',
+            'フルバスタチン': 'statin',
+            'ピタバスタチン': 'statin',
+            
+            # ARB
+            'ロサルタン': 'arb',
+            'カンデサルタン': 'arb',
+            'イルベサルタン': 'arb',
+            'オルメサルタン': 'arb',
+            'アジルサルタン': 'arb',
+            
+            # β遮断薬
+            'プロプラノロール': 'beta_blocker',
+            'アテノロール': 'beta_blocker',
+            'ビソプロロール': 'beta_blocker',
+            'メトプロロール': 'beta_blocker',
+            'カルベジロール': 'beta_blocker',
+            'ネビボロール': 'beta_blocker',
+            
+            # Ca拮抗薬
+            'ニフェジピン': 'ca_antagonist',
+            'ベラパミル': 'ca_antagonist',
+            'ジルチアゼム': 'ca_antagonist',
+            'ニカルジピン': 'ca_antagonist',
+            'ニソルジピン': 'ca_antagonist',
+            'ベニジピン': 'ca_antagonist',
+            'シルニジピン': 'ca_antagonist',
+            
+            # 利尿薬
+            'フロセミド': 'diuretic',
+            'ヒドロクロロチアジド': 'diuretic',
+            'スピロノラクトン': 'diuretic',
+            'トリアムテレン': 'diuretic',
+            'アミロライド': 'diuretic',
+            'ブメタニド': 'diuretic',
+            
+            # 抗ヒスタミン薬
+            'フェニラミン': 'antihistamine',
+            'クロルフェニラミン': 'antihistamine',
+            'ジフェンヒドラミン': 'antihistamine',
+            'セチリジン': 'antihistamine',
+            'ロラタジン': 'antihistamine',
+            'フェキソフェナジン': 'antihistamine',
+            
+            # 制酸薬
+            'アルミニウム': 'antacid',
+            'マグネシウム': 'antacid',
+            'カルシウム': 'antacid',
+            
+            # 抗凝固薬
+            'ワルファリン': 'anticoagulant',
+            'ダビガトラン': 'anticoagulant',
+            'リバーロキサバン': 'anticoagulant',
+            'アピキサバン': 'anticoagulant',
+            'エドキサバン': 'anticoagulant',
+            'ヘパリン': 'anticoagulant',
+            'エノキサパリン': 'anticoagulant',
+            
+            # 糖尿病治療薬
+            'メトホルミン': 'diabetes_medication',
+            'インスリン': 'diabetes_medication',
+            'グリクラジド': 'diabetes_medication',
+            'グリメピリド': 'diabetes_medication',
+            'ピオグリタゾン': 'diabetes_medication',
+            'シタグリプチン': 'diabetes_medication',
+            'ビルダグリプチン': 'diabetes_medication',
+            'リナグリプチン': 'diabetes_medication',
+            'アログリプチン': 'diabetes_medication',
+            'テネリグリプチン': 'diabetes_medication',
+            
+            # 抗生物質
+            'アモキシシリン': 'antibiotic',
+            'セファレキシン': 'antibiotic',
+            'エリスロマイシン': 'antibiotic',
+            'クラリスロマイシン': 'antibiotic',
+            'アジスロマイシン': 'antibiotic',
+            'ドキシサイクリン': 'antibiotic',
+            'ミノサイクリン': 'antibiotic',
+            'レボフロキサシン': 'antibiotic',
+            'シプロフロキサシン': 'antibiotic',
+            'ノルフロキサシン': 'antibiotic',
+            'バンコマイシン': 'antibiotic',
+            'テイコプラニン': 'antibiotic',
+            'メロペネム': 'antibiotic',
+            'イミペネム': 'antibiotic',
+            'セフトリアキソン': 'antibiotic',
+            
+            # 抗うつ薬
+            'フルオキセチン': 'antidepressant',
+            'パロキセチン': 'antidepressant',
+            'セルトラリン': 'antidepressant',
+            'エスシタロプラム': 'antidepressant',
+            'ベンラファキシン': 'antidepressant',
+            'デュロキセチン': 'antidepressant',
+            
+            # 抗精神病薬
+            'アリピプラゾール': 'antipsychotic',
+            'リスペリドン': 'antipsychotic',
+            'オランザピン': 'antipsychotic',
+            'クエチアピン': 'antipsychotic',
+            
+            # 気管支拡張薬
+            'テオフィリン': 'bronchodilator',
+            'サルブタモール': 'bronchodilator',
+            'フォルモテロール': 'bronchodilator',
+            'サルメテロール': 'bronchodilator',
+            
+            # 吸入ステロイド薬
+            'ブデソニド': 'inhaled_corticosteroid',
+            'フルチカゾン': 'inhaled_corticosteroid',
+            
+            # ロイコトリエン受容体拮抗薬
+            'モンテルカスト': 'leukotriene_receptor_antagonist',
+            'ザフィルルカスト': 'leukotriene_receptor_antagonist',
+            
+            # 去痰薬
+            'アセチルシステイン': 'mucolytic',
+            'カルボシステイン': 'mucolytic',
+            
+            # 前立腺肥大症治療薬
+            'フィナステリド': 'bph_medication',
+            'デュタステリド': 'bph_medication',
+            'タムスロシン': 'bph_medication',
+            'シルドシン': 'bph_medication',
+            'ナフトピジル': 'bph_medication',
+            'ウラピジル': 'bph_medication',
+            
+            # その他の薬剤
+            'ジゴキシン': 'cardiac_glycoside',
+            'アミオダロン': 'antiarrhythmic',
+            'メトトレキサート': 'antirheumatic',
+            'プレドニゾロン': 'corticosteroid',
+            'シクロスポリン': 'immunosuppressant',
+            'タクロリムス': 'immunosuppressant',
+            'アザチオプリン': 'immunosuppressant',
+            'ミコフェノール酸': 'immunosuppressant',
+            'レフルノミド': 'antirheumatic',
+            'サラゾスルファピリジン': 'antirheumatic',
+            'ブシラミン': 'antirheumatic',
+            'ペニシラミン': 'antirheumatic'
+        }
+        
+        # 1. 完全一致チェック（最も信頼性が高い）
+        for drug, category in exact_drug_mapping.items():
+            if drug.lower() in drug_lower or drug.lower() in normalized_name:
+                return category
+        
+        # 2. 部分一致チェック（より厳密な条件）
+        best_category = 'unknown'
+        best_score = 0
+        
+        for drug, category in exact_drug_mapping.items():
+            drug_lower_match = drug.lower()
+            
+            # より厳密な部分一致チェック
+            if (drug_lower_match in drug_lower or 
+                drug_lower_match in normalized_name or
+                drug_lower in drug_lower_match):
+                
+                # 類似度スコアを計算
+                score = self._calculate_pattern_similarity(drug_lower, drug_lower_match)
+                if score > best_score and score >= 0.8:  # 80%以上の類似度に引き上げ
+                    best_score = score
+                    best_category = category
+        
+        return best_category
+
+    def _calculate_pattern_similarity(self, drug_name: str, pattern: str) -> float:
+        """パターンとの類似度を計算"""
+        if not drug_name or not pattern:
+            return 0.0
+        
+        # 完全一致
+        if drug_name == pattern:
+            return 1.0
+        
+        # 部分一致
+        if pattern in drug_name or drug_name in pattern:
+            return 0.9
+        
+        # 文字レベルでの類似度
+        common_chars = sum(1 for c in pattern if c in drug_name)
+        if len(pattern) > 0:
+            char_similarity = common_chars / len(pattern)
+        else:
+            char_similarity = 0.0
+        
+        # 接頭辞・接尾辞の一致
+        prefix_bonus = 0.0
+        suffix_bonus = 0.0
+        
+        if drug_name.startswith(pattern[:3]) and len(pattern) >= 3:
+            prefix_bonus = 0.3
+        
+        if drug_name.endswith(pattern[-3:]) and len(pattern) >= 3:
+            suffix_bonus = 0.3
+        
+        return min(char_similarity + prefix_bonus + suffix_bonus, 1.0)
+
+    def _normalize_name(self, drug_name: str) -> str:
+        """薬剤名の正規化"""
+        if not drug_name:
+            return ""
+        
+        # 基本的な正規化
+        normalized = drug_name.strip()
+        
+        # 剤形の除去
+        dosage_forms = ['錠', 'カプセル', '散剤', '液剤', '注射剤', '軟膏', 'クリーム', '貼付剤', '吸入剤', '点眼剤', '点鼻剤']
+        for form in dosage_forms:
+            normalized = normalized.replace(form, '')
+        
+        # 数字と単位の除去
+        normalized = re.sub(r'\d+\.?\d*\s*(mg|g|ml|μg|mcg)', '', normalized)
+        normalized = re.sub(r'\d+', '', normalized)
+        
+        # 製薬会社名の除去（括弧内）
+        normalized = re.sub(r'[（(].*?[）)]', '', normalized)
+        
+        # 特殊文字の除去
+        normalized = re.sub(r'[^\w\s]', '', normalized)
+        
+        return normalized.strip()
+
 
 
  
