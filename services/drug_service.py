@@ -472,7 +472,7 @@ class AIDrugMatcher:
             return 'ace_inhibitor'
         elif any(pattern in drug_lower for pattern in ['タケキャブ', 'ボノプラザン']):
             return 'p_cab'
-        elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'オメプラゾール', 'エソメプラゾール', 'ラベプラゾール', 'パントプラゾール']):
+        elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'ランソプラゾル', 'オメプラゾール', 'エソメプラゾール', 'ラベプラゾール', 'パントプラゾール']):
             return 'ppi'
         else:
             return 'unknown'
@@ -1148,20 +1148,27 @@ class DrugService:
         """AI分析に基づく警告の生成"""
         warnings = []
         
+        # 新しいAI分析構造を使用
+        risk_summary = ai_analysis.get('risk_summary', {})
+        
+        # 緊急リスクの警告
+        if risk_summary.get('critical_risk'):
+            warnings.append(f"🚨 緊急リスクが{len(risk_summary['critical_risk'])}件検出されました")
+        
         # 高リスクの警告
-        if ai_analysis['high_risk_count'] > 0:
-            warnings.append(f"🚨 高リスク相互作用が{ai_analysis['high_risk_count']}件検出されました")
+        if risk_summary.get('high_risk'):
+            warnings.append(f"⚠️ 高リスク相互作用が{len(risk_summary['high_risk'])}件検出されました")
         
         # 中リスクの警告
-        if ai_analysis['medium_risk_count'] > 0:
-            warnings.append(f"⚠️ 中リスク相互作用が{ai_analysis['medium_risk_count']}件検出されました")
+        if risk_summary.get('medium_risk'):
+            warnings.append(f"📋 中リスク相互作用が{len(risk_summary['medium_risk'])}件検出されました")
         
         # 低リスクの警告
-        if ai_analysis['low_risk_count'] > 0:
-            warnings.append(f"ℹ️ 低リスク相互作用が{ai_analysis['low_risk_count']}件検出されました")
+        if risk_summary.get('low_risk'):
+            warnings.append(f"ℹ️ 低リスク相互作用が{len(risk_summary['low_risk'])}件検出されました")
         
         # 薬剤カテゴリの警告
-        drug_categories = ai_analysis['drug_categories']
+        drug_categories = ai_analysis.get('drug_categories', {})
         
         # 血圧降下薬の多剤併用
         bp_meds = [drug for drug, cat in drug_categories.items() 
@@ -1188,7 +1195,8 @@ class DrugService:
         diagnosis_details = []
         
         # 検出されたリスクの詳細
-        for risk in ai_analysis['detected_risks']:
+        detected_risks = ai_analysis.get('detected_risks', [])
+        for risk in detected_risks:
             diagnosis_details.append({
                 'type': 'AI検出リスク',
                 'risk_level': risk['risk_level'],
@@ -1200,7 +1208,7 @@ class DrugService:
             })
         
         # 薬剤カテゴリ別の詳細
-        drug_categories = ai_analysis['drug_categories']
+        drug_categories = ai_analysis.get('drug_categories', {})
         category_groups = {}
         
         for drug, category in drug_categories.items():
