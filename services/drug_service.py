@@ -1888,6 +1888,9 @@ class DrugService:
         for drug in drug_names:
             category = self._predict_category(drug)
             drug_categories[drug] = category
+            logger.info(f"薬剤分類: {drug} -> {category}")
+        
+        logger.info(f"全薬剤分類: {drug_categories}")
         
         # 臨床的に重要な相互作用パターンの定義
         clinical_risks = {
@@ -2065,12 +2068,16 @@ class DrugService:
         # 胃薬重複の特別チェック（確実に検出するため）
         ppi_drugs = [drug for drug, cat in drug_categories.items() if cat == 'ppi']
         p_cab_drugs = [drug for drug, cat in drug_categories.items() if cat == 'p_cab']
+        logger.info(f"胃薬重複チェック: PPI={ppi_drugs}, P-CAB={p_cab_drugs}")
+        
         if ppi_drugs and p_cab_drugs:
             # 胃薬重複が既に検出されているかチェック
             gastric_duplication_found = any(
                 risk['risk_name'] == 'gastric_medications' 
                 for risk in detected_risks
             )
+            logger.info(f"胃薬重複既存チェック: {gastric_duplication_found}")
+            
             if not gastric_duplication_found:
                 # 胃薬重複が検出されていない場合、強制的に追加
                 gastric_risk = {
@@ -2086,6 +2093,8 @@ class DrugService:
                 detected_risks.append(gastric_risk)
                 risk_summary['high_risk'].append(gastric_risk)
                 logger.info(f"胃薬重複を強制追加: {ppi_drugs} + {p_cab_drugs}")
+        else:
+            logger.info("胃薬重複なし: PPIまたはP-CABが不足")
         
         # 詳細な臨床分析の実行
         detailed_analysis = self._perform_detailed_clinical_analysis(drug_names, drug_categories, detected_risks)
@@ -2180,6 +2189,7 @@ class DrugService:
             
             # PPI（胃薬）
             'ランソプラゾール': 'ppi',
+            'ランソプラゾル': 'ppi',  # OCRで抽出される可能性のある表記
             'オメプラゾール': 'ppi',
             'エソメプラゾール': 'ppi',
             'ラベプラゾール': 'ppi',
