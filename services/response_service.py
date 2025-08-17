@@ -25,7 +25,7 @@ class ResponseService:
             logger.info(f"AI analysis keys: {list(ai_analysis.keys()) if ai_analysis else 'None'}")
             
             # AI分析結果が空の場合のフォールバック
-            if not ai_analysis or not ai_analysis.get('patient_safety_alerts'):
+            if not ai_analysis or (not ai_analysis.get('patient_safety_alerts') and not ai_analysis.get('risk_summary')):
                 response_parts.append("⚠️ 診断結果")
                 response_parts.append("AI分析が完了しませんでした。")
                 response_parts.append("従来の相互作用チェック結果を表示します。")

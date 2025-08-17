@@ -208,19 +208,15 @@ class AIDrugMatcher:
             'english_variants': self._generate_english_variants(drug_name)
         }
         
-        # 1. パターンベースの分類
+        # 1. パターンベースの分類（AI分類は一時的に無効化）
         pattern_category = self._simple_category_prediction(drug_name)
         
-        # 2. AI駆動の分類（ChatGPT APIを使用）
-        ai_category = self._ai_category_prediction(drug_name)
+        # 2. AI駆動の分類（一時的に無効化）
+        # ai_category = self._ai_category_prediction(drug_name)
         
-        # 3. より信頼度の高い方を選択
-        if ai_category and ai_category != 'unknown':
-            analysis['category'] = ai_category
-            analysis['confidence'] = 0.9  # AI分類の場合は高信頼度
-        else:
-            analysis['category'] = pattern_category
-            analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
+        # 3. パターンベース分類を使用
+        analysis['category'] = pattern_category
+        analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
         
         # 検索優先度の決定
         analysis['search_priority'] = self._determine_search_priority(drug_name, analysis)
@@ -345,7 +341,7 @@ class AIDrugMatcher:
             if category in valid_categories:
                 logger.info(f"AI分類成功: {drug_name} -> {category}")
                 return category
-            else:
+        else:
                 logger.info(f"AI分類失敗: {drug_name} -> {category} (無効なカテゴリ)")
                 return 'unknown'
                 
@@ -558,6 +554,20 @@ class AIDrugMatcher:
             return 'p_cab'
         elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'ランソプラゾル', 'オメプラゾール', 'エソメプラゾール', 'ラベプラゾール', 'パントプラゾール']):
             return 'ppi'
+        elif any(pattern in drug_lower for pattern in ['ベルソムラ', 'ロゼレム', 'ラメルテオン', 'スボレキサント', 'ゾルピデム', 'ゾピクロン', 'エスゾピクロン', 'トリアゾラム', 'ブロチゾラム', 'フルラゼパム', 'エスタゾラム', 'ニトラゼパム', 'ブロマゼパム', 'テマゼパム', 'ロラゼパム', 'アルプラゾラム', 'クロナゼパム', 'ジアゼパム']):
+            return 'sleep_medication'
+        elif any(pattern in drug_lower for pattern in ['デエビゴ', 'ビルダグリプチン', 'シタグリプチン', 'リナグリプチン', 'アログリプチン', 'テネリグリプチン']):
+            return 'diabetes_medication'
+        elif any(pattern in drug_lower for pattern in ['クラリスロマイシン', 'アモキシシリン', 'セファレキシン', 'エリスロマイシン', 'アジスロマイシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン']):
+            return 'antibiotic'
+        elif any(pattern in drug_lower for pattern in ['フェブキソスタット', 'アロプリノール', 'トピロキソスタット']):
+            return 'uric_acid_lowering'
+        elif any(pattern in drug_lower for pattern in ['リオナ', '炭酸ランタン', 'セベラマー', '炭酸カルシウム']):
+            return 'phosphate_binder'
+        elif any(pattern in drug_lower for pattern in ['アルファカルシドール', 'アルファカルシドル', 'カルシトリオール', 'エルデカルシトール']):
+            return 'vitamin_d'
+        elif any(pattern in drug_lower for pattern in ['ルパフィン', 'ロラタジン', 'フェキソフェナジン', 'セチリジン']):
+            return 'antihistamine'
         else:
             return 'unknown'
 
