@@ -171,6 +171,15 @@ class ResponseService:
 ・文字がはっきり見えるように撮影してください
 ━━━━━━━━━━━━━━"""
         
+        # DrugServiceを使用して薬剤分類を取得
+        from services.drug_service import DrugService
+        drug_service = DrugService()
+        drug_categories = {}
+        
+        for drug_name in drug_names:
+            category = drug_service._predict_category(drug_name)
+            drug_categories[drug_name] = category
+        
         response_parts = []
         response_parts.append("🩺【薬剤検出完了】")
         response_parts.append("━━━━━━━━━━━━━━")
@@ -254,8 +263,8 @@ class ResponseService:
         }
         
         for i, drug in enumerate(drug_names, 1):
-            # 薬剤名からカテゴリを推定
-            category = drug_category_mapping.get(drug, 'unknown')
+            # DrugServiceで取得した分類を使用
+            category = drug_categories.get(drug, 'unknown')
             category_jp = category_mapping.get(category, category)
             
             response_parts.append(f"① {drug}")
