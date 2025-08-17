@@ -2465,9 +2465,24 @@ class DrugService:
             'ペニシラミン': 'antirheumatic'
         }
         
+        # 0. 特殊な薬剤名の直接マッチング（OCRで抽出される可能性のある表記）
+        special_mappings = {
+            'フェブキソスタット錠': 'uric_acid_lowering',
+            'ルパフィン錠': 'antihistamine',
+            'リオナ錠': 'phosphate_binder',
+            '炭酸ランタン': 'phosphate_binder',
+            'アルファカルシドル錠': 'vitamin_d',
+        }
+        
+        for special_name, category in special_mappings.items():
+            if special_name.lower() in drug_lower:
+                logger.info(f"特殊マッチング検出: {drug_name} -> {special_name} -> {category}")
+                return category
+        
         # 1. 完全一致チェック（最も信頼性が高い）
         for drug, category in exact_drug_mapping.items():
             if drug.lower() in drug_lower or drug.lower() in normalized_name:
+                logger.info(f"完全一致検出: {drug_name} -> {drug} -> {category}")
                 return category
         
         # 2. 部分一致チェック（より厳密な条件）
@@ -2484,9 +2499,10 @@ class DrugService:
                 
                 # 類似度スコアを計算
                 score = self._calculate_pattern_similarity(drug_lower, drug_lower_match)
-                if score > best_score and score >= 0.8:  # 80%以上の類似度に引き上げ
+                if score > best_score and score >= 0.6:  # 60%以上の類似度に下げてより多くの薬剤を分類
                     best_score = score
                     best_category = category
+                    logger.info(f"部分一致検出: {drug_name} -> {drug} -> {category} (スコア: {score})")
         
         return best_category
 
