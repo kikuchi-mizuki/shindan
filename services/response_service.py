@@ -18,33 +18,7 @@ class ResponseService:
             response_parts.append("🏥 薬剤相互作用診断システム")
             response_parts.append("━━━━━━━━━━━━━━")
             
-            # 検出された薬剤の表示（薬効分類付き）
-            detected_drugs = drug_info.get('detected_drugs', [])
-            if detected_drugs:
-                response_parts.append("📋 読み取られたお薬")
-                for drug in detected_drugs:
-                    if isinstance(drug, dict):
-                        category = drug.get('ai_category', drug.get('category', '不明'))
-                        name = drug.get('name', '不明')
-                    else:
-                        # drugが文字列の場合
-                        category = '不明'
-                        name = str(drug)
-                    response_parts.append(f"・{name}")
-                    response_parts.append(f"  薬効分類: {category}")
-                response_parts.append("")
-            else:
-                # 薬剤名リストから直接表示
-                drug_names = drug_info.get('drug_names', [])
-                if drug_names:
-                    response_parts.append("📋 読み取られたお薬")
-                    for drug_name in drug_names:
-                        response_parts.append(f"・{drug_name}")
-                    response_parts.append("")
-                else:
-                    response_parts.append("📋 読み取られたお薬")
-                    response_parts.append("薬剤情報が見つかりませんでした")
-                    response_parts.append("")
+            # 診断結果では薬剤情報を省略（最初の検出で既に表示済み）
             
             # AI分析結果の確認
             ai_analysis = drug_info.get('ai_analysis', {})
