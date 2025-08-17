@@ -272,7 +272,11 @@ class ResponseService:
             category = drug_categories.get(drug, 'unknown')
             category_jp = category_mapping.get(category, category)
             
-            response_parts.append(f"① {drug}")
+            # 番号を正しく表示（①、②、③...）
+            number_symbols = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
+            number_symbol = number_symbols[i-1] if i <= len(number_symbols) else f"{i}."
+            
+            response_parts.append(f"{number_symbol} {drug}")
             response_parts.append(f"   分類: {category_jp}")
             response_parts.append("")
         
