@@ -229,6 +229,7 @@ class ResponseService:
             'uric_acid_lowering': '尿酸生成抑制薬',
             'phosphate_binder': 'リン吸着薬',
             'vitamin_d': '活性型ビタミンD製剤',
+            'sleep_medication': '睡眠薬・催眠薬',
             'unknown': '分類不明'
         }
         
