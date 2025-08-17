@@ -61,7 +61,7 @@ class ResponseService:
                 # 1. 併用禁忌の詳細表示
                 critical_risks = ai_analysis.get('risk_summary', {}).get('critical_risk', [])
                 if critical_risks:
-                    response_parts.append("🚨 併用禁忌")
+                    response_parts.append("🚨 併用禁忌（重大リスク）")
                     response_parts.append("")
                     for risk in critical_risks:
                         response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
@@ -75,7 +75,7 @@ class ResponseService:
                 # 2. 同効薬の重複の詳細表示
                 high_risks = ai_analysis.get('risk_summary', {}).get('high_risk', [])
                 if high_risks:
-                    response_parts.append("⚠️ 同効薬の重複")
+                    response_parts.append("⚠️ 同効薬の重複（注意リスク）")
                     response_parts.append("")
                     for risk in high_risks:
                         response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
@@ -91,7 +91,7 @@ class ResponseService:
                 # 3. 併用注意の詳細表示
                 medium_risks = ai_analysis.get('risk_summary', {}).get('medium_risk', [])
                 if medium_risks:
-                    response_parts.append("📋 併用注意")
+                    response_parts.append("📋 併用注意（軽微リスク）")
                     response_parts.append("")
                     for risk in medium_risks:
                         response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
@@ -185,8 +185,8 @@ class ResponseService:
         response_parts = []
         response_parts.append("🩺【薬剤検出完了】")
         response_parts.append("━━━━━━━━━━━━━━")
-        response_parts.append(f"✅ {len(drug_names)}件の薬剤を検出しました")
-        response_parts.append(f"現在のリスト: {len(drug_names)}件")
+        response_parts.append(f"✅ {len(drug_names)}件検出しました")
+        response_parts.append("")
         response_parts.append("")
         response_parts.append("📋 検出された薬剤:")
         response_parts.append("")
@@ -230,6 +230,8 @@ class ResponseService:
             'phosphate_binder': 'リン吸着薬',
             'vitamin_d': '活性型ビタミンD製剤',
             'sleep_medication': '睡眠薬・催眠薬',
+            'ssri_antidepressant': 'SSRI抗うつ薬',
+            'cyp3a4_inhibitor': 'CYP3A4阻害薬',
             'unknown': '分類不明'
         }
         
@@ -257,6 +259,11 @@ class ResponseService:
             'クロナゼパム': 'benzodiazepine',
             'アルプラゾラム': 'benzodiazepine',
             'ロラゼパム': 'benzodiazepine',
+            'フルボキサミン': 'ssri_antidepressant',
+            'ベルソムラ': 'sleep_medication',
+            'デエビゴ': 'sleep_medication',
+            'ロゼレム': 'sleep_medication',
+            'クラリスロマイシン': 'cyp3a4_inhibitor',
             'アスピリン': 'nsaid',
             'イブプロフェン': 'nsaid',
             'ロキソプロフェン': 'nsaid',
@@ -281,7 +288,7 @@ class ResponseService:
             response_parts.append(f"   分類: {category_jp}")
             response_parts.append("")
         
-        response_parts.append("💡 「診断」で飲み合わせチェックを実行できます")
+        response_parts.append("🔍 「診断」で飲み合わせチェックを実行できます")
         response_parts.append("━━━━━━━━━━━━━━")
         
         return "\n".join(response_parts)
