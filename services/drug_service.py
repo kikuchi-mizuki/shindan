@@ -2479,6 +2479,20 @@ class DrugService:
                 logger.info(f"特殊マッチング検出: {drug_name} -> {special_name} -> {category}")
                 return category
         
+        # 0.5. より柔軟な部分一致マッチング（OCRの表記バリエーション対応）
+        flexible_mappings = {
+            'フェブキソスタット': 'uric_acid_lowering',
+            'ルパフィン': 'antihistamine',
+            'リオナ': 'phosphate_binder',
+            '炭酸ランタン': 'phosphate_binder',
+            'アルファカルシドル': 'vitamin_d',
+        }
+        
+        for flexible_name, category in flexible_mappings.items():
+            if flexible_name.lower() in drug_lower:
+                logger.info(f"柔軟マッチング検出: {drug_name} -> {flexible_name} -> {category}")
+                return category
+        
         # 1. 完全一致チェック（最も信頼性が高い）
         for drug, category in exact_drug_mapping.items():
             if drug.lower() in drug_lower or drug.lower() in normalized_name:
@@ -2504,6 +2518,8 @@ class DrugService:
                     best_category = category
                     logger.info(f"部分一致検出: {drug_name} -> {drug} -> {category} (スコア: {score})")
         
+        if best_category == 'unknown':
+            logger.warning(f"薬剤分類失敗: {drug_name} (normalized: {normalized_name})")
         return best_category
 
     def _calculate_pattern_similarity(self, drug_name: str, pattern: str) -> float:
