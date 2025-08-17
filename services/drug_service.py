@@ -198,6 +198,12 @@ class AIDrugMatcher:
             logger.info(f"Using cached analysis for '{drug_name}'")
             return self.analysis_cache[drug_name]
         
+        # AI駆動の薬剤名修正
+        corrected_name = self._ai_drug_name_correction(drug_name)
+        if corrected_name != drug_name:
+            logger.info(f"薬剤名修正: {drug_name} -> {corrected_name}")
+            drug_name = corrected_name
+        
         # 基本的な分析
         analysis = {
             'original': drug_name,
@@ -287,6 +293,41 @@ class AIDrugMatcher:
         
         return min(confidence, 1.0)
 
+    def _ai_drug_name_correction(self, drug_name: str) -> str:
+        """ChatGPT APIを使用した薬剤名の修正・正規化"""
+        try:
+            import openai
+            
+            # 薬剤名修正のプロンプト
+            prompt = f"""
+以下の薬剤名が正しいかどうか確認し、正しい薬剤名に修正してください。
+入力された薬剤名: {drug_name}
+
+特に以下のような誤認識を修正してください：
+- フルラゼパム → フルボキサミン（SSRI抗うつ薬）
+- その他の類似薬剤名の誤認識
+
+正しい薬剤名のみを返してください。修正が必要ない場合は元の名前を返してください。
+"""
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "あなたは薬剤名の専門家です。薬剤名の誤認識を修正し、正しい薬剤名を返してください。"},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=50,
+                temperature=0.1
+            )
+            
+            corrected_name = response.choices[0].message.content.strip()
+            logger.info(f"AI薬剤名修正: {drug_name} -> {corrected_name}")
+            return corrected_name
+            
+        except Exception as e:
+            logger.warning(f"AI薬剤名修正エラー: {drug_name} - {e}")
+            return drug_name
+
     def _ai_category_prediction(self, drug_name: str) -> str:
         """ChatGPT APIを使用した薬剤分類予測"""
         try:
@@ -300,6 +341,7 @@ class AIDrugMatcher:
 以下のカテゴリから最も適切なものを選択してください：
 - benzodiazepine (ベンゾジアゼピン系)
 - sleep_medication (睡眠薬・催眠薬)
+- ssri_antidepressant (SSRI抗うつ薬)
 - ca_antagonist (カルシウム拮抗薬)
 - ace_inhibitor (ACE阻害薬)
 - arb (ARB)
@@ -859,6 +901,32 @@ class DrugService:
             'メトトレキサート': {
                 '葉酸': {'risk': 'medium', 'description': '葉酸補充が必要', 'mechanism': '葉酸拮抗作用'},
                 'NSAIDs': {'risk': 'high', 'description': '骨髄抑制リスク増加', 'mechanism': '腎排泄競合'}
+            },
+            # 睡眠薬の重複投与
+            'ベルソムラ': {
+                'ロゼレム': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'},
+                'デエビゴ': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'}
+            },
+            'ロゼレム': {
+                'ベルソムラ': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'},
+                'デエビゴ': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'}
+            },
+            'デエビゴ': {
+                'ベルソムラ': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'},
+                'ロゼレム': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'}
+            },
+            # CYP3A4阻害薬との相互作用
+            'クラリスロマイシン': {
+                'フルボキサミン': {'risk': 'high', 'description': 'CYP3A4阻害作用の重複', 'mechanism': '他剤の血中濃度上昇', 'clinical_impact': '強い眠気、ふらつき、低血圧リスク'},
+                'アムロジピン': {'risk': 'high', 'description': 'アムロジピンの代謝阻害', 'mechanism': 'CYP3A4阻害による血中濃度上昇', 'clinical_impact': '低血圧、めまい、浮腫'},
+                'ベルソムラ': {'risk': 'high', 'description': 'ベルソムラの血中濃度上昇', 'mechanism': 'CYP3A4阻害', 'clinical_impact': '過度の眠気、転倒リスク'},
+                'デエビゴ': {'risk': 'high', 'description': 'デエビゴの血中濃度上昇', 'mechanism': 'CYP3A4阻害', 'clinical_impact': '過度の眠気、転倒リスク'}
+            },
+            'フルボキサミン': {
+                'クラリスロマイシン': {'risk': 'high', 'description': 'CYP3A4阻害作用の重複', 'mechanism': '他剤の血中濃度上昇', 'clinical_impact': '強い眠気、ふらつき、低血圧リスク'},
+                'ベルソムラ': {'risk': 'high', 'description': 'ベルソムラの血中濃度上昇', 'mechanism': 'CYP3A4阻害', 'clinical_impact': '過度の眠気、集中力低下、転倒リスク'},
+                'デエビゴ': {'risk': 'high', 'description': 'デエビゴの血中濃度上昇', 'mechanism': 'CYP3A4阻害', 'clinical_impact': '過度の眠気、集中力低下、転倒リスク'},
+                'ロゼレム': {'risk': 'high', 'description': 'ロゼレムの血中濃度上昇', 'mechanism': 'CYP3A4阻害', 'clinical_impact': '過度の眠気、集中力低下、転倒リスク'}
             }
         }
         logger.info(f"Loaded interaction rules: {len(self.interaction_rules)} drug mappings")
@@ -2079,6 +2147,22 @@ class DrugService:
                 'recommendation': '段階的な投与開始と慎重な用量調整が必要',
                 'priority': 6
             },
+            'sleep_medication_duplication': {
+                'categories': ['sleep_medication'],
+                'risk_level': 'high',
+                'description': '睡眠薬の重複投与',
+                'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠',
+                'recommendation': '睡眠薬の多剤併用は避け、必要に応じて1剤に変更',
+                'priority': 2
+            },
+            'cyp3a4_inhibition': {
+                'categories': ['cyp3a4_inhibitor', 'ca_antagonist', 'sleep_medication'],
+                'risk_level': 'high',
+                'description': 'CYP3A4阻害薬による他剤の血中濃度上昇',
+                'clinical_impact': '強い眠気、ふらつき、低血圧、転倒リスク',
+                'recommendation': '投与量調整または併用回避を検討',
+                'priority': 2
+            },
             'cardiac_medications': {
                 'categories': ['cardiac_glycoside', 'diuretic', 'ace_inhibitor'],
                 'risk_level': 'high',
@@ -2503,7 +2587,7 @@ class DrugService:
             'アモキシシリン': 'antibiotic',
             'セファレキシン': 'antibiotic',
             'エリスロマイシン': 'antibiotic',
-            'クラリスロマイシン': 'antibiotic',
+            'クラリスロマイシン': 'cyp3a4_inhibitor',  # CYP3A4阻害薬として分類
             'アジスロマイシン': 'antibiotic',
             
             # 睡眠薬・催眠薬
@@ -2527,7 +2611,7 @@ class DrugService:
             'ジアゼパム': 'sleep_medication',
             
             # 糖尿病治療薬（DPP-4阻害薬）
-            'デエビゴ': 'diabetes_medication',
+            'デエビゴ': 'sleep_medication',  # オレキシン受容体拮抗薬（睡眠薬）
             'ビルダグリプチン': 'diabetes_medication',
             'シタグリプチン': 'diabetes_medication',
             'リナグリプチン': 'diabetes_medication',
@@ -2545,10 +2629,11 @@ class DrugService:
             'セフトリアキソン': 'antibiotic',
             
             # 抗うつ薬
-            'フルオキセチン': 'antidepressant',
-            'パロキセチン': 'antidepressant',
-            'セルトラリン': 'antidepressant',
-            'エスシタロプラム': 'antidepressant',
+            'フルオキセチン': 'ssri_antidepressant',
+            'パロキセチン': 'ssri_antidepressant',
+            'セルトラリン': 'ssri_antidepressant',
+            'エスシタロプラム': 'ssri_antidepressant',
+            'フルボキサミン': 'ssri_antidepressant',
             'ベンラファキシン': 'antidepressant',
             'デュロキセチン': 'antidepressant',
             
@@ -2606,6 +2691,9 @@ class DrugService:
             'リオナ錠': 'phosphate_binder',
             '炭酸ランタン': 'phosphate_binder',
             'アルファカルシドル錠': 'vitamin_d',
+            'フルラゼパム': 'ssri_antidepressant',  # OCR誤認識の修正
+            'フルラゼパム錠': 'ssri_antidepressant',
+            'フルラゼパムmg': 'ssri_antidepressant',
         }
         
         for special_name, category in special_mappings.items():
