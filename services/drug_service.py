@@ -682,15 +682,49 @@ class DrugService:
                 'シルデナフィル': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'},
                 'バルデナフィル': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'}
             },
-            # 胃薬の重複投与
+            # 胃薬の重複投与（詳細化）
             'タケキャブ': {
-                'ランソプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与'},
-                'オメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与'},
-                'エソメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与'}
+                'ランソプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
+                'オメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
+                'エソメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
+                'ラベプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
+                'パントプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'}
             },
             'ランソプラゾール': {
-                'タケキャブ': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与'},
-                'ボノプラザン': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与'}
+                'タケキャブ': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
+                'ボノプラザン': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'}
+            },
+            'ボノプラザン': {
+                'ランソプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
+                'オメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'},
+                'エソメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与', 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害'}
+            },
+            # ACE阻害薬とARB/ARNIの併用禁忌
+            'エナラプリル': {
+                'エンレスト': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARNIの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'テラムロ': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'バルサルタン': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'ロサルタン': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'カンデサルタン': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'オルメサルタン': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'イルベサルタン': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'アジルサルタン': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'}
+            },
+            'リシノプリル': {
+                'エンレスト': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARNIの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'テラムロ': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'バルサルタン': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'}
+            },
+            'ペリンドプリル': {
+                'エンレスト': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARNIの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'テラムロ': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'},
+                'バルサルタン': {'risk': 'critical', 'description': '併用禁忌：ACE阻害薬とARBの併用', 'mechanism': 'レニン-アンジオテンシン系の重複阻害', 'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加'}
+            },
+            # ARNIとARBの併用注意
+            'エンレスト': {
+                'テラムロ': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'バルサルタンとARBの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'},
+                'バルサルタン': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'バルサルタンの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'},
+                'ロサルタン': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'ARBの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'}
             },
             # 既存の相互作用ルール
             'ワルファリン': {
@@ -1867,11 +1901,19 @@ class DrugService:
             },
             'gastric_medications': {
                 'categories': ['ppi', 'p_cab'],
-                'risk_level': 'medium',
+                'risk_level': 'high',
                 'description': '胃酸分泌抑制薬の重複投与',
-                'clinical_impact': '胃酸分泌の過度な抑制、栄養吸収障害のリスク',
-                'recommendation': '重複投与を避け、必要に応じて剤形を変更',
+                'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害',
+                'recommendation': '重複投与を避け、必要に応じて剤形を変更。長期使用時は定期的な血液検査を推奨',
                 'priority': 3
+            },
+            'ace_arb_arni_contraindication': {
+                'categories': ['ace_inhibitor', 'arb', 'arni'],
+                'risk_level': 'critical',
+                'description': '併用禁忌：ACE阻害薬とARB/ARNIの併用',
+                'clinical_impact': '腎機能障害、高K血症、低血圧、血管浮腫のリスク増加',
+                'recommendation': '絶対に併用してはいけません。腎機能と電解質の定期的なモニタリングが必要',
+                'priority': 2
             },
             'anticoagulants': {
                 'categories': ['anticoagulant', 'nsaid'],
@@ -1935,14 +1977,36 @@ class DrugService:
                     matching_categories.append(category)
                     matching_drugs.append(drug)
             
-            # リスク条件の判定
+            # リスク条件の判定（より詳細な条件設定）
             if len(matching_drugs) >= 2:  # 2剤以上の併用でリスク判定
+                # 特殊なリスクパターンの追加チェック
+                additional_impact = ""
+                additional_recommendation = ""
+                
+                # ACE/ARB/ARNIの併用チェック
+                if risk_name == 'ace_arb_arni_contraindication':
+                    ace_drugs = [drug for drug, cat in drug_categories.items() if cat == 'ace_inhibitor']
+                    arb_arni_drugs = [drug for drug, cat in drug_categories.items() if cat in ['arb', 'arni']]
+                    if ace_drugs and arb_arni_drugs:
+                        additional_impact = "特に腎機能障害、高K血症、血管浮腫のリスクが高まります。"
+                        additional_recommendation = "腎機能と電解質の定期的なモニタリングが必須です。"
+                
+                # 胃薬の重複チェック
+                elif risk_name == 'gastric_medications':
+                    additional_impact = "長期使用時は腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害が懸念されます。"
+                    additional_recommendation = "長期使用時は定期的な血液検査（Mg、ビタミンB12）を推奨します。"
+                
+                # PDE5阻害薬と硝酸薬の併用チェック
+                elif risk_name == 'pde5_nitrate_contraindication':
+                    additional_impact = "重度の低血圧、失神、心筋梗塞のリスクが非常に高くなります。"
+                    additional_recommendation = "緊急の医療対応が必要です。絶対に併用してはいけません。"
+                
                 risk_detail = {
                     'risk_name': risk_name,
                     'risk_level': risk_info['risk_level'],
                     'description': risk_info['description'],
-                    'clinical_impact': risk_info['clinical_impact'],
-                    'recommendation': risk_info['recommendation'],
+                    'clinical_impact': risk_info['clinical_impact'] + (" " + additional_impact if additional_impact else ""),
+                    'recommendation': risk_info['recommendation'] + (" " + additional_recommendation if additional_recommendation else ""),
                     'involved_drugs': matching_drugs,
                     'involved_categories': matching_categories,
                     'priority': risk_info['priority']
