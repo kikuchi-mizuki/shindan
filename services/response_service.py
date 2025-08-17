@@ -177,8 +177,10 @@ class ResponseService:
         drug_categories = {}
         
         for drug_name in drug_names:
+            logger.info(f"薬剤分類処理開始: {drug_name}")
             category = drug_service._predict_category(drug_name)
             drug_categories[drug_name] = category
+            logger.info(f"薬剤分類結果: {drug_name} -> {category}")
         
         response_parts = []
         response_parts.append("🩺【薬剤検出完了】")
@@ -205,7 +207,7 @@ class ResponseService:
             'statin': 'スタチン',
             'arb': 'ARB',
             'beta_blocker': 'β遮断薬',
-            'ca_antagonist': 'Ca拮抗薬',
+            'ca_antagonist': 'カルシウム拮抗薬',
             'diuretic': '利尿薬',
             'antihistamine': '抗ヒスタミン薬',
             'antacid': '制酸薬',
@@ -224,6 +226,9 @@ class ResponseService:
             'antirheumatic': '抗リウマチ薬',
             'corticosteroid': '副腎皮質ホルモン',
             'immunosuppressant': '免疫抑制薬',
+            'uric_acid_lowering': '尿酸生成抑制薬',
+            'phosphate_binder': 'リン吸着薬',
+            'vitamin_d': '活性型ビタミンD製剤',
             'unknown': '分類不明'
         }
         
