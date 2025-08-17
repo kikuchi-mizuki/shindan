@@ -2523,6 +2523,20 @@ class DrugService:
                 logger.info(f"画像柔軟マッチング検出: {drug_name} -> {flexible_name} -> {category}")
                 return category
         
+        # 0.9. OCRで実際に抽出される薬剤名の完全一致マッチング
+        ocr_exact_mappings = {
+            'ルパフィン錠mg': 'antihistamine',
+            'フェブキソスタット錠mg': 'uric_acid_lowering',
+            'リオナ錠mg': 'phosphate_binder',
+            '炭酸ランタンロ腔内崩壊錠mg': 'phosphate_binder',
+            'アルファカルシドル錠μg': 'vitamin_d',
+        }
+        
+        for ocr_name, category in ocr_exact_mappings.items():
+            if ocr_name.lower() == drug_lower:
+                logger.info(f"OCR完全一致検出: {drug_name} -> {ocr_name} -> {category}")
+                return category
+        
         # 1. 完全一致チェック（最も信頼性が高い）
         for drug, category in exact_drug_mapping.items():
             if drug.lower() in drug_lower or drug.lower() in normalized_name:
