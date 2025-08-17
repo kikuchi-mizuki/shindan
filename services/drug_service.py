@@ -1071,7 +1071,8 @@ class DrugService:
                 'diagnosis_details': [],
                 'ai_analysis': ai_analysis,  # AI分析結果を追加
                 'clinical_risks': ai_analysis['risk_summary'],  # 臨床リスク情報
-                'drug_categories': ai_analysis['drug_categories']  # 薬剤カテゴリ情報
+                'drug_categories': ai_analysis['drug_categories'],  # 薬剤カテゴリ情報
+                'drug_names': drug_names  # 薬剤名リストを追加（フォールバック用）
             }
             
             # 検出された薬剤の情報を取得

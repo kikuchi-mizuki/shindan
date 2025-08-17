@@ -18,108 +18,36 @@ class ResponseService:
             response_parts.append("🏥 **薬剤相互作用診断システム**")
             response_parts.append("━━━━━━━━━━━━━━━━━━━━━━")
             
-            # 検出された薬剤の表示
-            if drug_info.get('detected_drugs'):
+            # 検出された薬剤の表示（常に表示）
+            detected_drugs = drug_info.get('detected_drugs', [])
+            if detected_drugs:
                 response_parts.append("📋 **検出された薬剤**")
-                for drug in drug_info['detected_drugs']:
-                    category = drug.get('ai_category', drug.get('category', '不明'))
-                    response_parts.append(f"・{drug['name']} ({category})")
+                for drug in detected_drugs:
+                    if isinstance(drug, dict):
+                        category = drug.get('ai_category', drug.get('category', '不明'))
+                        name = drug.get('name', '不明')
+                    else:
+                        # drugが文字列の場合
+                        category = '不明'
+                        name = str(drug)
+                    response_parts.append(f"・{name} ({category})")
                 response_parts.append("")
             else:
-                response_parts.append("📋 **検出された薬剤**")
-                response_parts.append("薬剤情報が見つかりませんでした")
-                response_parts.append("")
+                # 薬剤名リストから直接表示
+                drug_names = drug_info.get('drug_names', [])
+                if drug_names:
+                    response_parts.append("📋 **検出された薬剤**")
+                    for drug_name in drug_names:
+                        response_parts.append(f"・{drug_name}")
+                    response_parts.append("")
+                else:
+                    response_parts.append("📋 **検出された薬剤**")
+                    response_parts.append("薬剤情報が見つかりませんでした")
+                    response_parts.append("")
             
             # AI分析結果の確認
             ai_analysis = drug_info.get('ai_analysis', {})
             logger.info(f"AI analysis keys: {list(ai_analysis.keys()) if ai_analysis else 'None'}")
-            
-            # 全体的なリスク評価の表示
-            if ai_analysis.get('overall_risk_assessment'):
-                risk_assessment = ai_analysis['overall_risk_assessment']
-                risk_level = risk_assessment.get('overall_risk_level', 'low')
-                risk_emoji = self._get_risk_emoji(risk_level)
-                response_parts.append(f"{risk_emoji} **全体的なリスク評価: {risk_level.upper()}**")
-                response_parts.append(f"リスクスコア: {risk_assessment.get('risk_score', 0)}")
-                response_parts.append("")
-            
-            # 患者安全性アラートの表示（優先度順）
-            if ai_analysis.get('patient_safety_alerts'):
-                alerts = ai_analysis['patient_safety_alerts']
-                # 優先度順にソート（critical > high > medium）
-                priority_order = {'critical': 1, 'high': 2, 'medium': 3}
-                alerts.sort(key=lambda x: priority_order.get(x.get('priority', 'medium'), 4))
-                
-                for alert in alerts:
-                    priority_emoji = self._get_priority_emoji(alert.get('priority', 'medium'))
-                    response_parts.append(f"{priority_emoji} **{alert.get('title', 'アラート')}**")
-                    response_parts.append(f"{alert.get('message', '')}")
-                    
-                    if alert.get('symptoms'):
-                        response_parts.append("症状:")
-                        for symptom in alert['symptoms']:
-                            response_parts.append(f"・{symptom}")
-                    
-                    if alert.get('items'):
-                        response_parts.append("モニタリング項目:")
-                        for item in alert['items']:
-                            response_parts.append(f"・{item}")
-                    
-                    if alert.get('recommendation'):
-                        response_parts.append(f"推奨事項: {alert['recommendation']}")
-                    
-                    response_parts.append("")
-                    response_parts.append("━━━━━━━━━━━━━━━━━━━━━━")
-                    response_parts.append("")
-            
-            # 詳細な臨床分析の表示
-            if ai_analysis.get('detailed_analysis'):
-                detailed = ai_analysis['detailed_analysis']
-                
-                # 患者プロファイル
-                if detailed.get('patient_profile'):
-                    profile = detailed['patient_profile']
-                    response_parts.append("👤 **患者プロファイル分析**")
-                    if profile.get('likely_conditions'):
-                        response_parts.append(f"推定疾患: {', '.join(profile['likely_conditions'])}")
-                    if profile.get('polypharmacy_risk') != 'low':
-                        response_parts.append(f"多剤併用リスク: {profile['polypharmacy_risk']}")
-                    response_parts.append("")
-                
-                # 臨床シナリオ
-                if detailed.get('clinical_scenarios'):
-                    response_parts.append("🏥 **臨床シナリオ**")
-                    for scenario in detailed['clinical_scenarios']:
-                        response_parts.append(f"📋 {scenario.get('description', 'シナリオ')}")
-                        response_parts.append(f"対象薬剤: {', '.join(scenario.get('drugs', []))}")
-                        response_parts.append("考慮事項:")
-                        for consideration in scenario.get('considerations', []):
-                            response_parts.append(f"・{consideration}")
-                        response_parts.append("")
-                
-                # 代替療法の提案
-                if detailed.get('alternative_therapies'):
-                    response_parts.append("💡 **代替療法の提案**")
-                    for alt in detailed['alternative_therapies']:
-                        priority_emoji = self._get_priority_emoji(alt.get('priority', 'medium'))
-                        response_parts.append(f"{priority_emoji} **{alt.get('problem', '問題')}**")
-                        response_parts.append(f"提案: {alt.get('suggestion', '')}")
-                        if alt.get('alternatives'):
-                            response_parts.append("代替案:")
-                            for alternative in alt['alternatives']:
-                                response_parts.append(f"・{alternative}")
-                        response_parts.append("")
-            
-            # 従来の相互作用チェック（バックアップ）
-            if drug_info.get('interactions'):
-                response_parts.append("💊 **相互作用チェック**")
-                for interaction in drug_info['interactions']:
-                    risk_emoji = self._get_risk_emoji(interaction.get('risk', 'medium'))
-                    response_parts.append(f"{risk_emoji} {interaction['drug1']} + {interaction['drug2']}")
-                    response_parts.append(f"リスク: {interaction.get('description', '相互作用あり')}")
-                    if interaction.get('mechanism'):
-                        response_parts.append(f"機序: {interaction['mechanism']}")
-                    response_parts.append("")
             
             # AI分析結果が空の場合のフォールバック
             if not ai_analysis or not ai_analysis.get('patient_safety_alerts'):
@@ -127,6 +55,108 @@ class ResponseService:
                 response_parts.append("AI分析が完了しませんでした。")
                 response_parts.append("従来の相互作用チェック結果を表示します。")
                 response_parts.append("")
+                
+                # 従来の相互作用チェック結果を表示
+                if drug_info.get('interactions'):
+                    response_parts.append("💊 **相互作用チェック**")
+                    for interaction in drug_info['interactions']:
+                        risk_emoji = self._get_risk_emoji(interaction.get('risk', 'medium'))
+                        response_parts.append(f"{risk_emoji} {interaction['drug1']} + {interaction['drug2']}")
+                        response_parts.append(f"リスク: {interaction.get('description', '相互作用あり')}")
+                        if interaction.get('mechanism'):
+                            response_parts.append(f"機序: {interaction['mechanism']}")
+                        response_parts.append("")
+                
+                # 警告事項
+                if drug_info.get('warnings'):
+                    response_parts.append("⚠️ **警告事項**")
+                    for warning in drug_info['warnings']:
+                        response_parts.append(f"・{warning}")
+                    response_parts.append("")
+                
+                # 推奨事項
+                if drug_info.get('recommendations'):
+                    response_parts.append("💡 **推奨事項**")
+                    for recommendation in drug_info['recommendations']:
+                        response_parts.append(f"・{recommendation}")
+                    response_parts.append("")
+            else:
+                # AI分析結果が正常な場合の表示
+                # 全体的なリスク評価の表示
+                if ai_analysis.get('overall_risk_assessment'):
+                    risk_assessment = ai_analysis['overall_risk_assessment']
+                    risk_level = risk_assessment.get('overall_risk_level', 'low')
+                    risk_emoji = self._get_risk_emoji(risk_level)
+                    response_parts.append(f"{risk_emoji} **全体的なリスク評価: {risk_level.upper()}**")
+                    response_parts.append(f"リスクスコア: {risk_assessment.get('risk_score', 0)}")
+                    response_parts.append("")
+                
+                # 患者安全性アラートの表示（優先度順）
+                if ai_analysis.get('patient_safety_alerts'):
+                    alerts = ai_analysis['patient_safety_alerts']
+                    # 優先度順にソート（critical > high > medium）
+                    priority_order = {'critical': 1, 'high': 2, 'medium': 3}
+                    alerts.sort(key=lambda x: priority_order.get(x.get('priority', 'medium'), 4))
+                    
+                    for alert in alerts:
+                        priority_emoji = self._get_priority_emoji(alert.get('priority', 'medium'))
+                        response_parts.append(f"{priority_emoji} **{alert.get('title', 'アラート')}**")
+                        response_parts.append(f"{alert.get('message', '')}")
+                        
+                        if alert.get('symptoms'):
+                            response_parts.append("症状:")
+                            for symptom in alert['symptoms']:
+                                response_parts.append(f"・{symptom}")
+                        
+                        if alert.get('items'):
+                            response_parts.append("モニタリング項目:")
+                            for item in alert['items']:
+                                response_parts.append(f"・{item}")
+                        
+                        if alert.get('recommendation'):
+                            response_parts.append(f"推奨事項: {alert['recommendation']}")
+                        
+                        response_parts.append("")
+                        response_parts.append("━━━━━━━━━━━━━━━━━━━━━━")
+                        response_parts.append("")
+                
+                # 詳細な臨床分析の表示
+                if ai_analysis.get('detailed_analysis'):
+                    detailed = ai_analysis['detailed_analysis']
+                    
+                    # 患者プロファイル
+                    if detailed.get('patient_profile'):
+                        profile = detailed['patient_profile']
+                        response_parts.append("👤 **患者プロファイル分析**")
+                        if profile.get('likely_conditions'):
+                            response_parts.append(f"推定疾患: {', '.join(profile['likely_conditions'])}")
+                        if profile.get('polypharmacy_risk') != 'low':
+                            response_parts.append(f"多剤併用リスク: {profile['polypharmacy_risk']}")
+                        response_parts.append("")
+                    
+                    # 臨床シナリオ
+                    if detailed.get('clinical_scenarios'):
+                        response_parts.append("🏥 **臨床シナリオ**")
+                        for scenario in detailed['clinical_scenarios']:
+                            response_parts.append(f"📋 {scenario.get('description', 'シナリオ')}")
+                            response_parts.append(f"対象薬剤: {', '.join(scenario.get('drugs', []))}")
+                            response_parts.append("考慮事項:")
+                            for consideration in scenario.get('considerations', []):
+                                response_parts.append(f"・{consideration}")
+                            response_parts.append("")
+                    
+                    # 代替療法の提案
+                    if detailed.get('alternative_therapies'):
+                        response_parts.append("💡 **代替療法の提案**")
+                        for alt in detailed['alternative_therapies']:
+                            priority_emoji = self._get_priority_emoji(alt.get('priority', 'medium'))
+                            response_parts.append(f"{priority_emoji} **{alt.get('problem', '問題')}**")
+                            response_parts.append(f"提案: {alt.get('suggestion', '')}")
+                            if alt.get('alternatives'):
+                                response_parts.append("代替案:")
+                                for alternative in alt['alternatives']:
+                                    response_parts.append(f"・{alternative}")
+                            response_parts.append("")
             
             # 参考情報の注意書き
             response_parts.append("━━━━━━━━━━━━━━━━━━━━━━")
