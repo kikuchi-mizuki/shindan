@@ -8,7 +8,7 @@ class ResponseService:
         pass
     
     def generate_response(self, drug_info: Dict[str, Any]) -> str:
-        """薬剤情報からLINE Bot用の応答メッセージを生成（拡張版）"""
+        """薬剤情報からLINE Bot用の応答メッセージを生成（改善版）"""
         try:
             response_parts = []
             
@@ -16,104 +16,106 @@ class ResponseService:
             response_parts.append("【薬剤情報チェック結果】")
             response_parts.append("━━━━━━━━━━━━━━")
             
-            # diagnosis_detailsがあれば優先してリッチテキストで表示
+            # 検出された薬剤の表示
+            if drug_info.get('detected_drugs'):
+                response_parts.append("📋 **検出された薬剤**")
+                for drug in drug_info['detected_drugs']:
+                    category = drug.get('ai_category', drug.get('category', '不明'))
+                    response_parts.append(f"・{drug['name']} ({category})")
+                response_parts.append("")
+            
+            # diagnosis_detailsがあれば優先して表示
             if drug_info.get('diagnosis_details'):
+                response_parts.append("🔍 **診断結果**")
                 for detail in drug_info['diagnosis_details']:
-                    # 薬剤リストの重複除去
-                    unique_drugs = list(dict.fromkeys(detail.get('drugs', [])))
-                    response_parts.append(f"【{detail.get('type', '診断結果')}】\n" +
-                        f"\n" +
-                        f"■ 対象の薬: \n  {', '.join(unique_drugs)}\n" +
-                        f"■ 薬効分類: {detail.get('category', '不明')}\n" +
-                        f"\n" +
-                        f"■ 理由:\n{detail.get('reason', '情報がありません')}\n" +
-                        f"\n" +
-                        f"■ 考えられる症状:\n{detail.get('symptoms', '情報がありません')}\n" +
-                        f"\n{'='*15}\n")
-            else:
-                # 1. 同効薬重複警告（最優先）
-                if drug_info['same_effect_warnings']:
-                    for warning in drug_info['same_effect_warnings']:
-                        response_parts.append("【同効薬の重複】\n" +
-                            f"\n■ 対象の薬: {warning['drug1']}、{warning['drug2']}\n" +
-                            f"■ 薬効分類: {warning.get('category', '不明')}\n" +
-                            f"\n■ 理由:\n{warning.get('reason') or '情報がありません'}\n" +
-                            f"\n■ 考えられる症状:\n{warning.get('symptoms') or '情報がありません'}\n" +
-                            f"\n{'='*15}\n")
-                # 2. 併用禁忌・併用注意の相互作用
-                critical_interactions = [i for i in drug_info['interactions'] if i.get('risk') in ['critical', 'high']]
-                if critical_interactions:
-                    for interaction in critical_interactions:
-                        response_parts.append("【併用禁忌・併用注意】\n" +
-                            f"\n■ 対象の薬: {interaction['drug1']}、{interaction['drug2']}\n" +
-                            f"■ リスク: {interaction.get('description', '相互作用あり')}\n" +
-                            f"\n■ 理由:\n{interaction.get('reason') or '情報がありません'}\n" +
-                            f"\n■ 考えられる症状:\n{interaction.get('symptoms') or '情報がありません'}\n" +
-                            f"\n{'='*15}\n")
-                # 3. 薬剤分類重複チェック
-                if drug_info['category_duplicates']:
-                    for duplicate in drug_info['category_duplicates']:
-                        response_parts.append("【薬剤分類重複】\n" +
-                            f"\n■ 分類: {duplicate['category']}\n" +
-                            f"■ 種類数: {duplicate['count']}\n" +
-                            f"■ 薬剤: {', '.join(duplicate['drugs'])}\n" +
-                            f"\n{'='*15}\n")
-                
-                # 4. その他の相互作用
-                other_interactions = [i for i in drug_info['interactions'] if i.get('risk') not in ['critical', 'high']]
-                if other_interactions:
-                    for interaction in other_interactions:
-                        response_parts.append("🟦【その他の相互作用】")
-                        response_parts.append("")
-                        response_parts.append(f"対象の薬: {interaction['drug1']}、{interaction['drug2']}")
-                        response_parts.append(f"リスク: {interaction.get('description', '相互作用あり')}")
-                        if 'mechanism' in interaction:
-                            response_parts.append(f"機序: {interaction['mechanism']}")
-                        response_parts.append("\n━━━━━━━━━━━━━━\n")
-                
-                # 5. KEGG情報（利用可能な場合）
-                if drug_info['kegg_info']:
-                    for kegg in drug_info['kegg_info']:
-                        response_parts.append("🟦【KEGG情報】")
-                        response_parts.append("")
-                        response_parts.append(f"薬剤名: {kegg['drug_name']}")
-                        if kegg.get('kegg_id'):
-                            response_parts.append(f"KEGG ID: {kegg['kegg_id']}")
-                        if kegg.get('pathways'):
-                            response_parts.append(f"パスウェイ: {', '.join(kegg['pathways'][:2])}")
-                        if kegg.get('targets'):
-                            response_parts.append(f"ターゲット: {', '.join(kegg['targets'][:2])}")
-                        response_parts.append("\n━━━━━━━━━━━━━━\n")
-                
-                # 6. 相互作用なしの場合
-                if not drug_info['interactions'] and not drug_info['same_effect_warnings']:
-                    response_parts.append("🟦【相互作用チェック】")
+                    risk_emoji = self._get_risk_emoji(detail.get('risk_level', 'medium'))
+                    response_parts.append(f"{risk_emoji} **{detail.get('type', '診断結果')}**")
                     response_parts.append("")
-                    response_parts.append("確認された相互作用はありませんでした")
-                    response_parts.append("\n━━━━━━━━━━━━━━\n")
-                
-                # 7. 警告事項
-                if drug_info['warnings']:
-                    response_parts.append("🟦【警告事項】")
-                    for warning in drug_info['warnings']:
-                        response_parts.append(f"・{warning}")
-                    response_parts.append("\n━━━━━━━━━━━━━━\n")
-                
-                # 8. 推奨事項
-                if drug_info['recommendations']:
-                    response_parts.append("🟦【推奨事項】")
-                    for recommendation in drug_info['recommendations']:
-                        response_parts.append(f"・{recommendation}")
-                    response_parts.append("\n━━━━━━━━━━━━━━\n")
-                
-                # 9. 参考情報の注意書き
-                response_parts.append("この結果はあくまで参考情報です。最終的な判断は医師・薬剤師にご相談ください。\n")
+                    
+                    # 対象の薬剤
+                    unique_drugs = list(dict.fromkeys(detail.get('drugs', [])))
+                    response_parts.append(f"■ 対象の薬: {', '.join(unique_drugs)}")
+                    
+                    # 薬効分類
+                    if detail.get('category'):
+                        response_parts.append(f"■ 薬効分類: {detail.get('category')}")
+                    
+                    # 理由
+                    if detail.get('reason'):
+                        response_parts.append(f"■ 理由: {detail.get('reason')}")
+                    
+                    # 考えられる症状
+                    if detail.get('symptoms'):
+                        response_parts.append(f"■ 考えられる症状: {detail.get('symptoms')}")
+                    
+                    # 推奨事項
+                    if detail.get('recommendation'):
+                        response_parts.append(f"■ 推奨事項: {detail.get('recommendation')}")
+                    
+                    response_parts.append("")
+                    response_parts.append("━━━━━━━━━━━━━━")
+                    response_parts.append("")
+            
+            # AI分析結果の表示
+            if drug_info.get('ai_analysis', {}).get('detected_risks'):
+                response_parts.append("🚨 **検出されたリスク**")
+                for risk in drug_info['ai_analysis']['detected_risks']:
+                    risk_emoji = self._get_risk_emoji(risk.get('risk_level', 'medium'))
+                    response_parts.append(f"{risk_emoji} **{risk.get('description', 'リスク')}**")
+                    response_parts.append(f"対象薬剤: {', '.join(risk.get('involved_drugs', []))}")
+                    response_parts.append(f"臨床的影響: {risk.get('clinical_impact', '不明')}")
+                    response_parts.append(f"推奨事項: {risk.get('recommendation', '薬剤師にご相談ください')}")
+                    response_parts.append("")
+                    response_parts.append("━━━━━━━━━━━━━━")
+                    response_parts.append("")
+            
+            # 相互作用チェック
+            if drug_info.get('interactions'):
+                response_parts.append("💊 **相互作用チェック**")
+                for interaction in drug_info['interactions']:
+                    risk_emoji = self._get_risk_emoji(interaction.get('risk', 'medium'))
+                    response_parts.append(f"{risk_emoji} {interaction['drug1']} + {interaction['drug2']}")
+                    response_parts.append(f"リスク: {interaction.get('description', '相互作用あり')}")
+                    if interaction.get('mechanism'):
+                        response_parts.append(f"機序: {interaction['mechanism']}")
+                    response_parts.append("")
+            else:
+                response_parts.append("✅ **相互作用チェック**")
+                response_parts.append("確認された相互作用はありませんでした")
+                response_parts.append("")
+            
+            # 同効薬の重複警告
+            if drug_info.get('same_effect_warnings'):
+                response_parts.append("⚠️ **同効薬の重複**")
+                for warning in drug_info['same_effect_warnings']:
+                    response_parts.append(f"・{warning['drug1']} + {warning['drug2']}")
+                    response_parts.append(f"  機序: {warning.get('mechanism', '不明')}")
+                    response_parts.append(f"  リスクレベル: {warning.get('risk_level', 'medium')}")
+                    response_parts.append("")
+            
+            # 警告事項
+            if drug_info.get('warnings'):
+                response_parts.append("⚠️ **警告事項**")
+                for warning in drug_info['warnings']:
+                    response_parts.append(f"・{warning}")
+                response_parts.append("")
+            
+            # 推奨事項
+            if drug_info.get('recommendations'):
+                response_parts.append("💡 **推奨事項**")
+                for recommendation in drug_info['recommendations']:
+                    response_parts.append(f"・{recommendation}")
+                response_parts.append("")
+            
+            # 参考情報の注意書き
+            response_parts.append("━━━━━━━━━━━━━━")
+            response_parts.append("この結果はあくまで参考情報です。最終的な判断は医師・薬剤師にご相談ください。")
             
             return "\n".join(response_parts)
             
         except Exception as e:
-            logger.error(f"応答メッセージ生成エラー: {e}")
-            return "エラーが発生しました。薬剤師にご相談ください。"
+            logger.error(f"応答メッセージ生成エラー: {e}", exc_info=True)
+            return f"エラーが発生しました: {str(e)}\n薬剤師にご相談ください。"
     
     def _get_risk_emoji(self, risk_level: str) -> str:
         """リスクレベルに応じた絵文字を返す"""

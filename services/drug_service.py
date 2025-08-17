@@ -1251,8 +1251,11 @@ class DrugService:
     def get_drug_interactions(self, drug_names: List[str]) -> Dict[str, Any]:
         """薬剤名リストから飲み合わせ情報を取得（AI強化版）"""
         try:
+            logger.info(f"Starting drug interaction analysis for {len(drug_names)} drugs: {drug_names}")
+            
             # AI診断の実行
             ai_analysis = self.analyze_drug_interactions_ai(drug_names)
+            logger.info(f"AI analysis completed successfully")
             
             results = {
                 'detected_drugs': [],
@@ -1277,49 +1280,61 @@ class DrugService:
                     category = ai_analysis['drug_categories'].get(drug_name, 'unknown')
                     drug_info['ai_category'] = category
                     detected_drugs.append(drug_info)
+                    logger.info(f"Found drug info for {drug_name}: {category}")
+                else:
+                    logger.warning(f"No drug info found for {drug_name}")
             
             # 重複除去
             results['detected_drugs'] = self._deduplicate_drugs(detected_drugs)
+            logger.info(f"Deduplicated drugs: {len(results['detected_drugs'])}")
             
             # 従来の相互作用チェック（補完的）
             if len(results['detected_drugs']) > 1:
                 interactions = self._check_interactions(results['detected_drugs'])
                 results['interactions'] = interactions
+                logger.info(f"Found {len(interactions)} interactions")
             
             # 同効薬チェック
             same_effect_warnings = self._check_same_effect_drugs(results['detected_drugs'])
             results['same_effect_warnings'] = same_effect_warnings
+            logger.info(f"Found {len(same_effect_warnings)} same effect warnings")
             
             # 薬剤分類による重複チェック
             results['category_duplicates'] = self._check_category_duplicates(results['detected_drugs'])
+            logger.info(f"Found {len(results['category_duplicates'])} category duplicates")
             
             # KEGG情報の取得
             results['kegg_info'] = self._get_kegg_info(results['detected_drugs'])
+            logger.info(f"Found {len(results['kegg_info'])} KEGG info entries")
             
             # AI分析に基づく警告と推奨事項を生成
             results['warnings'] = self._generate_ai_warnings(ai_analysis)
             results['recommendations'] = ai_analysis['risk_summary']['clinical_recommendations']
+            logger.info(f"Generated {len(results['warnings'])} warnings and {len(results['recommendations'])} recommendations")
             
             # 診断詳細の生成
             results['diagnosis_details'] = self._generate_ai_diagnosis_details(ai_analysis)
+            logger.info(f"Generated {len(results['diagnosis_details'])} diagnosis details")
             
             # 診断結果をキャッシュ
             norm_names = [self.normalize_name(n) for n in drug_names]
             cache_key = tuple(sorted(norm_names))
             self.diagnosis_cache[cache_key] = results
             
+            logger.info(f"Drug interaction analysis completed successfully")
             return results
             
         except Exception as e:
-            logger.error(f"Error getting drug interactions: {e}")
+            logger.error(f"Error getting drug interactions: {e}", exc_info=True)
+            # より詳細なエラー情報を提供
             return {
                 'detected_drugs': [],
                 'interactions': [],
                 'same_effect_warnings': [],
                 'category_duplicates': [],
                 'kegg_info': [],
-                'warnings': ['薬剤情報の取得中にエラーが発生しました'],
-                'recommendations': ['薬剤師にご相談ください'],
+                'warnings': [f'薬剤情報の取得中にエラーが発生しました: {str(e)}'],
+                'recommendations': ['薬剤師にご相談ください', 'システムエラーが発生しました'],
                 'ai_analysis': {},
                 'clinical_risks': {},
                 'drug_categories': {},
