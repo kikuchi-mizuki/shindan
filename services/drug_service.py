@@ -1162,7 +1162,7 @@ class DrugService:
             # 診断詳細の生成
             results['diagnosis_details'] = self._generate_ai_diagnosis_details(ai_analysis)
             logger.info(f"Generated {len(results['diagnosis_details'])} diagnosis details")
-            
+
             # 診断結果をキャッシュ
             norm_names = [self.normalize_name(n) for n in drug_names]
             cache_key = tuple(sorted(norm_names))
@@ -1274,7 +1274,7 @@ class DrugService:
                 })
         
         return diagnosis_details
-
+    
     def _check_interaction_rule(self, drug1: str, drug2: str) -> Optional[Dict[str, str]]:
         """2つの薬剤間の相互作用ルールをチェック"""
         # 相互作用ルールをチェック
@@ -1935,6 +1935,22 @@ class DrugService:
                 'recommendation': 'ARB成分の重複投与を避け、必要に応じて剤形を変更',
                 'priority': 3
             },
+            'ca_antagonist_polypharmacy': {
+                'categories': ['ca_antagonist'],
+                'risk_level': 'high',
+                'description': 'Ca拮抗薬の多剤併用',
+                'clinical_impact': '低血圧、浮腫、心機能障害のリスク増加',
+                'recommendation': 'Ca拮抗薬の多剤併用は避け、必要に応じて剤形を変更',
+                'priority': 2
+            },
+            'phosphate_binder_duplication': {
+                'categories': ['phosphate_binder'],
+                'risk_level': 'high',
+                'description': 'リン吸着薬の重複投与',
+                'clinical_impact': '過剰なリン低下、低カルシウム血症、副作用リスク増加',
+                'recommendation': 'リン吸着薬の重複投与を避け、必要に応じて剤形を変更',
+                'priority': 3
+            },
             'anticoagulants': {
                 'categories': ['anticoagulant', 'nsaid'],
                 'risk_level': 'high',
@@ -2041,6 +2057,20 @@ class DrugService:
                 elif risk_name == 'pde5_nitrate_contraindication':
                     additional_impact = "重度の低血圧、失神、心筋梗塞のリスクが非常に高くなります。"
                     additional_recommendation = "緊急の医療対応が必要です。絶対に併用してはいけません。"
+                
+                # Ca拮抗薬多剤併用チェック
+                elif risk_name == 'ca_antagonist_polypharmacy':
+                    ca_drugs = [drug for drug, cat in drug_categories.items() if cat == 'ca_antagonist']
+                    if len(ca_drugs) >= 3:
+                        additional_impact = "特に3剤以上のCa拮抗薬併用は低血圧、浮腫、心機能障害のリスクが高まります。"
+                        additional_recommendation = "Ca拮抗薬の多剤併用は避け、必要に応じて剤形を変更してください。"
+                
+                # リン吸着薬重複チェック
+                elif risk_name == 'phosphate_binder_duplication':
+                    phosphate_drugs = [drug for drug, cat in drug_categories.items() if cat == 'phosphate_binder']
+                    if len(phosphate_drugs) >= 2:
+                        additional_impact = "特にリオナと炭酸ランタンの併用は過剰なリン低下、低カルシウム血症のリスクが高まります。"
+                        additional_recommendation = "リン吸着薬の重複投与を避け、必要に応じて剤形を変更してください。"
                 
                 risk_detail = {
                     'risk_name': risk_name,
@@ -2174,6 +2204,8 @@ class DrugService:
             # Ca拮抗薬+ARB配合剤
             'テラムロ': 'ca_antagonist_arb_combination',
             'アムロジピン': 'ca_antagonist',
+            'ニフェジピン': 'ca_antagonist',
+            'ベニジピン': 'ca_antagonist',
             'テルミサルタン': 'arb',
             
             # ACE阻害薬
@@ -2194,6 +2226,28 @@ class DrugService:
             'エソメプラゾール': 'ppi',
             'ラベプラゾール': 'ppi',
             'パントプラゾール': 'ppi',
+            
+            # 活性型ビタミンD製剤
+            'アルファカルシドール': 'vitamin_d',
+            'カルシトリオール': 'vitamin_d',
+            'エルデカルシトール': 'vitamin_d',
+            
+            # 抗ヒスタミン薬
+            'ルパフィン': 'antihistamine',
+            'ロラタジン': 'antihistamine',
+            'フェキソフェナジン': 'antihistamine',
+            'セチリジン': 'antihistamine',
+            
+            # 尿酸降下薬
+            'フェブキソスタット': 'uric_acid_lowering',
+            'アロプリノール': 'uric_acid_lowering',
+            'トピロキソスタット': 'uric_acid_lowering',
+            
+            # リン吸着薬
+            'リオナ': 'phosphate_binder',
+            '炭酸ランタン': 'phosphate_binder',
+            'セベラマー': 'phosphate_binder',
+            '炭酸カルシウム': 'phosphate_binder',
             
             # ベンゾジアゼピン系（正確な分類）
             'ジアゼパム': 'benzodiazepine',
