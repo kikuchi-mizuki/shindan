@@ -1845,62 +1845,71 @@ class DrugService:
                 'risk_level': 'critical',
                 'description': '併用禁忌：PDE5阻害薬と硝酸薬の併用による重度の血圧低下リスク',
                 'clinical_impact': '重度の低血圧、失神、心筋梗塞のリスク増加',
-                'recommendation': '絶対に併用してはいけません。緊急の医療対応が必要です。'
+                'recommendation': '絶対に併用してはいけません。緊急の医療対応が必要です。',
+                'priority': 1
             },
             'blood_pressure_medications': {
                 'categories': ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni'],
                 'risk_level': 'high',
                 'description': '血圧降下薬の多剤併用による低血圧リスク',
                 'clinical_impact': 'めまい、失神、腎機能障害のリスク増加',
-                'recommendation': '血圧の定期的なモニタリングが必要'
+                'recommendation': '血圧の定期的なモニタリングが必要',
+                'priority': 2
             },
             'gastric_medications': {
                 'categories': ['ppi', 'p_cab'],
                 'risk_level': 'medium',
                 'description': '胃酸分泌抑制薬の重複投与',
                 'clinical_impact': '胃酸分泌の過度な抑制、栄養吸収障害のリスク',
-                'recommendation': '重複投与を避け、必要に応じて剤形を変更'
+                'recommendation': '重複投与を避け、必要に応じて剤形を変更',
+                'priority': 3
             },
             'anticoagulants': {
                 'categories': ['anticoagulant', 'nsaid'],
                 'risk_level': 'high',
                 'description': '抗凝固薬とNSAIDsの併用による出血リスク',
                 'clinical_impact': '消化管出血、脳出血のリスク増加',
-                'recommendation': '出血の兆候に注意し、定期的な血液検査が必要'
+                'recommendation': '出血の兆候に注意し、定期的な血液検査が必要',
+                'priority': 4
             },
             'diabetes_medications': {
                 'categories': ['diabetes_medication', 'corticosteroid'],
                 'risk_level': 'medium',
                 'description': '糖尿病治療薬とステロイドの併用',
                 'clinical_impact': '血糖値の上昇、糖尿病コントロールの悪化',
-                'recommendation': '血糖値の頻回モニタリングが必要'
+                'recommendation': '血糖値の頻回モニタリングが必要',
+                'priority': 5
             },
             'psychotropic_medications': {
                 'categories': ['benzodiazepine', 'barbiturate', 'antidepressant', 'antipsychotic'],
                 'risk_level': 'high',
                 'description': '向精神薬の多剤併用による中枢抑制作用の増強',
                 'clinical_impact': '過度の眠気、呼吸抑制、認知機能障害のリスク',
-                'recommendation': '段階的な投与開始と慎重な用量調整が必要'
+                'recommendation': '段階的な投与開始と慎重な用量調整が必要',
+                'priority': 6
             },
             'cardiac_medications': {
                 'categories': ['cardiac_glycoside', 'diuretic', 'ace_inhibitor'],
                 'risk_level': 'high',
                 'description': '心臓薬の多剤併用による電解質異常リスク',
                 'clinical_impact': '低カリウム血症、ジゴキシン中毒のリスク増加',
-                'recommendation': '電解質の定期的なモニタリングが必要'
+                'recommendation': '電解質の定期的なモニタリングが必要',
+                'priority': 7
             },
             'statin_interactions': {
                 'categories': ['statin', 'antibiotic'],
                 'risk_level': 'medium',
                 'description': 'スタチンと抗生物質の併用による筋障害リスク',
                 'clinical_impact': '横紋筋融解症、CK上昇のリスク増加',
-                'recommendation': '筋肉痛などの症状に注意し、CK値のモニタリング'
+                'recommendation': '筋肉痛などの症状に注意し、CK値のモニタリング',
+                'priority': 8
             }
         }
         
         # リスク分析の実行
         detected_risks = []
         risk_summary = {
+            'critical_risk': [],
             'high_risk': [],
             'medium_risk': [],
             'low_risk': [],
@@ -1926,85 +1935,69 @@ class DrugService:
                     'clinical_impact': risk_info['clinical_impact'],
                     'recommendation': risk_info['recommendation'],
                     'involved_drugs': matching_drugs,
-                    'involved_categories': matching_categories
+                    'involved_categories': matching_categories,
+                    'priority': risk_info['priority']
                 }
                 
                 detected_risks.append(risk_detail)
                 
                 # リスクレベル別に分類
-                if risk_info['risk_level'] == 'high':
+                if risk_info['risk_level'] == 'critical':
+                    risk_summary['critical_risk'].append(risk_detail)
+                elif risk_info['risk_level'] == 'high':
                     risk_summary['high_risk'].append(risk_detail)
                 elif risk_info['risk_level'] == 'medium':
                     risk_summary['medium_risk'].append(risk_detail)
                 else:
                     risk_summary['low_risk'].append(risk_detail)
         
+        # 詳細な臨床分析の実行
+        detailed_analysis = self._perform_detailed_clinical_analysis(drug_names, drug_categories, detected_risks)
+        
         # 臨床推奨事項の生成
-        clinical_recommendations = self._generate_clinical_recommendations(risk_summary, drug_categories)
+        clinical_recommendations = self._generate_advanced_clinical_recommendations(risk_summary, drug_categories, detailed_analysis)
         risk_summary['clinical_recommendations'] = clinical_recommendations
         
         return {
             'drug_categories': drug_categories,
             'detected_risks': detected_risks,
             'risk_summary': risk_summary,
-            'total_risks': len(detected_risks),
-            'high_risk_count': len(risk_summary['high_risk']),
-            'medium_risk_count': len(risk_summary['medium_risk']),
-            'low_risk_count': len(risk_summary['low_risk'])
+            'detailed_analysis': detailed_analysis,
+            'overall_risk_assessment': self._calculate_overall_risk_assessment(risk_summary),
+            'patient_safety_alerts': self._generate_patient_safety_alerts(risk_summary, detailed_analysis)
         }
     
-    def _generate_clinical_recommendations(self, risk_summary: Dict, drug_categories: Dict) -> List[str]:
-        """臨床推奨事項の生成"""
+    def _generate_advanced_clinical_recommendations(self, risk_summary: Dict, drug_categories: Dict, detailed_analysis: Dict) -> List[str]:
+        """高度な臨床推奨事項の生成"""
         recommendations = []
         
+        # 緊急推奨事項
+        if detailed_analysis['emergency_considerations']['requires_immediate_attention']:
+            recommendations.append('🚨 緊急対応が必要です。直ちに医療機関を受診してください。')
+        
+        # 禁忌併用の推奨事項
+        for risk in risk_summary['critical_risk']:
+            recommendations.append(f"🚨 禁忌併用: {risk['description']}")
+            recommendations.append(f"   推奨事項: {risk['recommendation']}")
+        
         # 高リスクの推奨事項
-        if risk_summary['high_risk']:
-            recommendations.append("🚨 **高リスク相互作用が検出されました**")
-            recommendations.append("・薬剤師への緊急相談が必要です")
-            recommendations.append("・患者の状態を慎重にモニタリングしてください")
+        for risk in risk_summary['high_risk']:
+            recommendations.append(f"⚠️ 高リスク: {risk['description']}")
+            recommendations.append(f"   推奨事項: {risk['recommendation']}")
         
-        # 血圧降下薬の多剤併用
-        bp_meds = [drug for drug, cat in drug_categories.items() 
-                  if cat in ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni']]
-        if len(bp_meds) >= 3:
-            recommendations.append("💊 **血圧降下薬の多剤併用**")
-            recommendations.append("・低血圧によるめまい、失神のリスク")
-            recommendations.append("・腎機能の定期的なモニタリングが必要")
-            recommendations.append("・段階的な投与開始を推奨")
+        # モニタリング推奨事項
+        monitoring = detailed_analysis['monitoring_requirements']
+        if monitoring['vital_signs'] or monitoring['laboratory_tests']:
+            recommendations.append(f"📊 モニタリング: {', '.join(monitoring['vital_signs'] + monitoring['laboratory_tests'])}を{monitoring['frequency']}に測定")
         
-        # 胃薬の重複
-        gastric_meds = [drug for drug, cat in drug_categories.items() 
-                       if cat in ['ppi', 'p_cab']]
-        if len(gastric_meds) >= 2:
-            recommendations.append("🫀 **胃酸分泌抑制薬の重複投与**")
-            recommendations.append("・PPIとP-CABの併用は避けるべき")
-            recommendations.append("・剤形の変更を検討してください")
+        # 代替療法の推奨事項
+        for alt in detailed_analysis['alternative_therapies']:
+            recommendations.append(f"💡 代替療法: {alt['suggestion']}")
         
-        # 抗凝固薬との併用
-        anticoagulants = [drug for drug, cat in drug_categories.items() 
-                         if cat == 'anticoagulant']
-        nsaids = [drug for drug, cat in drug_categories.items() 
-                 if cat == 'nsaid']
-        if anticoagulants and nsaids:
-            recommendations.append("🩸 **抗凝固薬とNSAIDsの併用**")
-            recommendations.append("・出血リスクの増加")
-            recommendations.append("・消化管出血の兆候に注意")
-            recommendations.append("・定期的な血液検査が必要")
-        
-        # 向精神薬の多剤併用
-        psychotropics = [drug for drug, cat in drug_categories.items() 
-                        if cat in ['benzodiazepine', 'barbiturate', 'antidepressant', 'antipsychotic']]
-        if len(psychotropics) >= 2:
-            recommendations.append("🧠 **向精神薬の多剤併用**")
-            recommendations.append("・中枢抑制作用の増強")
-            recommendations.append("・呼吸抑制のリスク")
-            recommendations.append("・段階的な投与開始を推奨")
-        
-        # 一般的な推奨事項
-        recommendations.append("📋 **一般的な注意事項**")
-        recommendations.append("・この情報は参考情報です")
-        recommendations.append("・最終判断は薬剤師にお任せください")
-        recommendations.append("・患者の状態変化に注意してください")
+        # 患者プロファイルに基づく推奨事項
+        profile = detailed_analysis['patient_profile']
+        if profile['polypharmacy_risk'] == 'high':
+            recommendations.append("💊 多剤併用リスク: 薬剤の見直しを検討してください")
         
         return recommendations
 
@@ -2337,6 +2330,281 @@ class DrugService:
         normalized = re.sub(r'[^\w\s]', '', normalized)
         
         return normalized.strip()
+
+    def _perform_detailed_clinical_analysis(self, drug_names: List[str], drug_categories: Dict[str, str], detected_risks: List[Dict]) -> Dict[str, Any]:
+        """詳細な臨床分析の実行"""
+        analysis = {
+            'patient_profile': self._analyze_patient_profile(drug_names, drug_categories),
+            'drug_interaction_network': self._analyze_drug_interaction_network(drug_names, drug_categories),
+            'clinical_scenarios': self._identify_clinical_scenarios(drug_names, drug_categories),
+            'monitoring_requirements': self._determine_monitoring_requirements(detected_risks),
+            'alternative_therapies': self._suggest_alternative_therapies(drug_names, drug_categories),
+            'emergency_considerations': self._assess_emergency_considerations(detected_risks)
+        }
+        return analysis
+    
+    def _analyze_patient_profile(self, drug_names: List[str], drug_categories: Dict[str, str]) -> Dict[str, Any]:
+        """患者プロファイルの分析"""
+        profile = {
+            'likely_conditions': [],
+            'age_group_considerations': [],
+            'comorbidity_risks': [],
+            'polypharmacy_risk': 'low'
+        }
+        
+        # 疾患の推定
+        conditions = {
+            'cardiovascular': ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni'],
+            'gastrointestinal': ['ppi', 'p_cab'],
+            'erectile_dysfunction': ['pde5_inhibitor'],
+            'heart_failure': ['arni'],
+            'hypertension': ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic']
+        }
+        
+        detected_categories = set(drug_categories.values())
+        for condition, categories in conditions.items():
+            if any(cat in detected_categories for cat in categories):
+                profile['likely_conditions'].append(condition)
+        
+        # 多剤併用リスクの評価
+        if len(drug_names) >= 5:
+            profile['polypharmacy_risk'] = 'high'
+        elif len(drug_names) >= 3:
+            profile['polypharmacy_risk'] = 'medium'
+        
+        return profile
+    
+    def _analyze_drug_interaction_network(self, drug_names: List[str], drug_categories: Dict[str, str]) -> Dict[str, Any]:
+        """薬剤相互作用ネットワークの分析"""
+        network = {
+            'interaction_clusters': [],
+            'central_drugs': [],
+            'isolated_drugs': [],
+            'interaction_complexity': 'low'
+        }
+        
+        # 相互作用クラスターの特定
+        clusters = {
+            'cardiovascular': [],
+            'gastrointestinal': [],
+            'central_nervous': [],
+            'endocrine': []
+        }
+        
+        for drug, category in drug_categories.items():
+            if category in ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni']:
+                clusters['cardiovascular'].append(drug)
+            elif category in ['ppi', 'p_cab']:
+                clusters['gastrointestinal'].append(drug)
+            elif category in ['benzodiazepine', 'barbiturate', 'antidepressant']:
+                clusters['central_nervous'].append(drug)
+            elif category in ['diabetes_medication', 'corticosteroid']:
+                clusters['endocrine'].append(drug)
+        
+        # 非空のクラスターのみを追加
+        for cluster_name, drugs in clusters.items():
+            if drugs:
+                network['interaction_clusters'].append({
+                    'name': cluster_name,
+                    'drugs': drugs,
+                    'risk_level': self._assess_cluster_risk(drugs, drug_categories)
+                })
+        
+        return network
+    
+    def _identify_clinical_scenarios(self, drug_names: List[str], drug_categories: Dict[str, str]) -> List[Dict[str, Any]]:
+        """臨床シナリオの特定"""
+        scenarios = []
+        
+        # 心血管疾患シナリオ
+        cv_drugs = [drug for drug, cat in drug_categories.items() 
+                   if cat in ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni']]
+        if len(cv_drugs) >= 3:
+            scenarios.append({
+                'type': 'complex_cardiovascular_management',
+                'description': '複雑な心血管疾患管理',
+                'drugs': cv_drugs,
+                'considerations': [
+                    '血圧の頻回モニタリングが必要',
+                    '腎機能の定期的な評価',
+                    '電解質バランスの監視',
+                    '心機能の定期的な評価'
+                ]
+            })
+        
+        # 胃腸疾患シナリオ
+        gi_drugs = [drug for drug, cat in drug_categories.items() 
+                   if cat in ['ppi', 'p_cab']]
+        if len(gi_drugs) >= 2:
+            scenarios.append({
+                'type': 'gastric_acid_suppression',
+                'description': '胃酸分泌抑制治療',
+                'drugs': gi_drugs,
+                'considerations': [
+                    '胃酸分泌の過度な抑制に注意',
+                    '栄養吸収への影響を考慮',
+                    '長期投与時の副作用モニタリング'
+                ]
+            })
+        
+        return scenarios
+    
+    def _determine_monitoring_requirements(self, detected_risks: List[Dict]) -> Dict[str, List[str]]:
+        """モニタリング要件の決定"""
+        monitoring = {
+            'vital_signs': [],
+            'laboratory_tests': [],
+            'clinical_assessments': [],
+            'frequency': 'standard'
+        }
+        
+        for risk in detected_risks:
+            if risk['risk_level'] == 'critical':
+                monitoring['vital_signs'].extend(['血圧', '脈拍', '意識レベル'])
+                monitoring['frequency'] = 'frequent'
+            elif risk['risk_level'] == 'high':
+                monitoring['vital_signs'].extend(['血圧', '脈拍'])
+                monitoring['laboratory_tests'].extend(['腎機能', '電解質'])
+        
+        # 重複除去
+        monitoring['vital_signs'] = list(set(monitoring['vital_signs']))
+        monitoring['laboratory_tests'] = list(set(monitoring['laboratory_tests']))
+        
+        return monitoring
+    
+    def _suggest_alternative_therapies(self, drug_names: List[str], drug_categories: Dict[str, str]) -> List[Dict[str, Any]]:
+        """代替療法の提案"""
+        alternatives = []
+        
+        # 禁忌併用の代替療法
+        pde5_drugs = [drug for drug, cat in drug_categories.items() if cat == 'pde5_inhibitor']
+        nitrate_drugs = [drug for drug, cat in drug_categories.items() if cat == 'nitrate']
+        
+        if pde5_drugs and nitrate_drugs:
+            alternatives.append({
+                'problem': f'{", ".join(pde5_drugs)} + {", ".join(nitrate_drugs)}の禁忌併用',
+                'suggestion': 'PDE5阻害薬の使用を中止し、代替のED治療を検討',
+                'alternatives': ['心理療法', '真空陰茎勃起装置', '陰茎プロステーシス'],
+                'priority': 'urgent'
+            })
+        
+        # 胃薬の重複投与の代替療法
+        ppi_drugs = [drug for drug, cat in drug_categories.items() if cat == 'ppi']
+        pcab_drugs = [drug for drug, cat in drug_categories.items() if cat == 'p_cab']
+        
+        if ppi_drugs and pcab_drugs:
+            alternatives.append({
+                'problem': f'{", ".join(ppi_drugs)} + {", ".join(pcab_drugs)}の重複投与',
+                'suggestion': 'いずれか一方の薬剤に統一',
+                'alternatives': ['PPI単剤投与', 'P-CAB単剤投与'],
+                'priority': 'high'
+            })
+        
+        return alternatives
+    
+    def _assess_emergency_considerations(self, detected_risks: List[Dict]) -> Dict[str, Any]:
+        """緊急時の考慮事項の評価"""
+        emergency = {
+            'requires_immediate_attention': False,
+            'emergency_symptoms': [],
+            'action_required': [],
+            'contact_healthcare_provider': False
+        }
+        
+        for risk in detected_risks:
+            if risk['risk_level'] == 'critical':
+                emergency['requires_immediate_attention'] = True
+                emergency['contact_healthcare_provider'] = True
+                emergency['emergency_symptoms'].extend([
+                    '重度のめまい',
+                    '失神',
+                    '胸痛',
+                    '呼吸困難',
+                    '意識障害'
+                ])
+                emergency['action_required'].append('直ちに医療機関を受診')
+        
+        return emergency
+    
+    def _calculate_overall_risk_assessment(self, risk_summary: Dict) -> Dict[str, Any]:
+        """全体的なリスク評価の計算"""
+        assessment = {
+            'overall_risk_level': 'low',
+            'risk_score': 0,
+            'primary_concerns': [],
+            'safety_recommendations': []
+        }
+        
+        # リスクスコアの計算
+        if risk_summary['critical_risk']:
+            assessment['risk_score'] += 100
+            assessment['overall_risk_level'] = 'critical'
+        if risk_summary['high_risk']:
+            assessment['risk_score'] += len(risk_summary['high_risk']) * 30
+            if assessment['overall_risk_level'] != 'critical':
+                assessment['overall_risk_level'] = 'high'
+        if risk_summary['medium_risk']:
+            assessment['risk_score'] += len(risk_summary['medium_risk']) * 10
+        
+        # 主要な懸念事項の特定
+        for risk in risk_summary['critical_risk']:
+            assessment['primary_concerns'].append(risk['description'])
+        for risk in risk_summary['high_risk']:
+            assessment['primary_concerns'].append(risk['description'])
+        
+        # 安全性推奨事項の生成
+        if assessment['overall_risk_level'] == 'critical':
+            assessment['safety_recommendations'].append('直ちに医療機関を受診してください')
+        elif assessment['overall_risk_level'] == 'high':
+            assessment['safety_recommendations'].append('医師・薬剤師に相談してください')
+        
+        return assessment
+    
+    def _generate_patient_safety_alerts(self, risk_summary: Dict, detailed_analysis: Dict) -> List[Dict[str, Any]]:
+        """患者安全性アラートの生成"""
+        alerts = []
+        
+        # 緊急アラート
+        if detailed_analysis['emergency_considerations']['requires_immediate_attention']:
+            alerts.append({
+                'type': 'emergency',
+                'title': '緊急注意',
+                'message': '直ちに医療機関を受診してください',
+                'symptoms': detailed_analysis['emergency_considerations']['emergency_symptoms'],
+                'priority': 'critical'
+            })
+        
+        # 高リスクアラート
+        for risk in risk_summary['high_risk']:
+            alerts.append({
+                'type': 'high_risk',
+                'title': '高リスク警告',
+                'message': risk['description'],
+                'recommendation': risk['recommendation'],
+                'priority': 'high'
+            })
+        
+        # モニタリングアラート
+        monitoring = detailed_analysis['monitoring_requirements']
+        if monitoring['vital_signs'] or monitoring['laboratory_tests']:
+            alerts.append({
+                'type': 'monitoring',
+                'title': 'モニタリング必要',
+                'message': f"以下の項目を{monitoring['frequency']}にモニタリングしてください",
+                'items': monitoring['vital_signs'] + monitoring['laboratory_tests'],
+                'priority': 'medium'
+            })
+        
+        return alerts
+
+    def _assess_cluster_risk(self, drugs: List[str], drug_categories: Dict[str, str]) -> str:
+        """クラスターのリスクレベルを評価"""
+        if len(drugs) >= 3:
+            return 'high'
+        elif len(drugs) >= 2:
+            return 'medium'
+        else:
+            return 'low'
 
 
 
