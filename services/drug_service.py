@@ -472,7 +472,7 @@ class AIDrugMatcher:
             return 'ace_inhibitor'
         elif any(pattern in drug_lower for pattern in ['タケキャブ', 'ボノプラザン']):
             return 'p_cab'
-        elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'オメプラゾール']):
+        elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'オメプラゾール', 'エソメプラゾール', 'ラベプラゾール', 'パントプラゾール']):
             return 'ppi'
         else:
             return 'unknown'
@@ -660,6 +660,39 @@ class DrugService:
     def _load_interaction_rules(self):
         """飲み合わせルールを読み込む（詳細版）"""
         self.interaction_rules = {
+            # 重大な禁忌併用
+            'タダラフィル': {
+                'ニコランジル': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'},
+                'ニトログリセリン': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'},
+                'イソソルビド': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'}
+            },
+            'シルデナフィル': {
+                'ニコランジル': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'},
+                'ニトログリセリン': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'},
+                'イソソルビド': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'}
+            },
+            'バルデナフィル': {
+                'ニコランジル': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'},
+                'ニトログリセリン': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'},
+                'イソソルビド': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'}
+            },
+            # 硝酸薬の禁忌併用
+            'ニコランジル': {
+                'タダラフィル': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'},
+                'シルデナフィル': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'},
+                'バルデナフィル': {'risk': 'critical', 'description': '併用禁忌：重度の血圧低下リスク', 'mechanism': '一酸化窒素経路の重複刺激'}
+            },
+            # 胃薬の重複投与
+            'タケキャブ': {
+                'ランソプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与'},
+                'オメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与'},
+                'エソメプラゾール': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'P-CABとPPIの重複投与'}
+            },
+            'ランソプラゾール': {
+                'タケキャブ': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与'},
+                'ボノプラザン': {'risk': 'high', 'description': '重複投与：胃酸分泌抑制薬の重複', 'mechanism': 'PPIとP-CABの重複投与'}
+            },
+            # 既存の相互作用ルール
             'ワルファリン': {
                 'アスピリン': {'risk': 'high', 'description': '出血リスク増加', 'mechanism': '血小板機能阻害の重複'},
                 'NSAIDs': {'risk': 'high', 'description': '出血リスク増加', 'mechanism': '抗凝固作用の増強'},
@@ -1806,6 +1839,14 @@ class DrugService:
         
         # 臨床的に重要な相互作用パターンの定義
         clinical_risks = {
+            # 重大な禁忌併用
+            'pde5_nitrate_contraindication': {
+                'categories': ['pde5_inhibitor', 'nitrate'],
+                'risk_level': 'critical',
+                'description': '併用禁忌：PDE5阻害薬と硝酸薬の併用による重度の血圧低下リスク',
+                'clinical_impact': '重度の低血圧、失神、心筋梗塞のリスク増加',
+                'recommendation': '絶対に併用してはいけません。緊急の医療対応が必要です。'
+            },
             'blood_pressure_medications': {
                 'categories': ['ace_inhibitor', 'arb', 'ca_antagonist', 'beta_blocker', 'diuretic', 'nitrate', 'arni'],
                 'risk_level': 'high',
