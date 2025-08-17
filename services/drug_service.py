@@ -724,7 +724,16 @@ class DrugService:
             'エンレスト': {
                 'テラムロ': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'バルサルタンとARBの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'},
                 'バルサルタン': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'バルサルタンの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'},
-                'ロサルタン': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'ARBの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'}
+                'ロサルタン': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'ARBの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'},
+                'カンデサルタン': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'ARBの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'},
+                'オルメサルタン': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'ARBの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'},
+                'イルベサルタン': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'ARBの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'},
+                'アジルサルタン': {'risk': 'high', 'description': '併用注意：ARNIとARBの併用', 'mechanism': 'ARBの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'}
+            },
+            # テラムロとARNIの併用注意
+            'テラムロ': {
+                'エンレスト': {'risk': 'high', 'description': '併用注意：ARB配合剤とARNIの併用', 'mechanism': 'テルミサルタンとバルサルタンの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'},
+                'バルサルタン': {'risk': 'high', 'description': '併用注意：ARB配合剤とARBの併用', 'mechanism': 'テルミサルタンとバルサルタンの重複投与', 'clinical_impact': '腎機能障害、高K血症のリスク増加'}
             },
             # 既存の相互作用ルール
             'ワルファリン': {
@@ -1915,6 +1924,14 @@ class DrugService:
                 'recommendation': '絶対に併用してはいけません。腎機能と電解質の定期的なモニタリングが必要',
                 'priority': 2
             },
+            'arb_arni_duplication': {
+                'categories': ['arb', 'arni', 'ca_antagonist_arb_combination'],
+                'risk_level': 'high',
+                'description': 'ARB成分の重複投与',
+                'clinical_impact': '腎機能障害、高K血症のリスク増加',
+                'recommendation': 'ARB成分の重複投与を避け、必要に応じて剤形を変更',
+                'priority': 3
+            },
             'anticoagulants': {
                 'categories': ['anticoagulant', 'nsaid'],
                 'risk_level': 'high',
@@ -1995,6 +2012,14 @@ class DrugService:
                 elif risk_name == 'gastric_medications':
                     additional_impact = "長期使用時は腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害が懸念されます。"
                     additional_recommendation = "長期使用時は定期的な血液検査（Mg、ビタミンB12）を推奨します。"
+                
+                # ARB重複チェック
+                elif risk_name == 'arb_arni_duplication':
+                    arb_drugs = [drug for drug, cat in drug_categories.items() if cat in ['arb', 'ca_antagonist_arb_combination']]
+                    arni_drugs = [drug for drug, cat in drug_categories.items() if cat == 'arni']
+                    if arb_drugs and arni_drugs:
+                        additional_impact = "特にエンレスト（バルサルタン含有）とテラムロ（テルミサルタン含有）の併用は避けるべきです。"
+                        additional_recommendation = "ARNIとARB配合剤の併用は避け、必要に応じて剤形を変更してください。"
                 
                 # PDE5阻害薬と硝酸薬の併用チェック
                 elif risk_name == 'pde5_nitrate_contraindication':
