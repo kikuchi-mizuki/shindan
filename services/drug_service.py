@@ -201,7 +201,7 @@ class AIDrugMatcher:
         analysis = {
             'original': drug_name,
             'normalized': self._normalize_name(drug_name),
-            'category': self._predict_category(drug_name),
+            'category': self._simple_category_prediction(drug_name),
             'confidence': 0.0,
             'search_priority': [],
             'english_variants': self._generate_english_variants(drug_name)
@@ -447,6 +447,74 @@ class AIDrugMatcher:
         # 信頼度に基づいて検索パターン数を制限
         max_patterns = min(3, int(analysis['confidence'] * 5))  # 信頼度に応じて1-3個
         return priority[:max_patterns]
+
+    def _simple_category_prediction(self, drug_name: str) -> str:
+        """簡易的な薬剤カテゴリ予測（AIDrugMatcher用）"""
+        drug_lower = drug_name.lower()
+        normalized_name = self._normalize_name(drug_name).lower()
+        
+        # 基本的なパターンマッチング
+        if any(pattern in drug_lower for pattern in ['パム', 'ラム', 'ゾラム']):
+            return 'benzodiazepine'
+        elif any(pattern in drug_lower for pattern in ['バルビ', 'フェノバル']):
+            return 'barbiturate'
+        elif any(pattern in drug_lower for pattern in ['モルヒネ', 'コデイン', 'フェンタニル']):
+            return 'opioid'
+        elif any(pattern in drug_lower for pattern in ['アスピリン', 'イブプロフェン', 'ロキソ']):
+            return 'nsaid'
+        elif any(pattern in drug_lower for pattern in ['スタチン', 'シンバ', 'アトルバ']):
+            return 'statin'
+        elif any(pattern in drug_lower for pattern in ['プリル', 'カプト', 'エナラ']):
+            return 'ace_inhibitor'
+        elif any(pattern in drug_lower for pattern in ['サルタン', 'ロサ', 'カンデ']):
+            return 'arb'
+        elif any(pattern in drug_lower for pattern in ['ロール', 'プロプラ', 'アテノ']):
+            return 'beta_blocker'
+        elif any(pattern in drug_lower for pattern in ['ジピン', 'ニフェ', 'アムロ']):
+            return 'ca_antagonist'
+        elif any(pattern in drug_lower for pattern in ['サイド', 'フロセ', 'ヒドロ']):
+            return 'diuretic'
+        elif any(pattern in drug_lower for pattern in ['タダラフィル', 'シルデナフィル']):
+            return 'pde5_inhibitor'
+        elif any(pattern in drug_lower for pattern in ['ニコランジル', 'ニトロ']):
+            return 'nitrate'
+        elif any(pattern in drug_lower for pattern in ['エンレスト', 'サクビトリル']):
+            return 'arni'
+        elif any(pattern in drug_lower for pattern in ['テラムロ']):
+            return 'ca_antagonist_arb_combination'
+        elif any(pattern in drug_lower for pattern in ['エナラプリル', 'カプトプリル']):
+            return 'ace_inhibitor'
+        elif any(pattern in drug_lower for pattern in ['タケキャブ', 'ボノプラザン']):
+            return 'p_cab'
+        elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'オメプラゾール']):
+            return 'ppi'
+        else:
+            return 'unknown'
+
+    def _normalize_name(self, name: str) -> str:
+        """薬剤名の正規化"""
+        if not name:
+            return ""
+        
+        # 基本的な正規化
+        normalized = name.strip()
+        
+        # 剤形の除去
+        dosage_forms = ['錠', 'カプセル', '散剤', '液剤', '注射剤', '軟膏', 'クリーム', '貼付剤', '吸入剤', '点眼剤', '点鼻剤']
+        for form in dosage_forms:
+            normalized = normalized.replace(form, '')
+        
+        # 数字と単位の除去
+        normalized = re.sub(r'\d+\.?\d*\s*(mg|g|ml|μg|mcg)', '', normalized)
+        normalized = re.sub(r'\d+', '', normalized)
+        
+        # 製薬会社名の除去（括弧内）
+        normalized = re.sub(r'[（(].*?[）)]', '', normalized)
+        
+        # 特殊文字の除去
+        normalized = re.sub(r'[^\w\s]', '', normalized)
+        
+        return normalized.strip()
 
 class DrugService:
     def __init__(self):
