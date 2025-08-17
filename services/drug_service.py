@@ -1169,11 +1169,11 @@ class DrugService:
         return set(analysis['search_priority'])
 
     def match_to_database(self, ocr_names: list) -> list:
-        """OCRで検出された薬剤名をデータベースにマッチング（AI最適化版）"""
+        """OCRで検出された薬剤名をデータベースにマッチング（改善版：薬剤の漏れを防ぐ）"""
         if not ocr_names:
             return []
             
-        # AIベースのバッチ処理最適化
+        # AIベースのバッチ処理最適化（制限を緩和）
         optimized_names = self._ai_batch_optimize(ocr_names)
         
         results = []
@@ -1191,13 +1191,26 @@ class DrugService:
             # キャッシュに保存
             self.local_db_cache[drug_name] = drug_info
             
+            # より寛容な条件で薬剤を追加
             if drug_info is not None:
                 results.append(drug_name)  # 薬剤名のみを追加
+            else:
+                # データベースにない場合でも、信頼度が高い場合は追加
+                analysis = self.ai_matcher.analyze_drug_name(drug_name)
+                if analysis['confidence'] >= 0.2:  # 信頼度の閾値を下げる
+                    results.append(drug_name)
+                    logger.info(f"Added drug '{drug_name}' with confidence {analysis['confidence']}")
         
+        # 結果が空の場合は元のリストをそのまま返す
+        if not results:
+            results = ocr_names
+            logger.warning(f"No drugs matched to database, returning original OCR names: {ocr_names}")
+        
+        logger.info(f"Matched {len(results)} drugs from {len(ocr_names)} OCR names")
         return results
     
     def _ai_batch_optimize(self, drug_names: List[str]) -> List[str]:
-        """AIベースのバッチ処理最適化（高速化版）"""
+        """AIベースのバッチ処理最適化（改善版：薬剤の漏れを防ぐ）"""
         optimized_names = []
         
         # 1. 重複除去
@@ -1213,13 +1226,18 @@ class DrugService:
         # 3. 信頼度の高い順にソート
         name_priorities.sort(key=lambda x: x[1], reverse=True)
         
-        # 4. 高信頼度のもののみを選択（最大5個まで）
-        high_confidence_names = [name for name, score in name_priorities if score >= 0.5][:5]
+        # 4. 制限を緩和してより多くの薬剤を含める
+        # 高信頼度のもの（信頼度0.3以上）をすべて含める
+        high_confidence_names = [name for name, score in name_priorities if score >= 0.3]
         
-        # 5. 中程度信頼度のものも含める（最大3個まで）
-        medium_confidence_names = [name for name, score in name_priorities if 0.3 <= score < 0.5][:3]
+        # 低信頼度のものも含める（最大10個まで）
+        low_confidence_names = [name for name, score in name_priorities if score < 0.3][:10]
         
-        optimized_names = high_confidence_names + medium_confidence_names
+        optimized_names = high_confidence_names + low_confidence_names
+        
+        # 5. 結果が空の場合は元のリストをそのまま返す
+        if not optimized_names:
+            optimized_names = unique_names
         
         logger.info(f"AI batch optimization: {len(drug_names)} -> {len(optimized_names)} names")
         return optimized_names
