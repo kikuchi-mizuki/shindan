@@ -1911,10 +1911,10 @@ class DrugService:
             'gastric_medications': {
                 'categories': ['ppi', 'p_cab'],
                 'risk_level': 'high',
-                'description': '胃酸分泌抑制薬の重複投与',
+                'description': '胃酸分泌抑制薬の重複投与（併用意義乏しい）',
                 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク',
                 'recommendation': '重複投与を避け、必要に応じて剤形を変更。長期使用時は定期的な血液検査を推奨',
-                'priority': 2  # 優先度を上げて確実に検出
+                'priority': 1  # 最高優先度で確実に検出
             },
             'ace_arb_arni_contraindication': {
                 'categories': ['ace_inhibitor', 'arb', 'arni'],
@@ -1996,6 +1996,13 @@ class DrugService:
             
             # リスク条件の判定（より詳細な条件設定）
             if len(matching_drugs) >= 2:  # 2剤以上の併用でリスク判定
+                # 胃薬重複の特別チェック（優先度を上げる）
+                if risk_name == 'gastric_medications':
+                    ppi_drugs = [drug for drug, cat in drug_categories.items() if cat == 'ppi']
+                    p_cab_drugs = [drug for drug, cat in drug_categories.items() if cat == 'p_cab']
+                    if ppi_drugs and p_cab_drugs:
+                        # 胃薬重複が検出された場合、確実にリスクとして記録
+                        logger.info(f"胃薬重複検出: PPI={ppi_drugs}, P-CAB={p_cab_drugs}")
                 # 特殊なリスクパターンの追加チェック
                 additional_impact = ""
                 additional_recommendation = ""
@@ -2054,6 +2061,31 @@ class DrugService:
                     risk_summary['medium_risk'].append(risk_detail)
                 else:
                     risk_summary['low_risk'].append(risk_detail)
+        
+        # 胃薬重複の特別チェック（確実に検出するため）
+        ppi_drugs = [drug for drug, cat in drug_categories.items() if cat == 'ppi']
+        p_cab_drugs = [drug for drug, cat in drug_categories.items() if cat == 'p_cab']
+        if ppi_drugs and p_cab_drugs:
+            # 胃薬重複が既に検出されているかチェック
+            gastric_duplication_found = any(
+                risk['risk_name'] == 'gastric_medications' 
+                for risk in detected_risks
+            )
+            if not gastric_duplication_found:
+                # 胃薬重複が検出されていない場合、強制的に追加
+                gastric_risk = {
+                    'risk_name': 'gastric_medications',
+                    'risk_level': 'high',
+                    'description': '胃酸分泌抑制薬の重複投与（併用意義乏しい）',
+                    'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク 特にP-CAB（タケキャブ）とPPI（ランソプラゾール）の併用は併用意義が乏しく、副作用リスクが増加します。',
+                    'recommendation': '重複投与を避け、必要に応じて剤形を変更。長期使用時は定期的な血液検査を推奨 胃酸分泌抑制薬の重複投与を避け、必要に応じて剤形を変更してください。長期使用時は定期的な血液検査（Mg、ビタミンB12）を推奨します。',
+                    'involved_drugs': ppi_drugs + p_cab_drugs,
+                    'involved_categories': ['ppi', 'p_cab'],
+                    'priority': 1
+                }
+                detected_risks.append(gastric_risk)
+                risk_summary['high_risk'].append(gastric_risk)
+                logger.info(f"胃薬重複を強制追加: {ppi_drugs} + {p_cab_drugs}")
         
         # 詳細な臨床分析の実行
         detailed_analysis = self._perform_detailed_clinical_analysis(drug_names, drug_categories, detected_risks)
