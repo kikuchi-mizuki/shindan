@@ -2509,6 +2509,20 @@ class DrugService:
                 logger.info(f"画像完全一致検出: {drug_name} -> {exact_name} -> {category}")
                 return category
         
+        # 0.8. より柔軟な画像マッチング（部分一致版）
+        flexible_image_mappings = {
+            '炭酸ランタン': 'phosphate_binder',
+            'フェブキソスタット': 'uric_acid_lowering',
+            'リオナ': 'phosphate_binder',
+            'アルファカルシドル': 'vitamin_d',
+            'ルパフィン': 'antihistamine',
+        }
+        
+        for flexible_name, category in flexible_image_mappings.items():
+            if flexible_name.lower() in drug_lower:
+                logger.info(f"画像柔軟マッチング検出: {drug_name} -> {flexible_name} -> {category}")
+                return category
+        
         # 1. 完全一致チェック（最も信頼性が高い）
         for drug, category in exact_drug_mapping.items():
             if drug.lower() in drug_lower or drug.lower() in normalized_name:
@@ -2536,6 +2550,9 @@ class DrugService:
         
         if best_category == 'unknown':
             logger.warning(f"薬剤分類失敗: {drug_name} (normalized: {normalized_name})")
+            logger.warning(f"  元の薬剤名: '{drug_name}'")
+            logger.warning(f"  小文字変換: '{drug_lower}'")
+            logger.warning(f"  正規化結果: '{normalized_name}'")
         return best_category
 
     def _calculate_pattern_similarity(self, drug_name: str, pattern: str) -> float:
