@@ -126,7 +126,7 @@ class ResponseService:
         return risk_emojis.get(risk_level, '⚠️')
     
     def generate_simple_response(self, drug_names: List[str]) -> str:
-        """シンプルな応答メッセージを生成（テスト用）"""
+        """シンプルな応答メッセージを生成（改善版）"""
         if not drug_names:
             return """🩺【薬剤名未検出】
 ━━━━━━━━━━━━━━
@@ -138,15 +138,72 @@ class ResponseService:
 ━━━━━━━━━━━━━━"""
         
         response_parts = []
-        response_parts.append("🩺【薬剤名検出完了】")
+        response_parts.append("🩺【薬剤検出完了】")
         response_parts.append("━━━━━━━━━━━━━━")
-        response_parts.append("📌 検出薬剤:")
+        response_parts.append(f"✅ {len(drug_names)}件の薬剤を検出しました")
+        response_parts.append(f"現在のリスト: {len(drug_names)}件")
         response_parts.append("")
-        for i, drug in enumerate(drug_names, 1):
-            response_parts.append(f"① {drug}")
+        response_parts.append("📋 検出された薬剤:")
         response_parts.append("")
-        response_parts.append("💡 次のステップ:")
-        response_parts.append("・「診断」と送信して飲み合わせチェック")
+        
+        # 薬剤カテゴリの日本語マッピング
+        category_mapping = {
+            'pde5_inhibitor': 'PDE5阻害薬',
+            'nitrate': '硝酸薬',
+            'arni': 'ARNI（心不全治療薬）',
+            'ca_antagonist_arb_combination': 'Ca拮抗薬+ARB配合剤',
+            'ace_inhibitor': 'ACE阻害薬',
+            'p_cab': 'P-CAB（胃薬）',
+            'ppi': 'PPI（胃薬）',
+            'benzodiazepine': 'ベンゾジアゼピン系',
+            'barbiturate': 'バルビツール酸系',
+            'opioid': 'オピオイド',
+            'nsaid': 'NSAIDs',
+            'statin': 'スタチン',
+            'arb': 'ARB',
+            'beta_blocker': 'β遮断薬',
+            'ca_antagonist': 'Ca拮抗薬',
+            'diuretic': '利尿薬',
+            'antihistamine': '抗ヒスタミン薬',
+            'antacid': '制酸薬',
+            'anticoagulant': '抗凝固薬',
+            'diabetes_medication': '糖尿病治療薬',
+            'antibiotic': '抗生物質',
+            'antidepressant': '抗うつ薬',
+            'antipsychotic': '抗精神病薬',
+            'bronchodilator': '気管支拡張薬',
+            'inhaled_corticosteroid': '吸入ステロイド薬',
+            'leukotriene_receptor_antagonist': 'ロイコトリエン受容体拮抗薬',
+            'mucolytic': '去痰薬',
+            'bph_medication': '前立腺肥大症治療薬',
+            'cardiac_glycoside': '強心配糖体',
+            'antiarrhythmic': '抗不整脈薬',
+            'antirheumatic': '抗リウマチ薬',
+            'corticosteroid': '副腎皮質ホルモン',
+            'immunosuppressant': '免疫抑制薬',
+            'unknown': '分類不明'
+        }
+        
+        # 薬剤サービスをインポートしてカテゴリを取得
+        try:
+            from .drug_service import DrugService
+            drug_service = DrugService()
+            
+            for i, drug in enumerate(drug_names, 1):
+                # 薬剤カテゴリを取得
+                category = drug_service._predict_category(drug)
+                category_jp = category_mapping.get(category, category)
+                
+                response_parts.append(f"① {drug}")
+                response_parts.append(f"   分類: {category_jp}")
+                response_parts.append("")
+        except Exception as e:
+            # エラーが発生した場合は薬剤名のみ表示
+            for i, drug in enumerate(drug_names, 1):
+                response_parts.append(f"① {drug}")
+            response_parts.append("")
+        
+        response_parts.append("💡 「診断」で飲み合わせチェックを実行できます")
         response_parts.append("━━━━━━━━━━━━━━")
         
         return "\n".join(response_parts)
