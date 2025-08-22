@@ -95,6 +95,11 @@ class AIDrugMatcher:
         self.analysis_cache = {}
         self.cache_max_size = 1000  # 最大キャッシュサイズ
         
+    def clear_cache(self):
+        """キャッシュをクリア"""
+        self.analysis_cache.clear()
+        logger.info("AI分析キャッシュをクリアしました")
+        
         self.drug_patterns = {
             'benzodiazepines': [
                 'パム', 'ラム', 'ゾラム', 'ジアゼパム', 'クロナゼパム', 'アルプラゾラム', 'ロラゼパム',
@@ -193,16 +198,18 @@ class AIDrugMatcher:
         
     def analyze_drug_name(self, drug_name: str) -> Dict[str, Any]:
         """薬剤名をAI的に分析（AI強化版）"""
-        # キャッシュチェック
-        if drug_name in self.analysis_cache:
-            logger.info(f"Using cached analysis for '{drug_name}'")
-            return self.analysis_cache[drug_name]
-        
-        # AI駆動の薬剤名修正
+        # 薬剤名補正を先に実行（キャッシュチェックの前）
         corrected_name = self._ai_drug_name_correction(drug_name)
         if corrected_name != drug_name:
             logger.info(f"薬剤名修正: {drug_name} -> {corrected_name}")
             drug_name = corrected_name
+        
+        # 修正後の薬剤名でキャッシュチェック
+        if drug_name in self.analysis_cache:
+            logger.info(f"Using cached analysis for '{drug_name}'")
+            return self.analysis_cache[drug_name]
+        
+
         
         # 基本的な分析
         analysis = {
@@ -656,9 +663,13 @@ class AIDrugMatcher:
             return 'ppi'
         elif any(pattern in drug_lower for pattern in ['ベルソムラ', 'ロゼレム', 'ラメルテオン', 'スボレキサント', 'ゾルピデム', 'ゾピクロン', 'エスゾピクロン', 'トリアゾラム', 'ブロチゾラム', 'フルラゼパム', 'エスタゾラム', 'ニトラゼパム', 'ブロマゼパム', 'テマゼパム', 'ロラゼパム', 'アルプラゾラム', 'クロナゼパム', 'ジアゼパム']):
             return 'sleep_medication'
-        elif any(pattern in drug_lower for pattern in ['デエビゴ', 'ビルダグリプチン', 'シタグリプチン', 'リナグリプチン', 'アログリプチン', 'テネリグリプチン']):
+        elif any(pattern in drug_lower for pattern in ['ビルダグリプチン', 'シタグリプチン', 'リナグリプチン', 'アログリプチン', 'テネリグリプチン']):
             return 'diabetes_medication'
-        elif any(pattern in drug_lower for pattern in ['クラリスロマイシン', 'アモキシシリン', 'セファレキシン', 'エリスロマイシン', 'アジスロマイシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン']):
+        elif any(pattern in drug_lower for pattern in ['デエビゴ', 'レンボレキサント']):
+            return 'sleep_medication'
+        elif any(pattern in drug_lower for pattern in ['クラリスロマイシン', 'エリスロマイシン', 'アジスロマイシン']):
+            return 'cyp3a4_inhibitor'
+        elif any(pattern in drug_lower for pattern in ['アモキシシリン', 'セファレキシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン']):
             return 'antibiotic'
         elif any(pattern in drug_lower for pattern in ['フェブキソスタット', 'アロプリノール', 'トピロキソスタット']):
             return 'uric_acid_lowering'
