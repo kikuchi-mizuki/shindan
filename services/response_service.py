@@ -178,7 +178,9 @@ class ResponseService:
         
         for drug_name in drug_names:
             logger.info(f"薬剤分類処理開始: {drug_name}")
-            category = drug_service._predict_category(drug_name)
+            # 薬剤名補正機能を含む完全な分析を実行
+            analysis = drug_service.ai_matcher.analyze_drug_name(drug_name)
+            category = analysis.get('category', 'unknown')
             drug_categories[drug_name] = category
             logger.info(f"薬剤分類結果: {drug_name} -> {category}")
         

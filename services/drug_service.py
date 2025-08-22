@@ -367,6 +367,13 @@ class AIDrugMatcher:
             if wrong_name in drug_name or drug_name in wrong_name:
                 return correct_name
         
+        # より柔軟なマッチング（類似度ベース）
+        for wrong_name, correct_name in correction_mappings.items():
+            similarity = fuzz.ratio(drug_name.lower(), wrong_name.lower())
+            if similarity >= 80:  # 80%以上の類似度で修正
+                logger.info(f"類似度ベース修正: {drug_name} ({similarity}%) -> {correct_name}")
+                return correct_name
+        
         return drug_name
 
     def _ai_category_prediction(self, drug_name: str) -> str:
