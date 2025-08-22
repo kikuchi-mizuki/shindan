@@ -176,18 +176,24 @@ class ResponseService:
         drug_service = DrugService()
         drug_categories = {}
         
+        corrected_drug_names = []
+        drug_categories = {}
+        
         for drug_name in drug_names:
             logger.info(f"薬剤分類処理開始: {drug_name}")
             # 薬剤名補正機能を含む完全な分析を実行
             analysis = drug_service.ai_matcher.analyze_drug_name(drug_name)
+            corrected_name = analysis.get('original', drug_name)  # 修正された薬剤名を取得
             category = analysis.get('category', 'unknown')
-            drug_categories[drug_name] = category
-            logger.info(f"薬剤分類結果: {drug_name} -> {category}")
+            
+            corrected_drug_names.append(corrected_name)
+            drug_categories[corrected_name] = category
+            logger.info(f"薬剤分類結果: {drug_name} -> {corrected_name} -> {category}")
         
         response_parts = []
         response_parts.append("🩺【薬剤検出完了】")
         response_parts.append("━━━━━━━━━━━━━━")
-        response_parts.append(f"✅ {len(drug_names)}件検出しました")
+        response_parts.append(f"✅ {len(corrected_drug_names)}件検出しました")
         response_parts.append("")
         response_parts.append("")
         response_parts.append("📋 検出された薬剤:")
@@ -237,57 +243,17 @@ class ResponseService:
             'unknown': '分類不明'
         }
         
-        # 薬剤名からカテゴリを推定する簡易的なマッピング
-        drug_category_mapping = {
-            'タダラフィル': 'pde5_inhibitor',
-            'シルデナフィル': 'pde5_inhibitor',
-            'バルデナフィル': 'pde5_inhibitor',
-            'ニコランジル': 'nitrate',
-            'ニトログリセリン': 'nitrate',
-            'エンレスト': 'arni',
-            'サクビトリル': 'arni',
-            'テラムロ': 'ca_antagonist_arb_combination',
-            'アムロジピン': 'ca_antagonist',
-            'テルミサルタン': 'arb',
-            'エナラプリル': 'ace_inhibitor',
-            'カプトプリル': 'ace_inhibitor',
-            'リシノプリル': 'ace_inhibitor',
-            'タケキャブ': 'p_cab',
-            'ボノプラザン': 'p_cab',
-            'ランソプラゾール': 'ppi',
-            'オメプラゾール': 'ppi',
-            'エソメプラゾール': 'ppi',
-            'ジアゼパム': 'benzodiazepine',
-            'クロナゼパム': 'benzodiazepine',
-            'アルプラゾラム': 'benzodiazepine',
-            'ロラゼパム': 'benzodiazepine',
-            'フルボキサミン': 'ssri_antidepressant',
-            'ベルソムラ': 'sleep_medication',
-            'デエビゴ': 'sleep_medication',
-            'ロゼレム': 'sleep_medication',
-            'クラリスロマイシン': 'cyp3a4_inhibitor',
-            'アスピリン': 'nsaid',
-            'イブプロフェン': 'nsaid',
-            'ロキソプロフェン': 'nsaid',
-            'ワルファリン': 'anticoagulant',
-            'ダビガトラン': 'anticoagulant',
-            'シンバスタチン': 'statin',
-            'アトルバスタチン': 'statin',
-            'メトホルミン': 'diabetes_medication',
-            'インスリン': 'diabetes_medication'
-        }
-        
-        for i, drug in enumerate(drug_names, 1):
-            # DrugServiceで取得した分類を使用
-            category = drug_categories.get(drug, 'unknown')
-            category_jp = category_mapping.get(category, category)
+        # 修正された薬剤名を使用して表示
+        for i, drug_name in enumerate(corrected_drug_names, 1):
+            category = drug_categories.get(drug_name, 'unknown')
+            japanese_category = category_mapping.get(category, '分類不明')
             
-            # 番号を正しく表示（①、②、③...）
+            # 番号記号の取得
             number_symbols = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
             number_symbol = number_symbols[i-1] if i <= len(number_symbols) else f"{i}."
             
-            response_parts.append(f"{number_symbol} {drug}")
-            response_parts.append(f"   分類: {category_jp}")
+            response_parts.append(f"{number_symbol} {drug_name}")
+            response_parts.append(f"分類: {japanese_category}")
             response_parts.append("")
         
         response_parts.append("🔍 「診断」で飲み合わせチェックを実行できます")
