@@ -362,6 +362,10 @@ class AIDrugMatcher:
             'エソメプラゾル錠': 'エソメプラゾール',
             'エソメプラゾール': 'エソメプラゾール',  # 正しい名前はそのまま
             
+            # ロゼレム関連（誤修正を防ぐ）
+            'ロゼレム': 'ロゼレム',  # 正しい名前はそのまま
+            'ロゼルム': 'ロゼレム',  # 誤認識を修正
+            
             # その他の修正
             'ランソプラゾル': 'ランソプラゾール',
             'ランソプラゾル錠': 'ランソプラゾール',
@@ -455,7 +459,7 @@ class AIDrugMatcher:
                 'arb', 'beta_blocker', 'diuretic', 'statin', 'nsaid', 'antibiotic',
                 'antihistamine', 'ppi', 'p_cab', 'uric_acid_lowering', 'phosphate_binder',
                 'vitamin_d', 'diabetes_medication', 'antidepressant', 'antipsychotic',
-                'anticoagulant', 'opioid', 'barbiturate', 'cyp3a4_inhibitor'
+                'anticoagulant', 'opioid', 'barbiturate', 'cyp3a4_inhibitor', 'antiepileptic'
             ]
             
             if category in valid_categories:
@@ -686,6 +690,8 @@ class AIDrugMatcher:
             return 'antibiotic'
         elif any(pattern in drug_lower for pattern in ['フェブキソスタット', 'アロプリノール', 'トピロキソスタット']):
             return 'uric_acid_lowering'
+        elif any(pattern in drug_lower for pattern in ['デパケン', 'バルプロ酸', 'バルプロ酸ナトリウム']):
+            return 'antiepileptic'
         elif any(pattern in drug_lower for pattern in ['リオナ', '炭酸ランタン', 'セベラマー', '炭酸カルシウム']):
             return 'phosphate_binder'
         elif any(pattern in drug_lower for pattern in ['アルファカルシドール', 'アルファカルシドル', 'カルシトリオール', 'エルデカルシトール']):

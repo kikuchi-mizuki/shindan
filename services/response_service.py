@@ -240,6 +240,7 @@ class ResponseService:
             'sleep_medication': '睡眠薬・催眠薬',
             'ssri_antidepressant': 'SSRI抗うつ薬',
             'cyp3a4_inhibitor': 'CYP3A4阻害薬',
+            'antiepileptic': '抗てんかん薬',
             'unknown': '分類不明'
         }
         
