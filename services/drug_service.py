@@ -95,6 +95,10 @@ class AIDrugMatcher:
         self.analysis_cache = {}
         self.cache_max_size = 1000  # 最大キャッシュサイズ
         
+        # 一般的な接尾辞と接頭辞
+        self.common_suffixes = ['錠', 'カプセル', '散剤', '液剤', '注射剤', 'mg', 'g', 'ml', 'μg', 'mcg']
+        self.common_prefixes = ['塩酸', '硫酸', 'リン酸', '酢酸', 'クエン酸']
+        
     def clear_cache(self):
         """キャッシュをクリア"""
         self.analysis_cache.clear()
@@ -324,7 +328,8 @@ class AIDrugMatcher:
 正しい薬剤名のみを返してください。修正が必要ない場合は元の名前を返してください。
 """
             
-            response = openai.ChatCompletion.create(
+            client = openai.OpenAI()
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "あなたは薬剤名の専門家です。薬剤名の誤認識を修正し、正しい薬剤名を返してください。"},
@@ -344,11 +349,20 @@ class AIDrugMatcher:
 
     def _pattern_based_correction(self, drug_name: str) -> str:
         """パターンベースの薬剤名修正"""
-        # よくあるOCR誤認識の修正マッピング
+        # よくあるOCR誤認識の修正マッピング（双方向対応）
         correction_mappings = {
+            # フルボキサミン関連
             'フルラゼパム': 'フルボキサミン',
             'フルラゼパム錠': 'フルボキサミン',
             'フルラゼパムmg': 'フルボキサミン',
+            'フルボキサミン': 'フルボキサミン',  # 正しい名前はそのまま
+            
+            # エソメプラゾール関連
+            'エソメプラゾル': 'エソメプラゾール',
+            'エソメプラゾル錠': 'エソメプラゾール',
+            'エソメプラゾール': 'エソメプラゾール',  # 正しい名前はそのまま
+            
+            # その他の修正
             'ランソプラゾル': 'ランソプラゾール',
             'ランソプラゾル錠': 'ランソプラゾール',
             'アルファカルシドル': 'アルファカルシドール',
@@ -361,8 +375,6 @@ class AIDrugMatcher:
             'ベニジピン塩酸塩錠mg': 'ベニジピン',
             'アムロジピンロ腔内崩壊錠mg': 'アムロジピン',
             'タケキャブ錠mg': 'タケキャブ',
-            'エソメプラゾル': 'エソメプラゾール',
-            'エソメプラゾル錠': 'エソメプラゾール',
         }
         
         # 完全一致で修正
@@ -423,7 +435,8 @@ class AIDrugMatcher:
 """
             
             # ChatGPT APIを呼び出し
-            response = openai.ChatCompletion.create(
+            client = openai.OpenAI()
+            response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "あなたは薬剤分類の専門家です。薬剤名から適切な薬効分類を予測してください。"},
