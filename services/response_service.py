@@ -183,7 +183,7 @@ class ResponseService:
             logger.info(f"薬剤分類処理開始: {drug_name}")
             # 薬剤名補正機能を含む完全な分析を実行
             analysis = drug_service.ai_matcher.analyze_drug_name(drug_name)
-            corrected_name = analysis.get('original', drug_name)  # 修正された薬剤名を取得
+            corrected_name = analysis.get('corrected', drug_name)  # 修正された薬剤名を取得
             category = analysis.get('category', 'unknown')
             
             corrected_drug_names.append(corrected_name)

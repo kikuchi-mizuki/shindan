@@ -217,7 +217,8 @@ class AIDrugMatcher:
         
         # 基本的な分析
         analysis = {
-            'original': drug_name,
+            'original': drug_name,  # 元の薬剤名
+            'corrected': drug_name,  # 修正された薬剤名
             'normalized': self._normalize_name(drug_name),
             'category': 'unknown',
             'confidence': 0.0,
