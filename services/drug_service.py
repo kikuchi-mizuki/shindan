@@ -689,6 +689,8 @@ class AIDrugMatcher:
             return 'cyp3a4_inhibitor'
         elif any(pattern in drug_lower for pattern in ['アモキシシリン', 'セファレキシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン']):
             return 'antibiotic'
+        elif any(pattern in drug_lower for pattern in ['フルボキサミン', 'フルボキサミン']):
+            return 'ssri_antidepressant'
         elif any(pattern in drug_lower for pattern in ['フェブキソスタット', 'アロプリノール', 'トピロキソスタット']):
             return 'uric_acid_lowering'
         elif any(pattern in drug_lower for pattern in ['デパケン', 'バルプロ酸', 'バルプロ酸ナトリウム']):
@@ -2230,6 +2232,14 @@ class DrugService:
                 'recommendation': '段階的な投与開始と慎重な用量調整が必要',
                 'priority': 6
             },
+            'ssri_sleep_medication_interaction': {
+                'categories': ['ssri_antidepressant', 'sleep_medication'],
+                'risk_level': 'high',
+                'description': 'SSRI抗うつ薬と睡眠薬の併用による相互作用',
+                'clinical_impact': '過度の眠気、セロトニン症候群のリスク、睡眠薬の血中濃度上昇',
+                'recommendation': 'SSRIと睡眠薬の併用は慎重に。用量調整と副作用モニタリングが必要',
+                'priority': 2
+            },
             'sleep_medication_duplication': {
                 'categories': ['sleep_medication'],
                 'risk_level': 'high',
@@ -2239,12 +2249,12 @@ class DrugService:
                 'priority': 2
             },
             'cyp3a4_inhibition': {
-                'categories': ['cyp3a4_inhibitor', 'ca_antagonist', 'sleep_medication'],
+                'categories': ['cyp3a4_inhibitor', 'ca_antagonist', 'sleep_medication', 'ssri_antidepressant'],
                 'risk_level': 'high',
                 'description': 'CYP3A4阻害薬による他剤の血中濃度上昇',
-                'clinical_impact': '強い眠気、ふらつき、低血圧、転倒リスク',
-                'recommendation': '投与量調整または併用回避を検討',
-                'priority': 2
+                'clinical_impact': '強い眠気、ふらつき、低血圧、転倒リスク、SSRIの副作用増強',
+                'recommendation': '投与量調整または併用回避を検討。特にSSRIとの併用は慎重に',
+                'priority': 1  # 最高優先度
             },
             'cardiac_medications': {
                 'categories': ['cardiac_glycoside', 'diuretic', 'ace_inhibitor'],
@@ -2387,6 +2397,57 @@ class DrugService:
         logger.info(f"胃薬重複チェック: PPI={ppi_drugs}, P-CAB={p_cab_drugs}")
         
         if ppi_drugs and p_cab_drugs:
+            # 胃薬重複が検出された場合、確実にリスクとして記録
+            gastric_risk = {
+                'risk_name': 'gastric_medications',
+                'risk_level': 'high',
+                'description': '胃酸分泌抑制薬の重複投与（併用意義乏しい）',
+                'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク。特にP-CABとPPIの併用は併用意義が乏しく、副作用リスクが増加します。',
+                'recommendation': '胃酸分泌抑制薬の重複投与を避け、必要に応じて剤形を変更してください。長期使用時は定期的な血液検査（Mg、ビタミンB12）を推奨します。',
+                'involved_drugs': ppi_drugs + p_cab_drugs,
+                'involved_categories': ['ppi', 'p_cab'],
+                'priority': 1
+            }
+            risk_summary['high_risk'].append(gastric_risk)
+            logger.info(f"胃薬重複を強制検出: {ppi_drugs} + {p_cab_drugs}")
+        
+        # CYP3A4阻害薬との相互作用の特別チェック
+        cyp3a4_drugs = [drug for drug, cat in drug_categories.items() if cat == 'cyp3a4_inhibitor']
+        if cyp3a4_drugs:
+            affected_drugs = []
+            for drug, cat in drug_categories.items():
+                if cat in ['ca_antagonist', 'sleep_medication', 'ssri_antidepressant']:
+                    affected_drugs.append(drug)
+            
+            if affected_drugs:
+                cyp3a4_risk = {
+                    'risk_name': 'cyp3a4_inhibition',
+                    'risk_level': 'high',
+                    'description': 'CYP3A4阻害薬による他剤の血中濃度上昇',
+                    'clinical_impact': f'強い眠気、ふらつき、低血圧、転倒リスク。{", ".join(cyp3a4_drugs)}が{", ".join(affected_drugs)}の血中濃度を上昇させる可能性があります。',
+                    'recommendation': '投与量調整または併用回避を検討。特にSSRIとの併用は慎重に。',
+                    'involved_drugs': cyp3a4_drugs + affected_drugs,
+                    'involved_categories': ['cyp3a4_inhibitor'] + list(set([drug_categories[drug] for drug in affected_drugs])),
+                    'priority': 1
+                }
+                risk_summary['high_risk'].append(cyp3a4_risk)
+                logger.info(f"CYP3A4阻害薬相互作用を強制検出: {cyp3a4_drugs} → {affected_drugs}")
+        
+        # 睡眠薬重複の特別チェック
+        sleep_drugs = [drug for drug, cat in drug_categories.items() if cat == 'sleep_medication']
+        if len(sleep_drugs) >= 2:
+            sleep_risk = {
+                'risk_name': 'sleep_medication_duplication',
+                'risk_level': 'high',
+                'description': '睡眠薬の重複投与',
+                'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠',
+                'recommendation': '睡眠薬の多剤併用は避け、必要に応じて1剤に変更',
+                'involved_drugs': sleep_drugs,
+                'involved_categories': ['sleep_medication'],
+                'priority': 2
+            }
+            risk_summary['high_risk'].append(sleep_risk)
+            logger.info(f"睡眠薬重複を強制検出: {sleep_drugs}")
             # 胃薬重複が既に検出されているかチェック
             gastric_duplication_found = any(
                 risk['risk_name'] == 'gastric_medications' 
