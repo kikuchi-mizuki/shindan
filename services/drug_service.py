@@ -295,6 +295,13 @@ class AIDrugMatcher:
 
     def _ai_drug_name_correction(self, drug_name: str) -> str:
         """ChatGPT APIを使用した薬剤名の修正・正規化"""
+        # まずパターンベースの修正を試行
+        corrected_name = self._pattern_based_correction(drug_name)
+        if corrected_name != drug_name:
+            logger.info(f"パターンベース修正: {drug_name} -> {corrected_name}")
+            return corrected_name
+        
+        # AI駆動の修正を試行
         try:
             import openai
             
@@ -327,6 +334,40 @@ class AIDrugMatcher:
         except Exception as e:
             logger.warning(f"AI薬剤名修正エラー: {drug_name} - {e}")
             return drug_name
+
+    def _pattern_based_correction(self, drug_name: str) -> str:
+        """パターンベースの薬剤名修正"""
+        # よくあるOCR誤認識の修正マッピング
+        correction_mappings = {
+            'フルラゼパム': 'フルボキサミン',
+            'フルラゼパム錠': 'フルボキサミン',
+            'フルラゼパムmg': 'フルボキサミン',
+            'ランソプラゾル': 'ランソプラゾール',
+            'ランソプラゾル錠': 'ランソプラゾール',
+            'アルファカルシドル': 'アルファカルシドール',
+            'アルファカルシドル錠': 'アルファカルシドール',
+            'フェブキソスタット錠mg': 'フェブキソスタット',
+            'ルパフィン錠mg': 'ルパフィン',
+            'リオナ錠mg': 'リオナ',
+            '炭酸ランタンロ腔内崩壊錠mg': '炭酸ランタン',
+            'ニフェジピン徐放錠mg': 'ニフェジピン',
+            'ベニジピン塩酸塩錠mg': 'ベニジピン',
+            'アムロジピンロ腔内崩壊錠mg': 'アムロジピン',
+            'タケキャブ錠mg': 'タケキャブ',
+            'エソメプラゾル': 'エソメプラゾール',
+            'エソメプラゾル錠': 'エソメプラゾール',
+        }
+        
+        # 完全一致で修正
+        if drug_name in correction_mappings:
+            return correction_mappings[drug_name]
+        
+        # 部分一致で修正（より柔軟なマッチング）
+        for wrong_name, correct_name in correction_mappings.items():
+            if wrong_name in drug_name or drug_name in wrong_name:
+                return correct_name
+        
+        return drug_name
 
     def _ai_category_prediction(self, drug_name: str) -> str:
         """ChatGPT APIを使用した薬剤分類予測"""
@@ -383,11 +424,11 @@ class AIDrugMatcher:
             
             # 有効なカテゴリかチェック
             valid_categories = [
-                'benzodiazepine', 'sleep_medication', 'ca_antagonist', 'ace_inhibitor',
+                'benzodiazepine', 'sleep_medication', 'ssri_antidepressant', 'ca_antagonist', 'ace_inhibitor',
                 'arb', 'beta_blocker', 'diuretic', 'statin', 'nsaid', 'antibiotic',
                 'antihistamine', 'ppi', 'p_cab', 'uric_acid_lowering', 'phosphate_binder',
                 'vitamin_d', 'diabetes_medication', 'antidepressant', 'antipsychotic',
-                'anticoagulant', 'opioid', 'barbiturate'
+                'anticoagulant', 'opioid', 'barbiturate', 'cyp3a4_inhibitor'
             ]
             
             if category in valid_categories:
@@ -620,6 +661,10 @@ class AIDrugMatcher:
             return 'vitamin_d'
         elif any(pattern in drug_lower for pattern in ['ルパフィン', 'ロラタジン', 'フェキソフェナジン', 'セチリジン']):
             return 'antihistamine'
+        elif any(pattern in drug_lower for pattern in ['フルボキサミン', 'フルボキサミン']):
+            return 'ssri_antidepressant'
+        elif any(pattern in drug_lower for pattern in ['クラリスロマイシン', 'エリスロマイシン', 'アジスロマイシン']):
+            return 'cyp3a4_inhibitor'
         else:
             return 'unknown'
 
