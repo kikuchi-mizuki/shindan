@@ -736,7 +736,7 @@ OCRテキスト:
         """従来のOCR手法で薬剤名を抽出"""
         try:
             # Google Cloud Vision API
-            if self.vision_client:
+            if hasattr(self, 'client') and self.client:
                 return self._extract_with_vision(image_content)
             
             # Tesseract OCR
@@ -747,41 +747,33 @@ OCRテキスト:
             return []
 
     def _combine_and_validate_results(self, gpt_results, ocr_results):
-        """結果を統合して検証"""
+        """結果を統合して検証（簡素化版）"""
         try:
-            # 基本的な薬剤名の正規化
-            normalized_gpt = [self._normalize_drug_name(name) for name in gpt_results]
-            normalized_ocr = [self._normalize_drug_name(name) for name in ocr_results]
+            # GPT Vision APIの結果を優先（高精度）
+            if gpt_results:
+                logger.info(f"Using GPT Vision results: {gpt_results}")
+                return gpt_results
             
-            # 重複除去
-            all_results = list(set(normalized_gpt + normalized_ocr))
+            # フォールバックとして従来のOCR結果を使用
+            if ocr_results:
+                logger.info(f"Using OCR results as fallback: {ocr_results}")
+                return ocr_results
             
-            # 重要な薬剤名の検証
-            validated_results = []
-            for drug_name in all_results:
-                if self._validate_drug_name(drug_name):
-                    validated_results.append(drug_name)
-                else:
-                    logger.warning(f"Invalid drug name detected: {drug_name}")
-            
-            # 結果の優先順位付け
-            final_results = self._prioritize_results(validated_results)
-            
-            logger.info(f"Final validated results: {final_results}")
-            return final_results
+            logger.warning("No valid results found")
+            return []
             
         except Exception as e:
             logger.error(f"Result combination error: {e}")
             return gpt_results  # フォールバック
 
     def _validate_drug_name(self, drug_name):
-        """薬剤名の妥当性を検証"""
+        """薬剤名の妥当性を検証（mg対応版）"""
         if not drug_name or len(drug_name) < 2:
             return False
         
-        # 明らかに間違った薬剤名を除外
+        # 明らかに間違った薬剤名を除外（mgは除外しない）
         invalid_patterns = [
-            '注意:', '抽出ルール:', '薬剤名:', '分類:', 'mg', '錠', 'カプセル'
+            '注意:', '抽出ルール:', '薬剤名:', '分類:', '錠', 'カプセル'
         ]
         
         for pattern in invalid_patterns:
