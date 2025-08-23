@@ -1287,7 +1287,7 @@ class DrugService:
         return duplication_rules.get(category, {'check_duplication': True, 'min_drugs': 2})
 
     def _remove_duplicate_risks(self, risks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """重複するリスクを除去（最適化版）"""
+        """重複するリスクを除去（強化版）"""
         unique_risks = []
         seen_combinations = set()
         
@@ -1302,17 +1302,20 @@ class DrugService:
                 unique_risks.append(risk)
                 continue
             
-            # カテゴリとリスクレベルも含めてキーを作成
-            category = risk.get('category', risk.get('risk_name', ''))
+            # リスク名とリスクレベルも含めてキーを作成（より厳密な重複チェック）
+            risk_name = risk.get('risk_name', '')
             risk_level = risk.get('risk_level', '')
-            full_key = (drugs_key, category, risk_level)
+            description = risk.get('description', '')[:50]  # 説明文の最初の50文字も含める
+            
+            # より厳密なキーを作成
+            full_key = (drugs_key, risk_name, risk_level, description)
             
             if full_key not in seen_combinations:
                 seen_combinations.add(full_key)
                 unique_risks.append(risk)
-                logger.info(f"Added unique risk: {risk.get('risk_name', 'unknown')} - {drugs_key}")
+                logger.info(f"Added unique risk: {risk_name} - {drugs_key}")
             else:
-                logger.info(f"Removed duplicate risk: {risk.get('risk_name', 'unknown')} - {drugs_key}")
+                logger.info(f"Removed duplicate risk: {risk_name} - {drugs_key} (description: {description[:30]}...)")
         
         logger.info(f"Risk deduplication: {len(risks)} -> {len(unique_risks)}")
         return unique_risks
@@ -2550,18 +2553,28 @@ class DrugService:
         all_sleep_drugs = sleep_drugs + orexin_drugs
         
         if len(all_sleep_drugs) >= 2:
-            sleep_risk = {
-                'risk_name': 'sleep_medication_duplication',
-                'risk_level': 'high',
-                'description': '睡眠薬の重複投与',
-                'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠',
-                'recommendation': '睡眠薬の多剤併用は避け、必要に応じて1剤に変更',
-                'involved_drugs': all_sleep_drugs,
-                'involved_categories': ['sleep_medication', 'orexin_receptor_antagonist'],
-                'priority': 2
-            }
-            risk_summary['high_risk'].append(sleep_risk)
-            logger.info(f"睡眠薬重複を強制検出: {all_sleep_drugs}（sleep_medication: {sleep_drugs}, orexin: {orexin_drugs}）")
+            # 既存の睡眠薬重複リスクがあるかチェック
+            existing_sleep_duplication = any(
+                risk.get('risk_name') == 'sleep_medication_duplication' 
+                for risk in detected_risks
+            )
+            
+            if not existing_sleep_duplication:
+                sleep_risk = {
+                    'risk_name': 'sleep_medication_duplication',
+                    'risk_level': 'high',
+                    'description': '睡眠薬の重複投与',
+                    'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠',
+                    'recommendation': '睡眠薬の多剤併用は避け、必要に応じて1剤に変更',
+                    'involved_drugs': all_sleep_drugs,
+                    'involved_categories': ['sleep_medication', 'orexin_receptor_antagonist'],
+                    'priority': 2
+                }
+                detected_risks.append(sleep_risk)
+                risk_summary['high_risk'].append(sleep_risk)
+                logger.info(f"睡眠薬重複を強制検出: {all_sleep_drugs}（sleep_medication: {sleep_drugs}, orexin: {orexin_drugs}）")
+            else:
+                logger.info(f"睡眠薬重複は既に検出済み: {all_sleep_drugs}")
         
         # 胃薬重複チェック（最低2剤以上で重複と判定）
         if len(ppi_drugs) + len(p_cab_drugs) >= 2:
