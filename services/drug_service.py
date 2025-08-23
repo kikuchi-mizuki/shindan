@@ -2740,7 +2740,7 @@ class DrugService:
             'アモキシシリン': 'antibiotic',
             'セファレキシン': 'antibiotic',
             'エリスロマイシン': 'antibiotic',
-            'クラリスロマイシン': 'cyp3a4_inhibitor',  # CYP3A4阻害薬として分類
+            'クラリスロマイシン': 'antibiotic',  # 抗生物質として分類
             'アジスロマイシン': 'antibiotic',
             
             # 睡眠薬・催眠薬
