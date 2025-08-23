@@ -2513,7 +2513,7 @@ class DrugService:
         if cyp3a4_drugs:
             affected_drugs = []
             for drug, cat in drug_categories.items():
-                if cat in ['ca_antagonist', 'sleep_medication', 'ssri_antidepressant']:
+                if cat in ['ca_antagonist', 'sleep_medication', 'ssri_antidepressant', 'orexin_receptor_antagonist']:
                     affected_drugs.append(drug)
             
             if affected_drugs:
@@ -2530,21 +2530,26 @@ class DrugService:
                 risk_summary['high_risk'].append(cyp3a4_risk)
                 logger.info(f"CYP3A4阻害薬相互作用を強制検出: {cyp3a4_drugs} → {affected_drugs}")
         
-        # 睡眠薬重複の特別チェック
+        # 睡眠薬重複の特別チェック（デビゴを含む）
         sleep_drugs = [drug for drug, cat in drug_categories.items() if cat == 'sleep_medication']
-        if len(sleep_drugs) >= 2:
+        orexin_drugs = [drug for drug, cat in drug_categories.items() if cat == 'orexin_receptor_antagonist']
+        
+        # 睡眠薬とオレキシン受容体拮抗薬を統合
+        all_sleep_drugs = sleep_drugs + orexin_drugs
+        
+        if len(all_sleep_drugs) >= 2:
             sleep_risk = {
                 'risk_name': 'sleep_medication_duplication',
                 'risk_level': 'high',
                 'description': '睡眠薬の重複投与',
                 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠',
                 'recommendation': '睡眠薬の多剤併用は避け、必要に応じて1剤に変更',
-                'involved_drugs': sleep_drugs,
-                'involved_categories': ['sleep_medication'],
+                'involved_drugs': all_sleep_drugs,
+                'involved_categories': ['sleep_medication', 'orexin_receptor_antagonist'],
                 'priority': 2
             }
             risk_summary['high_risk'].append(sleep_risk)
-            logger.info(f"睡眠薬重複を強制検出: {sleep_drugs}")
+            logger.info(f"睡眠薬重複を強制検出: {all_sleep_drugs}（sleep_medication: {sleep_drugs}, orexin: {orexin_drugs}）")
             # 胃薬重複が既に検出されているかチェック
             gastric_duplication_found = any(
                 risk['risk_name'] == 'gastric_medications' 
@@ -3018,7 +3023,7 @@ class DrugService:
             
             # オレキシン受容体拮抗薬
             'デエビゴ': 'orexin_receptor_antagonist',  # オレキシン受容体拮抗薬（睡眠薬）
-            'デビゴ': 'orexin_receptor_antagonist',  # オレキシン受容体拮抗薬（睡眠薬）
+            'デビゴ': 'sleep_medication',  # オレキシン受容体拮抗薬（睡眠薬として統一）
             'ビルダグリプチン': 'diabetes_medication',
             'シタグリプチン': 'diabetes_medication',
             'リナグリプチン': 'diabetes_medication',
