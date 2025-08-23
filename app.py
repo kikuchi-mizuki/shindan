@@ -692,8 +692,8 @@ def handle_image_message(event):
             
             # KEGG情報を含む詳細な薬剤情報を取得
             if matched_drugs:
-                            # response_serviceを使用して薬剤検出結果の確認メッセージを表示
-            response_text = response_service.generate_drug_detection_confirmation(matched_drugs, 7)
+                # response_serviceを使用して薬剤検出結果の確認メッセージを表示
+                response_text = response_service.generate_drug_detection_confirmation(matched_drugs, 7)
                 
                 # テキストメッセージとクイックアクションボタンを送信
                 messaging_api.push_message(
