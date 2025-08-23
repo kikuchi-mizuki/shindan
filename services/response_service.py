@@ -448,6 +448,8 @@ class ResponseService:
                 
                 category_jp = category_mapping.get(category, '分類不明')
                 number_symbol = number_symbols[i] if i < len(number_symbols) else f"{i+1}."
+                
+                # mgを含む薬剤名をそのまま表示
                 response_parts.append(f"{number_symbol} {drug}")
                 response_parts.append(f"   分類: {category_jp}")
             
