@@ -530,7 +530,7 @@ class AIDrugMatcher:
             if category in valid_categories:
                 logger.info(f"AI分類成功: {drug_name} -> {category}")
                 return category
-            else:
+        else:
                 logger.info(f"AI分類失敗: {drug_name} -> {category} (無効なカテゴリ)")
                 return 'unknown'
                 
@@ -747,7 +747,7 @@ class AIDrugMatcher:
             return 'sleep_medication'
         elif any(pattern in drug_lower for pattern in ['ビルダグリプチン', 'シタグリプチン', 'リナグリプチン', 'アログリプチン', 'テネリグリプチン']):
             return 'diabetes_medication'
-        elif any(pattern in drug_lower for pattern in ['デエビゴ', 'レンボレキサント']):
+        elif any(pattern in drug_lower for pattern in ['デエビゴ', 'レンボレキサント', 'デビゴ']):
             return 'orexin_receptor_antagonist'
         elif any(pattern in drug_lower for pattern in ['アモキシシリン', 'セファレキシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン', 'エリスロマイシン', 'アジスロマイシン']):
             return 'antibiotic'
@@ -1285,12 +1285,12 @@ class DrugService:
                     # 最低薬剤数のチェック
                     min_drugs = rule.get('min_drugs', 2)
                     if len(drug_list) >= min_drugs:
-                        duplicates.append({
-                            'category': category,
-                            'drugs': [drug['name'] for drug in drug_list],
-                            'count': len(drug_list),
-                            'description': f"{category}の薬剤が{len(drug_list)}種類検出されました"
-                        })
+                duplicates.append({
+                    'category': category,
+                    'drugs': [drug['name'] for drug in drug_list],
+                    'count': len(drug_list),
+                    'description': f"{category}の薬剤が{len(drug_list)}種類検出されました"
+                })
         
         return duplicates
 
@@ -3149,7 +3149,6 @@ class DrugService:
             'フルラゼパム': 'ssri_antidepressant',  # OCR誤認識の修正（フルボキサミン）
             'フルラゼパム錠': 'ssri_antidepressant',
             'フルラゼパムmg': 'ssri_antidepressant',
-            'フルラゼパム': 'ssri_antidepressant',  # 重複チェック
         }
         
         for special_name, category in special_mappings.items():
