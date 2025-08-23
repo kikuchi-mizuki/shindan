@@ -693,9 +693,11 @@ class AIDrugMatcher:
         elif any(pattern in drug_lower for pattern in ['ビルダグリプチン', 'シタグリプチン', 'リナグリプチン', 'アログリプチン', 'テネリグリプチン']):
             return 'diabetes_medication'
         elif any(pattern in drug_lower for pattern in ['デエビゴ', 'レンボレキサント']):
-            return 'sleep_medication'
-        elif any(pattern in drug_lower for pattern in ['アモキシシリン', 'セファレキシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン', 'クラリスロマイシン', 'エリスロマイシン', 'アジスロマイシン']):
+            return 'orexin_receptor_antagonist'
+        elif any(pattern in drug_lower for pattern in ['アモキシシリン', 'セファレキシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン', 'エリスロマイシン', 'アジスロマイシン']):
             return 'antibiotic'
+        elif any(pattern in drug_lower for pattern in ['クラリスロマイシン']):
+            return 'macrolide_antibiotic_cyp3a4_inhibitor'  # マクロライド系抗菌薬 + CYP3A4阻害薬
         elif any(pattern in drug_lower for pattern in ['フルボキサミン', 'フルボキサミン']):
             return 'ssri_antidepressant'
         elif any(pattern in drug_lower for pattern in ['フェブキソスタット', 'アロプリノール', 'トピロキソスタット']):
@@ -2761,8 +2763,8 @@ class DrugService:
             'ジアゼパム': 'sleep_medication',
             
             # オレキシン受容体拮抗薬
-            'デエビゴ': 'sleep_medication',  # オレキシン受容体拮抗薬（睡眠薬）
-            'デビゴ': 'sleep_medication',  # オレキシン受容体拮抗薬（睡眠薬）
+            'デエビゴ': 'orexin_receptor_antagonist',  # オレキシン受容体拮抗薬（睡眠薬）
+            'デビゴ': 'orexin_receptor_antagonist',  # オレキシン受容体拮抗薬（睡眠薬）
             'ビルダグリプチン': 'diabetes_medication',
             'シタグリプチン': 'diabetes_medication',
             'リナグリプチン': 'diabetes_medication',
@@ -2842,9 +2844,10 @@ class DrugService:
             'リオナ錠': 'phosphate_binder',
             '炭酸ランタン': 'phosphate_binder',
             'アルファカルシドル錠': 'vitamin_d',
-            'フルラゼパム': 'ssri_antidepressant',  # OCR誤認識の修正
+            'フルラゼパム': 'ssri_antidepressant',  # OCR誤認識の修正（フルボキサミン）
             'フルラゼパム錠': 'ssri_antidepressant',
             'フルラゼパムmg': 'ssri_antidepressant',
+            'フルラゼパム': 'ssri_antidepressant',  # 重複チェック
         }
         
         for special_name, category in special_mappings.items():
