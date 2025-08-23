@@ -593,9 +593,20 @@ OCRテキスト:
             return self._extract_drug_names_from_text(ocr_text)
 
     def extract_drug_names(self, image_content):
-        """画像から薬剤名を抽出する（ChatGPT統合版）"""
+        """画像から薬剤名を抽出する（GPT Vision API優先版）"""
         try:
-            # 2. OCRテキストを取得（まず元の画像で試行）
+            # 1. まずGPT Vision APIを試行（最も精度が高い）
+            if self.openai_available:
+                logger.info("Attempting GPT Vision API for direct image analysis")
+                try:
+                    drug_names = self._extract_with_gpt_vision(image_content)
+                    if drug_names:
+                        logger.info(f"GPT Vision API successful: {drug_names}")
+                        return drug_names
+                except Exception as e:
+                    logger.warning(f"GPT Vision API failed: {e}, falling back to OCR")
+            
+            # 2. フォールバック: OCRテキストを取得
             logger.info(f"Vision available: {self.vision_available}")
             if self.vision_available:
                 logger.info("Using Vision API for OCR")
@@ -638,6 +649,95 @@ OCRテキスト:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return []
     
+    def _extract_with_gpt_vision(self, image_content):
+        """GPT Vision APIを使用して画像から直接薬剤名を抽出"""
+        try:
+            import base64
+            
+            # 画像をbase64エンコード
+            image_base64 = base64.b64encode(image_content).decode('utf-8')
+            
+            # GPT Vision API用のプロンプト
+            prompt = """
+この画像に含まれる薬剤名をすべて抽出してください。
+
+重要: 以下の薬剤名を必ず正確に検出してください：
+- デエビゴ（デエビゴ、デイビゴ、デイビゴーなど類似表記も含む）
+- クラリスロマイシン
+- ベルソムラ
+- ロゼレム
+- フルボキサミン
+- アムロジピン
+- エソメプラゾール
+
+抽出ルール:
+1. 薬剤名のみを抽出（数字、単位、説明文は除外）
+2. 必ず「薬剤名: 正規化後の名前」の形式で出力
+3. 販売中止の薬剤も含める
+4. 漢方薬や生薬も含める
+5. 英語名や略称は日本語名に統一
+6. ひらがな表記の薬剤名は必ずカタカナに変換してください
+7. 薬剤名は正式名称（カタカナ）で出力してください
+8. 分割された薬剤名（例：「フル」「タゼパ」→「フルタゾラム」）を結合してください
+9. 可能な限り多くの薬剤名を抽出してください
+
+注意: 
+- ハイフン（-）を使った形式は使用しないでください
+- ひらがなの薬剤名は必ずカタカナに変換してください
+- 抽出された薬剤名のみを出力してください。説明やコメントは不要です
+- 分割された薬剤名を見つけた場合は、正しい完全な薬剤名に結合してください
+"""
+
+            # GPT Vision APIを呼び出し
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o",  # Vision API対応モデル
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{image_base64}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=2000,
+                temperature=0.1
+            )
+            
+            text_output = response.choices[0].message.content
+            logger.info(f"GPT Vision API response: {text_output}")
+            
+            # ChatGPTの出力をパース
+            drug_names = []
+            if text_output:
+                for line in text_output.splitlines():
+                    if (line.startswith("- 薬剤名:") or 
+                        line.startswith("薬剤名:")):
+                        
+                        if ":" in line:
+                            name = line.split(":", 1)[1].strip()
+                        else:
+                            name = line.replace("- 薬剤名:", "").replace("薬剤名:", "").strip()
+                        
+                        if name and len(name) >= 2:
+                            normalized_name = self._normalize_drug_name(name)
+                            drug_names.append(normalized_name)
+                            logger.info(f"GPT Vision parsed drug name: '{name}' -> '{normalized_name}'")
+            
+            logger.info(f"GPT Vision API extracted drug names: {drug_names}")
+            return drug_names
+            
+        except Exception as e:
+            logger.error(f"GPT Vision API error: {e}")
+            import traceback
+            logger.error(f"GPT Vision API traceback: {traceback.format_exc()}")
+            return []
+
     def _extract_with_vision(self, image_content):
         """Google Cloud Vision APIを使用してOCRテキストを抽出"""
         try:
