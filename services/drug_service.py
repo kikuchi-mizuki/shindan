@@ -701,7 +701,7 @@ class AIDrugMatcher:
             return 'ace_inhibitor'
         elif any(pattern in drug_lower for pattern in ['タケキャブ', 'ボノプラザン']):
             return 'p_cab'
-        elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'ランソプラゾル', 'オメプラゾール', 'エソメプラゾール', 'ラベプラゾール', 'パントプラゾール']):
+        elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'ランソプラゾル', 'オメプラゾール', 'エソメプラゾール', 'エソメプラゾル', 'ラベプラゾール', 'パントプラゾール']):
             return 'ppi'
         elif any(pattern in drug_lower for pattern in ['ベルソムラ', 'ロゼレム', 'ラメルテオン', 'スボレキサント', 'ゾルピデム', 'ゾピクロン', 'エスゾピクロン', 'トリアゾラム', 'ブロチゾラム', 'フルラゼパム', 'エスタゾラム', 'ニトラゼパム', 'ブロマゼパム', 'テマゼパム', 'ロラゼパム', 'アルプラゾラム', 'クロナゼパム', 'ジアゼパム']):
             return 'sleep_medication'
