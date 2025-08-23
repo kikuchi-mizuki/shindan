@@ -1987,6 +1987,7 @@ class DrugService:
             'ラメルテオン': ['ramelteon', 'rozerem', 'TAK-375'],
             'スボレキサント': ['suvorexant', 'belsomra', 'MK-4305'],
             'レンボレキサント': ['lemborexant', 'dayvigo', 'E-2006'],
+            'デビゴ': ['lemborexant', 'dayvigo', 'E-2006'],
             'ダロレキサント': ['daridorexant', 'quviviq', 'ACT-541468'],
             
             # バルビツール酸系
