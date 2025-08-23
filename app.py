@@ -25,20 +25,25 @@ messaging_api = MessagingApi(api_client)
 messaging_blob_api = MessagingApiBlob(api_client)
 handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
 
-# サービスの初期化
-try:
-    ocr_service = OCRService()
-    drug_service = DrugService()
-    response_service = ResponseService()
-    redis_service = RedisService()
-    logger.info("All services initialized successfully")
-except Exception as e:
-    logger.error(f"Service initialization error: {e}")
-    # 初期化エラーでもアプリケーションは起動する
-    ocr_service = None
-    drug_service = None
-    response_service = None
-    redis_service = None
+# サービスの初期化（遅延実行）
+ocr_service = None
+drug_service = None
+response_service = None
+redis_service = None
+
+def initialize_services():
+    """サービスの初期化（遅延実行）"""
+    global ocr_service, drug_service, response_service, redis_service
+    try:
+        ocr_service = OCRService()
+        drug_service = DrugService()
+        response_service = ResponseService()
+        redis_service = RedisService()
+        logger.info("All services initialized successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Service initialization error: {e}")
+        return False
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -613,16 +618,18 @@ def handle_image_message(event):
         )
         # 画像の取得
         message_content = messaging_blob_api.get_message_content(event.message.id)
-        # OCRで薬剤名を抽出
+        # サービスの初期化チェック
         if ocr_service is None:
-            messaging_api.push_message(
-                PushMessageRequest(
-                    to=user_id,
-                    messages=[TextMessage(text="サービス初期化エラーが発生しました。しばらく時間をおいて再度お試しください。")]
+            if not initialize_services():
+                messaging_api.push_message(
+                    PushMessageRequest(
+                        to=user_id,
+                        messages=[TextMessage(text="サービス初期化エラーが発生しました。しばらく時間をおいて再度お試しください。")]
+                    )
                 )
-            )
-            return
+                return
         
+        # OCRで薬剤名を抽出
         drug_names = ocr_service.extract_drug_names(message_content)
         
         if drug_names:
@@ -632,13 +639,14 @@ def handle_image_message(event):
             
             # マッチした薬剤名をバッファに追加
             if drug_service is None:
-                messaging_api.push_message(
-                    PushMessageRequest(
-                        to=user_id,
-                        messages=[TextMessage(text="薬剤分析サービスが利用できません。しばらく時間をおいて再度お試しください。")]
+                if not initialize_services():
+                    messaging_api.push_message(
+                        PushMessageRequest(
+                            to=user_id,
+                            messages=[TextMessage(text="薬剤分析サービスが利用できません。しばらく時間をおいて再度お試しください。")]
+                        )
                     )
-                )
-                return
+                    return
             
             matched_drugs = drug_service.match_to_database(drug_names)
             if matched_drugs:
@@ -712,7 +720,12 @@ def handle_image_message(event):
 @app.route("/health", methods=['GET'])
 def health_check():
     """ヘルスチェックエンドポイント"""
-    return {"status": "healthy", "message": "薬局サポートBot is running"}
+    try:
+        # 基本的なアプリケーション状態をチェック
+        return {"status": "healthy", "message": "薬局サポートBot is running"}, 200
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return {"status": "unhealthy", "message": "Service error"}, 500
 
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
