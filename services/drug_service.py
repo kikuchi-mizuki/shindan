@@ -446,6 +446,11 @@ class AIDrugMatcher:
 - フルボキサミン → ssri_antidepressant（SSRI抗うつ薬）
 - アムロジピン → ca_antagonist（カルシウム拮抗薬）
 - エソメプラゾール → ppi（PPI・胃薬）
+- エソメプラゾル → ppi（PPI・胃薬、エソメプラゾールの誤記）
+
+【重要】エソメプラゾール関連:
+- エソメプラゾール、エソメプラゾルは必ずppiとして分類
+- PPI（プロトンポンプ阻害薬）は胃酸分泌抑制薬
 
 利用可能な分類:
 - antibiotic (抗生物質)
