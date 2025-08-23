@@ -460,4 +460,8 @@ class ResponseService:
             response_parts.append("• 複数の薬剤を追加する場合は、1つずつ入力してください")
             response_parts.append("• 追加後は「診断」で相互作用分析を実行してください")
             
-            return "\n".join(response_parts) 
+            return "\n".join(response_parts)
+            
+        except Exception as e:
+            logger.error(f"Error generating manual addition guide: {e}")
+            return "手動追加ガイドの生成中にエラーが発生しました。"
