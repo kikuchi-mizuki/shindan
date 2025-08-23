@@ -121,9 +121,26 @@ def handle_text_message(event):
         # 基本的なテキストメッセージ処理
         if user_message.lower() in ['診断', 'しんだん', 'diagnosis']:
             if user_id in user_drug_buffer and user_drug_buffer[user_id]:
+                # 診断中のメッセージを送信
+                messaging_api.reply_message(
+                    ReplyMessageRequest(
+                        replyToken=event.reply_token,
+                        messages=[TextMessage(text="🔍 診断中です…")]
+                    )
+                )
+                
                 # 診断処理
                 drug_info = drug_service.get_drug_interactions(user_drug_buffer[user_id])
                 response_text = response_service.generate_response(drug_info)
+                
+                # 診断結果を送信
+                messaging_api.push_message(
+                    PushMessageRequest(
+                        to=user_id,
+                        messages=[TextMessage(text=response_text)]
+                    )
+                )
+                return
             else:
                 response_text = "薬剤リストが空です。画像を送信して薬剤を登録してください。"
         elif user_message.lower() in ['リスト確認', 'りすとかくにん', 'list']:
