@@ -2607,19 +2607,33 @@ class DrugService:
                                 'risk_level': self._map_ai_risk_level(risk_part),
                                 'description': f"AI検出相互作用: {' + '.join(involved_drugs)}",
                                 'involved_drugs': involved_drugs,
-                                'priority': 1
+                                'priority': 1,
+                                'clinical_impact': 'AI検出相互作用のため詳細な臨床的影響を確認してください',
+                                'mechanism': 'AI検出相互作用のため詳細な機序を確認してください',
+                                'recommendation': 'AI検出相互作用のため医師・薬剤師にご相談ください'
                             }
                 
                 # 機序、臨床的影響、推奨事項を抽出
                 elif line.startswith('機序:'):
-                    current_interaction['mechanism'] = line.replace('機序:', '').strip()
+                    if current_interaction:
+                        current_interaction['mechanism'] = line.replace('機序:', '').strip()
                 elif line.startswith('臨床的影響:'):
-                    current_interaction['clinical_impact'] = line.replace('臨床的影響:', '').strip()
+                    if current_interaction:
+                        current_interaction['clinical_impact'] = line.replace('臨床的影響:', '').strip()
                 elif line.startswith('推奨事項:'):
-                    current_interaction['recommendation'] = line.replace('推奨事項:', '').strip()
+                    if current_interaction:
+                        current_interaction['recommendation'] = line.replace('推奨事項:', '').strip()
             
             # 最後の相互作用を追加
             if current_interaction:
+                # 必須フィールドの存在確認
+                if 'clinical_impact' not in current_interaction:
+                    current_interaction['clinical_impact'] = 'AI検出相互作用のため詳細な臨床的影響を確認してください'
+                if 'mechanism' not in current_interaction:
+                    current_interaction['mechanism'] = 'AI検出相互作用のため詳細な機序を確認してください'
+                if 'recommendation' not in current_interaction:
+                    current_interaction['recommendation'] = 'AI検出相互作用のため医師・薬剤師にご相談ください'
+                
                 interactions.append(current_interaction)
             
         except Exception as e:
