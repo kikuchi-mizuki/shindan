@@ -26,10 +26,19 @@ messaging_blob_api = MessagingApiBlob(api_client)
 handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
 
 # サービスの初期化
-ocr_service = OCRService()
-drug_service = DrugService()
-response_service = ResponseService()
-redis_service = RedisService()
+try:
+    ocr_service = OCRService()
+    drug_service = DrugService()
+    response_service = ResponseService()
+    redis_service = RedisService()
+    logger.info("All services initialized successfully")
+except Exception as e:
+    logger.error(f"Service initialization error: {e}")
+    # 初期化エラーでもアプリケーションは起動する
+    ocr_service = None
+    drug_service = None
+    response_service = None
+    redis_service = None
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -605,6 +614,15 @@ def handle_image_message(event):
         # 画像の取得
         message_content = messaging_blob_api.get_message_content(event.message.id)
         # OCRで薬剤名を抽出
+        if ocr_service is None:
+            messaging_api.push_message(
+                PushMessageRequest(
+                    to=user_id,
+                    messages=[TextMessage(text="サービス初期化エラーが発生しました。しばらく時間をおいて再度お試しください。")]
+                )
+            )
+            return
+        
         drug_names = ocr_service.extract_drug_names(message_content)
         
         if drug_names:
@@ -613,6 +631,15 @@ def handle_image_message(event):
                 user_drug_buffer[user_id] = []
             
             # マッチした薬剤名をバッファに追加
+            if drug_service is None:
+                messaging_api.push_message(
+                    PushMessageRequest(
+                        to=user_id,
+                        messages=[TextMessage(text="薬剤分析サービスが利用できません。しばらく時間をおいて再度お試しください。")]
+                    )
+                )
+                return
+            
             matched_drugs = drug_service.match_to_database(drug_names)
             if matched_drugs:
                 for matched_drug_name in matched_drugs:
@@ -689,4 +716,5 @@ def health_check():
 
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode) 
