@@ -231,9 +231,11 @@ class ResponseService:
             corrected_name = analysis.get('corrected', drug_name)  # 修正された薬剤名を取得
             category = analysis.get('category', 'unknown')
             
-            corrected_drug_names.append(corrected_name)
-            drug_categories[corrected_name] = category
-            logger.info(f"薬剤分類結果: {drug_name} -> {corrected_name} -> {category}")
+            # 元の薬剤名（mg付き）を保持
+            display_name = drug_name  # 表示用には元の薬剤名を使用
+            corrected_drug_names.append(display_name)
+            drug_categories[display_name] = category
+            logger.info(f"薬剤分類結果: {drug_name} -> {corrected_name} -> {category} (表示: {display_name})")
         
         response_parts = []
         response_parts.append("🩺【薬剤検出完了】")
