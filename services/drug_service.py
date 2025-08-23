@@ -202,11 +202,11 @@ class AIDrugMatcher:
         
     def analyze_drug_name(self, drug_name: str) -> Dict[str, Any]:
         """薬剤名をAI的に分析（AI強化版）"""
-        # AI修正機能を無効化 - 元の薬剤名をそのまま使用
-        # corrected_name = self._ai_drug_name_correction(drug_name)
-        # if corrected_name != drug_name:
-        #     logger.info(f"薬剤名修正: {drug_name} -> {corrected_name}")
-        #     drug_name = corrected_name
+        # AI修正機能を有効化
+        corrected_name = self._ai_drug_name_correction(drug_name)
+        if corrected_name != drug_name:
+            logger.info(f"AI薬剤名修正: {drug_name} -> {corrected_name}")
+            drug_name = corrected_name
         
         # 修正後の薬剤名でキャッシュチェック
         if drug_name in self.analysis_cache:
@@ -324,6 +324,8 @@ class AIDrugMatcher:
 
 特に以下のような誤認識を修正してください：
 - フルラゼパム → フルボキサミン（SSRI抗うつ薬）
+- デエビゴ → デビゴ（オレキシン受容体拮抗薬）
+- エソメプラゾル → エソメプラゾール（PPI胃薬）
 - その他の類似薬剤名の誤認識
 
 正しい薬剤名のみを返してください。修正が必要ない場合は元の名前を返してください。
