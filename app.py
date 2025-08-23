@@ -758,32 +758,18 @@ def root():
 
 @app.route("/health", methods=['GET'])
 def health_check():
-    """ヘルスチェックエンドポイント"""
+    """ヘルスチェックエンドポイント（シンプル版）"""
     try:
-        logger.info("Health check requested")
-        
-        # 基本的なアプリケーション状態をチェック
+        # 基本的なアプリケーション状態のみチェック
         if not os.getenv('LINE_CHANNEL_ACCESS_TOKEN'):
-            logger.error("LINE_CHANNEL_ACCESS_TOKEN not found")
             return {"status": "unhealthy", "message": "Missing LINE_CHANNEL_ACCESS_TOKEN"}, 500
         
         if not os.getenv('LINE_CHANNEL_SECRET'):
-            logger.error("LINE_CHANNEL_SECRET not found")
             return {"status": "unhealthy", "message": "Missing LINE_CHANNEL_SECRET"}, 500
         
-        # サービス初期化のテスト（簡略化）
-        if ocr_service is None or drug_service is None or response_service is None:
-            logger.info("Services not initialized, attempting initialization...")
-            if not initialize_services():
-                logger.error("Service initialization failed during health check")
-                return {"status": "unhealthy", "message": "Service initialization failed"}, 500
-        
-        logger.info("Health check passed")
+        # サービス初期化は行わず、基本的な応答のみ
         return {"status": "healthy", "message": "薬局サポートBot is running"}, 200
     except Exception as e:
-        logger.error(f"Health check error: {e}")
-        import traceback
-        logger.error(f"Health check traceback: {traceback.format_exc()}")
         return {"status": "unhealthy", "message": f"Service error: {str(e)}"}, 500
 
 if __name__ == "__main__":
@@ -792,12 +778,8 @@ if __name__ == "__main__":
     
     logger.info(f"Starting application on port {port}, debug mode: {debug_mode}")
     
-    # アプリケーション起動時にサービスを初期化
-    logger.info("Initializing services on startup...")
-    if initialize_services():
-        logger.info("Services initialized successfully on startup")
-    else:
-        logger.warning("Service initialization failed on startup, will retry on first request")
+    # サービス初期化は初回リクエスト時に行う
+    logger.info("Services will be initialized on first request")
     
     logger.info("Starting Flask application...")
     app.run(host='0.0.0.0', port=port, debug=debug_mode) 
