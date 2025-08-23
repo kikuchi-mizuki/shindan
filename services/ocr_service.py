@@ -870,21 +870,68 @@ OCRテキスト:
         
         return normalized
 
+    def _evaluate_image_quality(self, image_content):
+        """画像品質を評価し、前処理が必要かどうかを判断"""
+        try:
+            image = Image.open(io.BytesIO(image_content))
+            
+            # 1. 解像度チェック
+            width, height = image.size
+            resolution_score = min(width * height / (1920 * 1080), 1.0)  # フルHD基準
+            
+            # 2. コントラスト評価
+            gray_image = image.convert('L')
+            import numpy as np
+            img_array = np.array(gray_image)
+            contrast_score = np.std(img_array) / 128.0  # 標準偏差でコントラスト評価
+            
+            # 3. 明度評価
+            brightness_score = 1.0 - abs(np.mean(img_array) - 128) / 128.0
+            
+            # 4. 総合スコア
+            total_score = (resolution_score + contrast_score + brightness_score) / 3.0
+            
+            logger.info(f"Image quality assessment - Resolution: {resolution_score:.2f}, Contrast: {contrast_score:.2f}, Brightness: {brightness_score:.2f}, Total: {total_score:.2f}")
+            
+            return total_score
+            
+        except Exception as e:
+            logger.warning(f"Image quality assessment error: {e}")
+            return 0.5  # エラーの場合は中程度の品質と仮定
+    
     def extract_drug_names(self, image_content):
-        """画像から薬剤名を抽出（複数前処理バリエーション試行）"""
+        """画像から薬剤名を抽出（最適化版：画像品質に基づく判断）"""
         try:
             if not self.openai_client:
                 logger.error("OpenAI API not available")
                 return []
             
-            logger.info("Using multiple preprocessing variations for optimal results")
+            logger.info("Using quality-based optimization approach")
             
-            # 複数の前処理バリエーションを試行
+            # 1. 画像品質を評価
+            quality_score = self._evaluate_image_quality(image_content)
+            
+            # 2. 高品質画像の場合は前処理なしで試行
+            if quality_score >= 0.7:  # 70%以上の品質
+                logger.info(f"High quality image detected (score: {quality_score:.2f}), trying without preprocessing")
+                
+                original_results = self._extract_with_gpt_vision(image_content)
+                original_confidence = self._evaluate_results_quality(original_results)
+                
+                logger.info(f"Original image results: {len(original_results)} drugs, confidence: {original_confidence}")
+                
+                # 十分な結果が得られた場合はそのまま返す
+                if original_confidence >= 0.6:  # 60%以上の信頼度
+                    logger.info("Original image provided sufficient results, no preprocessing needed")
+                    return original_results
+            
+            # 3. 品質が低い場合または結果が不十分な場合は前処理を試行
+            logger.info("Image quality low or results insufficient, trying preprocessing")
+            
             preprocessing_variations = [
                 ("standard", self._preprocess_standard),
                 ("enhanced", self._preprocess_enhanced),
-                ("aggressive", self._preprocess_aggressive),
-                ("original", lambda x: x)  # 元の画像
+                ("aggressive", self._preprocess_aggressive)
             ]
             
             best_results = []
@@ -910,6 +957,11 @@ OCRテキスト:
                         best_confidence = confidence
                         best_results = drug_names
                         logger.info(f"New best result: {variation_name} preprocessing")
+                    
+                    # 十分な結果が得られた場合は早期終了
+                    if confidence >= 0.8:  # 80%以上の信頼度
+                        logger.info(f"Sufficient results achieved with {variation_name} preprocessing, stopping")
+                        break
                     
                 except Exception as e:
                     logger.warning(f"Error in {variation_name} preprocessing: {e}")
@@ -989,7 +1041,7 @@ OCRテキスト:
             return image_content
     
     def _evaluate_results_quality(self, drug_names):
-        """結果の品質を評価"""
+        """結果の品質を評価（改良版）"""
         if not drug_names:
             return 0
         
@@ -1014,6 +1066,11 @@ OCRテキスト:
         # 薬剤数の妥当性も考慮
         if len(drug_names) >= 7 and len(drug_names) <= 11:  # 9剤±2剤の範囲
             score += 0.2
+        
+        # 用量情報の有無も評価
+        dosage_count = sum(1 for drug in drug_names if any(unit in drug for unit in ['mg', 'g', 'µg', 'μg']))
+        if dosage_count >= 7:  # 7剤以上に用量情報がある
+            score += 0.1
         
         return min(score, 1.0)  # 最大1.0に制限
 
