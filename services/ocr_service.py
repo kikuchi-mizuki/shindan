@@ -593,55 +593,32 @@ OCRテキスト:
             return self._extract_drug_names_from_text(ocr_text)
 
     def extract_drug_names(self, image_content):
-        """画像から薬剤名を抽出する（GPT Vision API優先版）"""
+        """画像から薬剤名を抽出する（GPT Vision API専用版）"""
         try:
-            # 1. まずGPT Vision APIを試行（最も精度が高い）
+            # GPT Vision APIのみを使用（OCRは完全に無効化）
             if self.openai_available:
-                logger.info("Attempting GPT Vision API for direct image analysis")
+                logger.info("Using GPT Vision API exclusively for image analysis")
                 try:
+                    # 元の画像でGPT Vision APIを試行
                     drug_names = self._extract_with_gpt_vision(image_content)
                     if drug_names:
-                        logger.info(f"GPT Vision API successful: {drug_names}")
+                        logger.info(f"GPT Vision API successful with original image: {drug_names}")
                         return drug_names
+                    
+                    # 元の画像で失敗した場合、軽微な前処理を試行
+                    logger.info("GPT Vision API failed with original image, trying with minimal preprocessing")
+                    processed_image = self.preprocess_image(image_content)
+                    drug_names = self._extract_with_gpt_vision(processed_image)
+                    if drug_names:
+                        logger.info(f"GPT Vision API successful with preprocessed image: {drug_names}")
+                        return drug_names
+                        
                 except Exception as e:
-                    logger.warning(f"GPT Vision API failed: {e}, falling back to OCR")
-            
-            # 2. フォールバック: OCRテキストを取得
-            logger.info(f"Vision available: {self.vision_available}")
-            if self.vision_available:
-                logger.info("Using Vision API for OCR")
-                ocr_text = self._extract_with_vision(image_content)
+                    logger.error(f"GPT Vision API failed completely: {e}")
+                    return []
             else:
-                logger.info("Using local OCR processing")
-                ocr_text = self._extract_local_ocr(image_content)
-            
-            # OCRテキストが空の場合は前処理した画像で再試行
-            if not ocr_text or len(ocr_text.strip()) < 10:
-                logger.info("OCR text too short, trying with preprocessed image")
-                processed_image = self.preprocess_image(image_content)
-                if self.vision_available:
-                    ocr_text = self._extract_with_vision(processed_image)
-                else:
-                    ocr_text = self._extract_local_ocr(processed_image)
-            
-            # OCR結果を必ずログ出力
-            logger.info(f"[OCR raw text]:\n{ocr_text}")
-            logger.info(f"OCR text length: {len(ocr_text) if ocr_text else 0}")
-            
-            if not ocr_text or len(ocr_text.strip()) < 5:
-                logger.warning("OCR text too short or empty")
+                logger.error("OpenAI API not available")
                 return []
-            
-            # ChatGPTを使用して薬剤名を抽出・正規化
-            if self.openai_available:
-                logger.info("Using ChatGPT for drug name extraction and normalization")
-                drug_names = self.extract_drug_names_with_chatgpt(ocr_text)
-            else:
-                logger.info("Using traditional drug name extraction")
-                drug_names = self._extract_drug_names_from_text(ocr_text)
-            
-            logger.info(f"Final extracted drug names: {drug_names}")
-            return drug_names
             
         except Exception as e:
             logger.error(f"Error in extract_drug_names: {e}")
@@ -657,11 +634,11 @@ OCRテキスト:
             # 画像をbase64エンコード
             image_base64 = base64.b64encode(image_content).decode('utf-8')
             
-            # GPT Vision API用のプロンプト（強化版）
+            # GPT Vision API用のプロンプト（超強化版）
             prompt = """
 この画像に含まれる薬剤名をすべて抽出してください。
 
-【最重要】以下の薬剤名を絶対に正確に検出してください：
+【絶対最重要】以下の薬剤名を絶対に正確に検出してください：
 - デビゴ（デビゴ、デエビゴ、デイビゴ、デイビゴー、Dayvigo、レンボレキサント）
 - クラリスロマイシン（クラリスロマイシン、クラリスロマイシン、Clarithromycin）
 - ベルソムラ（ベルソムラ、Belsomra、スボレキサント）
@@ -670,11 +647,18 @@ OCRテキスト:
 - アムロジピン（アムロジピン、Amlodipine、ノルバスク）
 - エソメプラゾール（エソメプラゾール、Esomeprazole、ネキシウム）
 
-【特に注意】「デビゴ」と「デパケン」は全く異なる薬剤です：
-- デビゴ = 睡眠薬（オレキシン受容体拮抗薬）
-- デパケン = 抗てんかん薬（バルプロ酸）
+【絶対に間違えないでください】
+「デビゴ」と「デパケン」は全く異なる薬剤です：
+- デビゴ = 睡眠薬（オレキシン受容体拮抗薬、レンボレキサント）
+- デパケン = 抗てんかん薬（バルプロ酸、バルプロ酸ナトリウム）
 
 画像に「デビゴ」が含まれている場合は、絶対に「デパケン」と間違えないでください。
+画像に「デパケン」が含まれている場合は、絶対に「デビゴ」と間違えないでください。
+
+【文字認識の注意】
+- 「ビ」と「パ」は異なる文字です
+- 「ゴ」と「ン」は異なる文字です
+- 文字をよく見て、正確に読み取ってください
 
 抽出ルール:
 1. 薬剤名のみを抽出（数字、単位、説明文は除外）
