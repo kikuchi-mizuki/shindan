@@ -391,19 +391,22 @@ class ResponseService:
                 return "薬剤名が検出されませんでした。より鮮明な画像で撮影してください。"
             
             response_parts = []
-            response_parts.append("【薬剤検出結果】")
+            response_parts.append("🏥 【薬剤検出完了】")
             response_parts.append("━━━━━━━━━")
+            response_parts.append(f"✅ {len(detected_drugs)}件検出しました")
+            response_parts.append("")
+            response_parts.append("📋 検出された薬剤:")
             
             # 薬剤分類マッピング
             category_mapping = {
                 'pde5_inhibitor': 'PDE5阻害薬',
                 'nitrate': '硝酸薬',
-                'arni': 'ARNI',
+                'arni': 'ARNI (心不全治療薬)',
                 'angiotensin_receptor_blocker': 'ARB',
                 'ca_antagonist_arb_combination': 'ARB・Ca拮抗薬配合',
                 'ace_inhibitor': 'ACE阻害薬',
-                'p_cab': 'P-CAB',
-                'ppi': 'PPI',
+                'p_cab': 'P-CAB (胃薬)',
+                'ppi': 'PPI (胃薬)',
                 'sleep_medication': '睡眠薬',
                 'orexin_receptor_antagonist': 'オレキシン受容体拮抗薬',
                 'ssri_antidepressant': 'SSRI抗うつ薬',
@@ -412,7 +415,10 @@ class ResponseService:
                 'unknown': '分類不明'
             }
             
-            for i, drug in enumerate(detected_drugs, 1):
+            # 数字記号のマッピング
+            number_symbols = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
+            
+            for i, drug in enumerate(detected_drugs):
                 # 薬剤名から分類を推定
                 drug_lower = drug.lower()
                 category = 'unknown'
@@ -441,10 +447,13 @@ class ResponseService:
                     category = 'macrolide_antibiotic_cyp3a4_inhibitor'
                 
                 category_jp = category_mapping.get(category, '分類不明')
-                response_parts.append(f"{i}. {drug} ({category_jp})")
+                number_symbol = number_symbols[i] if i < len(number_symbols) else f"{i+1}."
+                response_parts.append(f"{number_symbol} {drug}")
+                response_parts.append(f"   分類: {category_jp}")
             
+            response_parts.append("")
+            response_parts.append("🔍 「診断」で飲み合わせチェックを実行できます")
             response_parts.append("━━━━━━━━━")
-            response_parts.append("💡 「診断」で飲み合わせチェックを実行できます")
             
             return "\n".join(response_parts)
             
