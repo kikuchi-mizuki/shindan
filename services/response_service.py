@@ -385,7 +385,7 @@ class ResponseService:
         return error_messages.get(error_type, error_messages["general"]) 
 
     def generate_simple_response(self, detected_drugs):
-        """薬剤検出結果のシンプルな表示を生成"""
+        """薬剤検出結果のシンプルな表示を生成（分類付き）"""
         try:
             if not detected_drugs:
                 return "薬剤名が検出されませんでした。より鮮明な画像で撮影してください。"
@@ -394,8 +394,53 @@ class ResponseService:
             response_parts.append("【薬剤検出結果】")
             response_parts.append("━━━━━━━━━")
             
+            # 薬剤分類マッピング
+            category_mapping = {
+                'pde5_inhibitor': 'PDE5阻害薬',
+                'nitrate': '硝酸薬',
+                'arni': 'ARNI',
+                'angiotensin_receptor_blocker': 'ARB',
+                'ca_antagonist_arb_combination': 'ARB・Ca拮抗薬配合',
+                'ace_inhibitor': 'ACE阻害薬',
+                'p_cab': 'P-CAB',
+                'ppi': 'PPI',
+                'sleep_medication': '睡眠薬',
+                'orexin_receptor_antagonist': 'オレキシン受容体拮抗薬',
+                'ssri_antidepressant': 'SSRI抗うつ薬',
+                'macrolide_antibiotic_cyp3a4_inhibitor': 'マクロライド系抗生物質（CYP3A4阻害薬）',
+                'unknown': '分類不明'
+            }
+            
             for i, drug in enumerate(detected_drugs, 1):
-                response_parts.append(f"{i}. {drug}")
+                # 薬剤名から分類を推定
+                drug_lower = drug.lower()
+                category = 'unknown'
+                
+                if any(term in drug_lower for term in ['タダラフィル']):
+                    category = 'pde5_inhibitor'
+                elif any(term in drug_lower for term in ['ニコランジル']):
+                    category = 'nitrate'
+                elif any(term in drug_lower for term in ['エンレスト']):
+                    category = 'arni'
+                elif any(term in drug_lower for term in ['テラムロ']):
+                    category = 'ca_antagonist_arb_combination'
+                elif any(term in drug_lower for term in ['エナラプリル']):
+                    category = 'ace_inhibitor'
+                elif any(term in drug_lower for term in ['タケキャブ']):
+                    category = 'p_cab'
+                elif any(term in drug_lower for term in ['ランソプラゾール']):
+                    category = 'ppi'
+                elif any(term in drug_lower for term in ['ベルソムラ']):
+                    category = 'sleep_medication'
+                elif any(term in drug_lower for term in ['デビゴ']):
+                    category = 'orexin_receptor_antagonist'
+                elif any(term in drug_lower for term in ['フルボキサミン']):
+                    category = 'ssri_antidepressant'
+                elif any(term in drug_lower for term in ['クラリスロマイシン']):
+                    category = 'macrolide_antibiotic_cyp3a4_inhibitor'
+                
+                category_jp = category_mapping.get(category, '分類不明')
+                response_parts.append(f"{i}. {drug} ({category_jp})")
             
             response_parts.append("━━━━━━━━━")
             response_parts.append("💡 「診断」で飲み合わせチェックを実行できます")
