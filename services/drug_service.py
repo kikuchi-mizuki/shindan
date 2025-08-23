@@ -246,8 +246,17 @@ class AIDrugMatcher:
             logger.info(f"Pattern-based classification used: {drug_name} -> {pattern_category}")
         else:
             # パターンベース分類が失敗した場合のみAI分類を使用
-            analysis['category'] = ai_category
-            logger.info(f"AI classification used: {drug_name} -> {ai_category}")
+            try:
+                ai_category = self._ai_category_prediction(drug_name)
+                if ai_category and ai_category != 'unknown':
+                    analysis['category'] = ai_category
+                    logger.info(f"AI classification used: {drug_name} -> {ai_category}")
+                else:
+                    analysis['category'] = 'unknown'
+                    logger.info(f"AI classification failed: {drug_name} -> unknown")
+            except Exception as e:
+                logger.warning(f"AI classification error: {drug_name} - {e}")
+                analysis['category'] = 'unknown'
         analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
         logger.info(f"パターンベース分類: {drug_name} -> {pattern_category}")
         
