@@ -290,6 +290,8 @@ class ResponseService:
             'orexin_receptor_antagonist': 'オレキシン受容体拮抗薬（睡眠薬）',
             'macrolide_antibiotic_cyp3a4_inhibitor': 'マクロライド系抗菌薬・CYP3A4阻害薬',
             'antiepileptic': '抗てんかん薬',
+            'antiplatelet': '抗血小板薬',
+            'iron_supplement': '鉄剤',
             'unknown': '分類不明'
         }
         
