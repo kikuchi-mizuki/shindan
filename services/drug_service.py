@@ -328,6 +328,7 @@ class AIDrugMatcher:
 - ロゼレックス → ロゼレム（睡眠薬・オレキシン受容体拮抗薬）
 - その他の類似薬剤名の誤認識
 
+重要: 「正しい薬剤名:」や「→」などの表記は絶対に含めないでください。
 正しい薬剤名のみを返してください。修正が必要ない場合は元の名前を返してください。
 """
             
@@ -343,6 +344,10 @@ class AIDrugMatcher:
             )
             
             corrected_name = response.choices[0].message.content.strip()
+            
+            # 「正しい薬剤名:」や「→」などの表記を削除
+            corrected_name = corrected_name.replace('正しい薬剤名:', '').replace('→', '').strip()
+            
             logger.info(f"AI薬剤名修正: {drug_name} -> {corrected_name}")
             return corrected_name
             
