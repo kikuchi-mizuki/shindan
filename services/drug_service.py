@@ -201,12 +201,18 @@ class AIDrugMatcher:
         ]
         
     def analyze_drug_name(self, drug_name: str) -> Dict[str, Any]:
-        """薬剤名をAI的に分析（AI強化版）"""
-        # AI修正機能を有効化
-        corrected_name = self._ai_drug_name_correction(drug_name)
-        if corrected_name != drug_name:
-            logger.info(f"AI薬剤名修正: {drug_name} -> {corrected_name}")
-            drug_name = corrected_name
+        """薬剤名をAI的に分析（パターンベース優先版）"""
+        # 1. まずパターンベース修正を実行（確実な修正）
+        pattern_corrected_name = self._pattern_based_correction(drug_name)
+        if pattern_corrected_name != drug_name:
+            logger.info(f"パターンベース修正: {drug_name} -> {pattern_corrected_name}")
+            drug_name = pattern_corrected_name
+        
+        # 2. AI修正はパターンベース修正後に実行（補完的）
+        ai_corrected_name = self._ai_drug_name_correction(drug_name)
+        if ai_corrected_name != drug_name:
+            logger.info(f"AI薬剤名修正: {drug_name} -> {ai_corrected_name}")
+            drug_name = ai_corrected_name
         
         # 修正後の薬剤名でキャッシュチェック（エソメプラゾルの場合はキャッシュを無視）
         if drug_name in self.analysis_cache and 'エソメプラゾル' not in drug_name and 'エソメプラゾール' not in drug_name:
@@ -331,12 +337,8 @@ class AIDrugMatcher:
         return min(confidence, 1.0)
 
     def _ai_drug_name_correction(self, drug_name: str) -> str:
-        """ChatGPT APIを使用した薬剤名の修正・正規化"""
-        # まずパターンベースの修正を試行
-        corrected_name = self._pattern_based_correction(drug_name)
-        if corrected_name != drug_name:
-            logger.info(f"パターンベース修正: {drug_name} -> {corrected_name}")
-            return corrected_name
+        """ChatGPT APIを使用した薬剤名の修正・正規化（補完的）"""
+        # パターンベース修正は既に実行済みなので、AI修正のみ実行
         
         # AI駆動の修正を試行
         try:
@@ -355,6 +357,8 @@ class AIDrugMatcher:
 - クラリスロマイシン → クラリスロマイシン（修正不要）
 - アムロジピン → アムロジピン（修正不要）
 - エソメプラゾール → エソメプラゾール（修正不要）
+- テラムロAP → テラムロAP（修正不要）
+- タケキャブ → タケキャブ（修正不要）
 
 【修正が必要な例】:
 - フルラゼパム → フルボキサミン
