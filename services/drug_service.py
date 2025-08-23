@@ -2173,6 +2173,12 @@ class DrugService:
         drug_categories = {}
         for drug in drug_names:
             category = self._predict_category(drug)
+            
+            # エソメプラゾルの強制分類（確実にPPIとして分類）
+            if 'エソメプラゾル' in drug or 'エソメプラゾール' in drug:
+                category = 'ppi'
+                logger.info(f"エソメプラゾル強制分類（AI分析）: {drug} -> ppi")
+            
             drug_categories[drug] = category
             logger.info(f"薬剤分類: {drug} -> {category}")
         
