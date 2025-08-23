@@ -1249,14 +1249,61 @@ class DrugService:
         # 同一分類内で複数の薬剤がある場合をチェック
         for category, drug_list in category_groups.items():
             if len(drug_list) > 1:
-                duplicates.append({
-                    'category': category,
-                    'drugs': [drug['name'] for drug in drug_list],
-                    'count': len(drug_list),
-                    'description': f"{category}の薬剤が{len(drug_list)}種類検出されました"
-                })
+                # 重複チェックの設定を確認
+                rule = self._get_duplication_rule(category)
+                if rule and rule.get('check_duplication', True):
+                    # 最低薬剤数のチェック
+                    min_drugs = rule.get('min_drugs', 2)
+                    if len(drug_list) >= min_drugs:
+                        duplicates.append({
+                            'category': category,
+                            'drugs': [drug['name'] for drug in drug_list],
+                            'count': len(drug_list),
+                            'description': f"{category}の薬剤が{len(drug_list)}種類検出されました"
+                        })
         
         return duplicates
+
+    def _get_duplication_rule(self, category: str) -> Dict[str, Any]:
+        """カテゴリの重複ルールを取得"""
+        # 重複チェックルールの定義
+        duplication_rules = {
+            'ppi': {'check_duplication': True, 'min_drugs': 2},
+            'p_cab': {'check_duplication': True, 'min_drugs': 2},
+            'sleep_medication': {'check_duplication': True, 'min_drugs': 2},
+            'ssri_antidepressant': {'check_duplication': False},  # SSRIは重複チェック不要
+            'ca_antagonist': {'check_duplication': False},  # Ca拮抗薬は重複チェック不要
+            'antibiotic': {'check_duplication': False},  # 抗生物質は重複チェック不要
+            'orexin_receptor_antagonist': {'check_duplication': False}  # オレキシン受容体拮抗薬は重複チェック不要
+        }
+        
+        return duplication_rules.get(category, {'check_duplication': True, 'min_drugs': 2})
+
+    def _remove_duplicate_risks(self, risks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """重複するリスクを除去"""
+        unique_risks = []
+        seen_combinations = set()
+        
+        for risk in risks:
+            # 薬剤の組み合わせをキーとして使用
+            if 'involved_drugs' in risk:
+                drugs_key = tuple(sorted(risk['involved_drugs']))
+            elif 'drugs' in risk:
+                drugs_key = tuple(sorted(risk['drugs']))
+            else:
+                # 薬剤情報がない場合はそのまま追加
+                unique_risks.append(risk)
+                continue
+            
+            # カテゴリも含めてキーを作成
+            category = risk.get('category', risk.get('risk_name', ''))
+            full_key = (drugs_key, category)
+            
+            if full_key not in seen_combinations:
+                seen_combinations.add(full_key)
+                unique_risks.append(risk)
+        
+        return unique_risks
 
     def normalize_name(self, name: str) -> str:
         """薬剤名の正規化（キャッシュ付き）"""
@@ -2220,7 +2267,8 @@ class DrugService:
                 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク',
                 'recommendation': '重複投与を避け、必要に応じて剤形を変更。長期使用時は定期的な血液検査を推奨',
                 'priority': 1,  # 最高優先度で確実に検出
-                'min_drugs': 2  # 最低2剤以上で重複と判定
+                'min_drugs': 2,  # 最低2剤以上で重複と判定
+                'check_duplication': True  # 重複チェックを有効化
             },
             'ace_arb_arni_contraindication': {
                 'categories': ['ace_inhibitor', 'arb', 'arni'],
@@ -2522,8 +2570,10 @@ class DrugService:
         # AI駆動の相互作用分析を実行
         ai_interactions = self._analyze_interactions_with_ai(drug_names, drug_categories)
         if ai_interactions:
-            detected_risks.extend(ai_interactions)
-            logger.info(f"AI駆動相互作用分析で{len(ai_interactions)}件の相互作用を検出")
+            # 重複を除去してから追加
+            unique_ai_interactions = self._remove_duplicate_risks(ai_interactions)
+            detected_risks.extend(unique_ai_interactions)
+            logger.info(f"AI駆動相互作用分析で{len(unique_ai_interactions)}件の相互作用を検出（重複除去後）")
         
         # 詳細な臨床分析の実行
         detailed_analysis = self._perform_detailed_clinical_analysis(drug_names, drug_categories, detected_risks)
