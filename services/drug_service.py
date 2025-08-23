@@ -208,14 +208,15 @@ class AIDrugMatcher:
             logger.info(f"パターンベース修正: {drug_name} -> {pattern_corrected_name}")
             drug_name = pattern_corrected_name
         
-        # 2. AI修正はパターンベース修正後に実行（補完的）
-        ai_corrected_name = self._ai_drug_name_correction(drug_name)
-        if ai_corrected_name != drug_name:
-            logger.info(f"AI薬剤名修正: {drug_name} -> {ai_corrected_name}")
-            drug_name = ai_corrected_name
+        # 2. AI修正は無効化（パターンベース修正のみ使用）
+        # ai_corrected_name = self._ai_drug_name_correction(drug_name)
+        # if ai_corrected_name != drug_name:
+        #     logger.info(f"AI薬剤名修正: {drug_name} -> {ai_corrected_name}")
+        #     drug_name = ai_corrected_name
         
-        # 修正後の薬剤名でキャッシュチェック（エソメプラゾルの場合はキャッシュを無視）
-        if drug_name in self.analysis_cache and 'エソメプラゾル' not in drug_name and 'エソメプラゾール' not in drug_name:
+        # 修正後の薬剤名でキャッシュチェック（特定の薬剤はキャッシュを無視）
+        cache_ignore_drugs = ['エソメプラゾル', 'エソメプラゾール', 'テラムロAP', 'タケキャブ', 'テラグルチド']
+        if drug_name in self.analysis_cache and not any(ignore_drug in drug_name for ignore_drug in cache_ignore_drugs):
             logger.info(f"Using cached analysis for '{drug_name}'")
             return self.analysis_cache[drug_name]
         
@@ -736,10 +737,10 @@ class AIDrugMatcher:
             return 'arni'
         elif any(pattern in drug_lower for pattern in ['テラムロ']):
             return 'angiotensin_receptor_blocker'  # ARBとして分類（テルミサルタン成分）
-        elif any(pattern in drug_lower for pattern in ['エナラプリル', 'カプトプリル']):
-            return 'ace_inhibitor'
         elif any(pattern in drug_lower for pattern in ['タケキャブ', 'ボノプラザン']):
             return 'p_cab'
+        elif any(pattern in drug_lower for pattern in ['エナラプリル', 'カプトプリル']):
+            return 'ace_inhibitor'
         elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'ランソプラゾル', 'オメプラゾール', 'エソメプラゾール', 'エソメプラゾル', 'ラベプラゾール', 'パントプラゾール']):
             return 'ppi'
         elif any(pattern in drug_lower for pattern in ['ベルソムラ', 'ロゼレム', 'ラメルテオン', 'スボレキサント', 'ゾルピデム', 'ゾピクロン', 'エスゾピクロン', 'トリアゾラム', 'ブロチゾラム', 'フルラゼパム', 'エスタゾラム', 'ニトラゼパム', 'ブロマゼパム', 'テマゼパム', 'ロラゼパム', 'アルプラゾラム', 'クロナゼパム', 'ジアゼパム']):
