@@ -766,6 +766,35 @@ OCRテキスト:
             logger.error(f"GPT Vision API traceback: {traceback.format_exc()}")
             return []
 
+    def _light_normalize_drug_name(self, drug_name):
+        """軽微な薬剤名の正規化（情報損失を最小化）"""
+        import re
+        
+        # 基本的なクリーニングのみ
+        name = drug_name.strip()
+        
+        # 数字・記号の除去（最小限）
+        name = re.sub(r'[0-9０-９.．・,，、.。()（）【】［］\[\]{}｛｝<>《》"\'\-―ー=+*/\\]', '', name)
+        name = name.strip()
+        
+        # 重要な薬剤名の保護
+        if 'フルボキサミン' in name:
+            return 'フルボキサミン'
+        if 'デビゴ' in name:
+            return 'デビゴ'
+        if 'ロゼレム' in name:
+            return 'ロゼレム'
+        if 'ベルソムラ' in name:
+            return 'ベルソムラ'
+        if 'クラリスロマイシン' in name:
+            return 'クラリスロマイシン'
+        if 'アムロジピン' in name:
+            return 'アムロジピン'
+        if 'エソメプラゾール' in name:
+            return 'エソメプラゾール'
+        
+        return name
+
     def _extract_with_vision(self, image_content):
         """Google Cloud Vision APIを使用してOCRテキストを抽出"""
         try:
@@ -1107,35 +1136,7 @@ OCRテキスト:
         if is_fluvoxamine:
             return 'フルボキサミン'
         
-        # 軽微な正規化処理を追加
-        def _light_normalize_drug_name(self, drug_name):
-            """軽微な薬剤名の正規化（情報損失を最小化）"""
-            import re
-            
-            # 基本的なクリーニングのみ
-            name = drug_name.strip()
-            
-            # 数字・記号の除去（最小限）
-            name = re.sub(r'[0-9０-９.．・,，、.。()（）【】［］\[\]{}｛｝<>《》"\'\-―ー=+*/\\]', '', name)
-            name = name.strip()
-            
-            # 重要な薬剤名の保護
-            if 'フルボキサミン' in name:
-                return 'フルボキサミン'
-            if 'デビゴ' in name:
-                return 'デビゴ'
-            if 'ロゼレム' in name:
-                return 'ロゼレム'
-            if 'ベルソムラ' in name:
-                return 'ベルソムラ'
-            if 'クラリスロマイシン' in name:
-                return 'クラリスロマイシン'
-            if 'アムロジピン' in name:
-                return 'アムロジピン'
-            if 'エソメプラゾール' in name:
-                return 'エソメプラゾール'
-            
-            return name
+
         
         # 語尾パターンによる推測
         if name.endswith('ゼパム'):
