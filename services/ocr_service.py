@@ -622,17 +622,17 @@ OCRテキスト:
 
 抽出ルール:
 1. 画像に含まれるすべての薬剤名を抽出してください
-2. 数字、単位、説明文は除外してください
+2. 薬剤名には用量（mg、g、mlなど）も含めてください
 3. 薬剤名のみを出力してください（説明は不要）
 
 出力形式：
-- タダラフィル
-- ニコランジル
-- エンレスト
+- タダラフィル 5mg
+- ニコランジル 5mg
+- エンレスト 100mg
 - テラムロAP
-- エナラプリル
-- タケキャブ
-- ランソプラゾール
+- エナラプリル 2.5mg
+- タケキャブ 10mg
+- ランソプラゾールOD 15mg
 """
 
             # GPT Vision APIを呼び出し
@@ -687,16 +687,18 @@ OCRテキスト:
             return []
 
     def _normalize_drug_name(self, drug_name):
-        """薬剤名の正規化"""
+        """薬剤名の正規化（mg保持版）"""
         if not drug_name:
             return ""
-        
+
         # 基本的な正規化
         normalized = drug_name.strip()
         
-        # 数字と記号の除去
+        # mg、g、mlなどの単位は保持
+        # 数字と記号の除去（ただしmg関連は保持）
         import re
-        normalized = re.sub(r'[0-9０-９.．・,，、.。()（）【】［］\[\]{}｛｝<>《》"\'\-―ー=+*/\\]', '', normalized)
+        # mg、g、mlなどの単位を含む数字は保持
+        normalized = re.sub(r'[.．・,，、.。()（）【】［］\[\]{}｛｝<>《》"\'\-―ー=+*/\\]', '', normalized)
         normalized = normalized.strip()
         
         return normalized
