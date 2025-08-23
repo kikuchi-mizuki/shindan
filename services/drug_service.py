@@ -229,7 +229,12 @@ class AIDrugMatcher:
         # 1. パターンベースの分類
         pattern_category = self._simple_category_prediction(drug_name)
         
-        # 2. パターンベース分類を絶対優先、AI分類は完全に無効化
+        # 2. エソメプラゾルの強制分類（確実にPPIとして分類）
+        if 'エソメプラゾル' in drug_name or 'エソメプラゾール' in drug_name:
+            pattern_category = 'ppi'
+            logger.info(f"エソメプラゾル強制分類: {drug_name} -> ppi")
+        
+        # 3. パターンベース分類を絶対優先、AI分類は完全に無効化
         analysis['category'] = pattern_category
         analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
         logger.info(f"パターンベース分類: {drug_name} -> {pattern_category}")
