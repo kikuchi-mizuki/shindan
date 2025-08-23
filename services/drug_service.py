@@ -530,7 +530,7 @@ class AIDrugMatcher:
             if category in valid_categories:
                 logger.info(f"AI分類成功: {drug_name} -> {category}")
                 return category
-        else:
+            else:
                 logger.info(f"AI分類失敗: {drug_name} -> {category} (無効なカテゴリ)")
                 return 'unknown'
                 
