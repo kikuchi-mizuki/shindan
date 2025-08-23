@@ -208,8 +208,8 @@ class AIDrugMatcher:
             logger.info(f"AI薬剤名修正: {drug_name} -> {corrected_name}")
             drug_name = corrected_name
         
-        # 修正後の薬剤名でキャッシュチェック
-        if drug_name in self.analysis_cache:
+        # 修正後の薬剤名でキャッシュチェック（エソメプラゾルの場合はキャッシュを無視）
+        if drug_name in self.analysis_cache and 'エソメプラゾル' not in drug_name and 'エソメプラゾール' not in drug_name:
             logger.info(f"Using cached analysis for '{drug_name}'")
             return self.analysis_cache[drug_name]
         
