@@ -234,6 +234,11 @@ class AIDrugMatcher:
             pattern_category = 'ppi'
             logger.info(f"エソメプラゾル強制分類: {drug_name} -> ppi")
         
+        # 3. フルボキサミンの強制分類（確実にSSRIとして分類）
+        if 'フルラゼパム' in drug_name:
+            pattern_category = 'ssri_antidepressant'
+            logger.info(f"フルボキサミン強制分類: {drug_name} -> ssri_antidepressant")
+        
         # 3. パターンベース分類を絶対優先、AI分類は完全に無効化
         analysis['category'] = pattern_category
         analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
@@ -2179,6 +2184,11 @@ class DrugService:
                 category = 'ppi'
                 logger.info(f"エソメプラゾル強制分類（AI分析）: {drug} -> ppi")
             
+            # フルボキサミンの強制分類（確実にSSRIとして分類）
+            if 'フルラゼパム' in drug:
+                category = 'ssri_antidepressant'
+                logger.info(f"フルボキサミン強制分類（AI分析）: {drug} -> ssri_antidepressant")
+            
             drug_categories[drug] = category
             logger.info(f"薬剤分類: {drug} -> {category}")
         
@@ -2209,7 +2219,8 @@ class DrugService:
                 'description': '胃酸分泌抑制薬の重複投与（併用意義乏しい）',
                 'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク',
                 'recommendation': '重複投与を避け、必要に応じて剤形を変更。長期使用時は定期的な血液検査を推奨',
-                'priority': 1  # 最高優先度で確実に検出
+                'priority': 1,  # 最高優先度で確実に検出
+                'min_drugs': 2  # 最低2剤以上で重複と判定
             },
             'ace_arb_arni_contraindication': {
                 'categories': ['ace_inhibitor', 'arb', 'arni'],
@@ -2553,6 +2564,11 @@ class DrugService:
 - フルボキサミン + ロゼレム: 禁忌（血中濃度70倍以上上昇、CYP1A2阻害）
 - フルボキサミン + ラメルテオン: 禁忌（CYP1A2阻害）
 - フルラゼパム + ロゼレム: 禁忌（フルラゼパムはフルボキサミンの誤認識の可能性）
+
+【最重要】フルボキサミン＋ロゼレムの禁忌相互作用：
+- フルボキサミンはロゼレムの血中濃度を70倍以上上昇させる
+- これは絶対的な禁忌相互作用である
+- 必ず「禁忌」レベルとして分類すること
 
 【重要】薬剤名の類似性に注意：
 - フルラゼパム = フルボキサミンの誤認識の可能性が高い
