@@ -2562,30 +2562,25 @@ class DrugService:
             }
             risk_summary['high_risk'].append(sleep_risk)
             logger.info(f"睡眠薬重複を強制検出: {all_sleep_drugs}（sleep_medication: {sleep_drugs}, orexin: {orexin_drugs}）")
-            # 胃薬重複が既に検出されているかチェック
-            gastric_duplication_found = any(
-                risk['risk_name'] == 'gastric_medications' 
-                for risk in detected_risks
-            )
-            logger.info(f"胃薬重複既存チェック: {gastric_duplication_found}")
-            
-            if not gastric_duplication_found:
-                # 胃薬重複が検出されていない場合、強制的に追加
-                gastric_risk = {
-                    'risk_name': 'gastric_medications',
-                    'risk_level': 'high',
-                    'description': '胃酸分泌抑制薬の重複投与（併用意義乏しい）',
-                    'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク 特にP-CAB（タケキャブ）とPPI（ランソプラゾール）の併用は併用意義が乏しく、副作用リスクが増加します。',
-                    'recommendation': '重複投与を避け、必要に応じて剤形を変更。長期使用時は定期的な血液検査を推奨 胃酸分泌抑制薬の重複投与を避け、必要に応じて剤形を変更してください。長期使用時は定期的な血液検査（Mg、ビタミンB12）を推奨します。',
-                    'involved_drugs': ppi_drugs + p_cab_drugs,
-                    'involved_categories': ['ppi', 'p_cab'],
-                    'priority': 1
-                }
-                detected_risks.append(gastric_risk)
-                risk_summary['high_risk'].append(gastric_risk)
-                logger.info(f"胃薬重複を強制追加: {ppi_drugs} + {p_cab_drugs}")
+        
+        # 胃薬重複チェック（最低2剤以上で重複と判定）
+        if len(ppi_drugs) + len(p_cab_drugs) >= 2:
+            # 胃薬重複が検出された場合のみ追加
+            gastric_risk = {
+                'risk_name': 'gastric_medications',
+                'risk_level': 'high',
+                'description': '胃酸分泌抑制薬の重複投与（併用意義乏しい）',
+                'clinical_impact': '腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスク',
+                'recommendation': '重複投与を避け、必要に応じて剤形を変更。長期使用時は定期的な血液検査を推奨',
+                'involved_drugs': ppi_drugs + p_cab_drugs,
+                'involved_categories': ['ppi', 'p_cab'],
+                'priority': 1
+            }
+            detected_risks.append(gastric_risk)
+            risk_summary['high_risk'].append(gastric_risk)
+            logger.info(f"胃薬重複を検出: {ppi_drugs} + {p_cab_drugs}（合計{len(ppi_drugs) + len(p_cab_drugs)}剤）")
         else:
-            logger.info("胃薬重複なし: PPIまたはP-CABが不足")
+            logger.info(f"胃薬重複なし: PPI={len(ppi_drugs)}剤, P-CAB={len(p_cab_drugs)}剤（合計{len(ppi_drugs) + len(p_cab_drugs)}剤）")
         
         # AI駆動の相互作用分析を実行
         ai_interactions = self._analyze_interactions_with_ai(drug_names, drug_categories)
