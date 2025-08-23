@@ -914,6 +914,10 @@ OCRテキスト:
     def _normalize_drug_name(self, drug_name):
         """薬剤名の正規化・補完（カッコ・販売中止・数字・記号・空白除去を強化）"""
         import re
+        
+        # フルボキサミンの保護（絶対に変換しない）
+        is_fluvoxamine = 'フルボキサミン' in drug_name
+        
         # カッコ内・販売中止・全角→半角・空白除去
         name = re.sub(r'（.*?）', '', drug_name)
         name = re.sub(r'\(.*?\)', '', name)
@@ -1067,17 +1071,24 @@ OCRテキスト:
             'バター': 'バルビタル',
             'プログラム': 'プログラム',
             'ペー': 'ペー',
-            'フル': 'フルラゼパム'
+            'フル': 'フルラゼパム',  # 注意：フルボキサミンは除外
         }
         
         # 完全一致の修正
         if name in corrections:
             return corrections[name]
         
-        # 部分一致の修正
+        # 部分一致の修正（フルボキサミンは除外）
         for wrong, correct in corrections.items():
             if wrong in name or name in wrong:
+                # フルボキサミンはフルラゼパムに変換しない
+                if 'フルボキサミン' in name and correct == 'フルラゼパム':
+                    continue
                 return correct
+        
+        # フルボキサミンの最終保護
+        if is_fluvoxamine:
+            return 'フルボキサミン'
         
         # 語尾パターンによる推測
         if name.endswith('ゼパム'):
