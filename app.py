@@ -4,7 +4,7 @@ from flask import Flask, request, abort
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.webhooks import MessageEvent, TextMessageContent, ImageMessageContent
-from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, MessagingApiBlob, TextMessage, FlexMessage, ReplyMessageRequest, PushMessageRequest, FlexContainer
+from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, MessagingApiBlob, TextMessage, ReplyMessageRequest, PushMessageRequest
 
 from dotenv import load_dotenv
 
@@ -24,48 +24,8 @@ messaging_api = MessagingApi(api_client)
 messaging_blob_api = MessagingApiBlob(api_client)
 handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
 
-# ユーザーごとの薬剤名バッファ（Redisが利用できない場合のフォールバック）
+# ユーザーごとの薬剤名バッファ
 user_drug_buffer = {}
-
-# サービスの遅延初期化
-_services_initialized = False
-ocr_service = None
-drug_service = None
-response_service = None
-redis_service = None
-
-def initialize_services():
-    """サービスの初期化（遅延実行）"""
-    global ocr_service, drug_service, response_service, redis_service, _services_initialized
-    
-    if _services_initialized:
-        return True
-    
-    try:
-        logger.info("Initializing services...")
-        
-        from services.ocr_service import OCRService
-        from services.drug_service import DrugService
-        from services.response_service import ResponseService
-        from services.redis_service import RedisService
-        
-        ocr_service = OCRService()
-        drug_service = DrugService()
-        response_service = ResponseService()
-        
-        try:
-            redis_service = RedisService()
-        except Exception as e:
-            logger.warning(f"Redis service initialization failed: {e}")
-            redis_service = None
-        
-        _services_initialized = True
-        logger.info("All services initialized successfully")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Service initialization failed: {e}")
-        return False
 
 @app.route("/", methods=['GET'])
 def root():
@@ -107,21 +67,9 @@ def handle_text_message(event):
         user_id = event.source.user_id
         user_message = event.message.text
         
-        # サービス初期化チェック
-        if not _services_initialized:
-            if not initialize_services():
-                messaging_api.reply_message(
-                    ReplyMessageRequest(
-                        replyToken=event.reply_token,
-                        messages=[TextMessage(text="サービス初期化エラーが発生しました。しばらく時間をおいて再度お試しください。")]
-                    )
-                )
-                return
-        
         # 基本的なテキストメッセージ処理
         if user_message.lower() in ['診断', 'しんだん', 'diagnosis']:
             if user_id in user_drug_buffer and user_drug_buffer[user_id]:
-                # 診断処理
                 response_text = "診断機能は準備中です。"
             else:
                 response_text = "薬剤リストが空です。画像を送信して薬剤を登録してください。"
@@ -165,40 +113,8 @@ def handle_image_message(event):
     try:
         user_id = event.source.user_id
         
-        # サービス初期化チェック
-        if not _services_initialized:
-            if not initialize_services():
-                messaging_api.push_message(
-                    PushMessageRequest(
-                        to=user_id,
-                        messages=[TextMessage(text="サービス初期化エラーが発生しました。しばらく時間をおいて再度お試しください。")]
-                    )
-                )
-                return
-        
-        # 画像処理
-        message_content = messaging_blob_api.get_message_content(event.message.id)
-        
-        # OCRで薬剤名を抽出
-        drug_names = ocr_service.extract_drug_names(message_content)
-        
-        if drug_names:
-            # ユーザーバッファに薬剤名を追加
-            if user_id not in user_drug_buffer:
-                user_drug_buffer[user_id] = []
-            
-            # マッチした薬剤名をバッファに追加
-            matched_drugs = drug_service.match_to_database(drug_names)
-            if matched_drugs:
-                for matched_drug_name in matched_drugs:
-                    user_drug_buffer[user_id].append(matched_drug_name)
-                
-                # 検出結果の確認メッセージを表示
-                response_text = response_service.generate_drug_detection_confirmation(matched_drugs, 7)
-            else:
-                response_text = "薬剤名が検出されませんでした。より鮮明な画像で撮影してください。"
-        else:
-            response_text = "薬剤名が検出されませんでした。より鮮明な画像で撮影してください。"
+        # 画像処理（簡略化）
+        response_text = "画像処理機能は準備中です。\n\n薬剤名を手動で追加する場合は「薬剤追加：〇〇」の形式で入力してください。"
         
         messaging_api.push_message(
             PushMessageRequest(
