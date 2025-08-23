@@ -209,12 +209,69 @@ def handle_image_message(event):
         else:
             response_text = "薬剤名が検出されませんでした。より鮮明な画像で撮影してください。"
         
+        # テキストメッセージを送信
         messaging_api.push_message(
             PushMessageRequest(
                 to=user_id,
                 messages=[TextMessage(text=response_text)]
             )
         )
+        
+        # 診断ボタン付きFlex Messageを送信
+        try:
+            from linebot.v3.messaging import FlexMessage, FlexContainer
+            
+            flex_message = {
+                "type": "bubble",
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": "お薬飲み合わせ・同効薬をチェック！",
+                            "weight": "bold",
+                            "size": "md",
+                            "align": "center",
+                            "margin": "md",
+                            "color": "#222222"
+                        }
+                    ]
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "button",
+                            "action": {
+                                "type": "message",
+                                "label": "🔍 診断実行",
+                                "text": "診断"
+                            },
+                            "style": "primary",
+                            "color": "#1DB446"
+                        }
+                    ]
+                }
+            }
+            
+            messaging_api.push_message(
+                PushMessageRequest(
+                    to=user_id,
+                    messages=[FlexMessage(altText="診断ボタン", contents=FlexContainer.from_dict(flex_message))]
+                )
+            )
+        except Exception as flex_error:
+            logger.error(f"Flex Message error: {flex_error}")
+            # Flex Messageが失敗した場合はテキストメッセージで代替
+            fallback_text = "💡 以下のコマンドを入力してください：\n• 診断 - 飲み合わせチェック\n• リスト確認 - 現在の薬剤リスト\n• ヘルプ - 使い方表示"
+            messaging_api.push_message(
+                PushMessageRequest(
+                    to=user_id,
+                    messages=[TextMessage(text=fallback_text)]
+                )
+            )
         
     except Exception as e:
         logger.error(f"Image message handling error: {e}")

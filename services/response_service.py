@@ -408,6 +408,7 @@ class ResponseService:
                 'orexin_receptor_antagonist': 'オレキシン受容体拮抗薬',
                 'ssri_antidepressant': 'SSRI抗うつ薬',
                 'macrolide_antibiotic_cyp3a4_inhibitor': 'マクロライド系抗生物質（CYP3A4阻害薬）',
+                'benzodiazepine': 'ベンゾジアゼピン系',
                 'unknown': '分類不明'
             }
             
