@@ -202,6 +202,14 @@ def handle_image_message(event):
                 )
                 return
         
+        # 診断中のメッセージを送信
+        messaging_api.reply_message(
+            ReplyMessageRequest(
+                replyToken=event.reply_token,
+                messages=[TextMessage(text="🔍 診断中です…")]
+            )
+        )
+        
         # 画像処理
         message_content = messaging_blob_api.get_message_content(event.message.id)
         
@@ -226,7 +234,7 @@ def handle_image_message(event):
         else:
             response_text = "薬剤名が検出されませんでした。より鮮明な画像で撮影してください。"
         
-        # テキストメッセージを送信
+        # 検出結果を送信
         messaging_api.push_message(
             PushMessageRequest(
                 to=user_id,
