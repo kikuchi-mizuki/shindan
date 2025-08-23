@@ -505,10 +505,16 @@ def handle_text_message(event):
             if drug_name:
                 if user_id not in user_drug_buffer:
                     user_drug_buffer[user_id] = []
-                user_drug_buffer[user_id].append(drug_name)
-                reply = f"【薬剤追加完了】\n━━━━━━━━━\n✅ {drug_name} を追加しました\n\n現在のリスト: {len(user_drug_buffer[user_id])}件\n━━━━━━━━━"
+                
+                # 重複チェック
+                if drug_name not in user_drug_buffer[user_id]:
+                    user_drug_buffer[user_id].append(drug_name)
+                    reply = f"【薬剤追加完了】\n━━━━━━━━━\n✅ {drug_name} を追加しました\n\n📋 **現在の薬剤リスト**（{len(user_drug_buffer[user_id])}剤）:\n" + "\n".join([f"• {drug}" for drug in user_drug_buffer[user_id]])
+                    reply += "\n\n💡 **次のステップ**:\n• 「診断」→ 相互作用分析を実行\n• 「薬剤追加：〇〇」→ さらに薬剤を追加"
+                else:
+                    reply = f"⚠️ 薬剤「{drug_name}」は既にリストに含まれています。"
             else:
-                reply = "【エラー】\n━━━━━━━━━\n❌ 薬剤名を入力してください\n\n例: 薬剤追加：アスピリン\n━━━━━━━━━"
+                reply = response_service.generate_manual_addition_guide()
             messaging_api.reply_message(
                 ReplyMessageRequest(
                     replyToken=event.reply_token,
@@ -658,8 +664,8 @@ def handle_image_message(event):
             
             # KEGG情報を含む詳細な薬剤情報を取得
             if matched_drugs:
-                # response_serviceを使用して薬剤検出結果を表示
-                response_text = response_service.generate_simple_response(matched_drugs)
+                            # response_serviceを使用して薬剤検出結果の確認メッセージを表示
+            response_text = response_service.generate_drug_detection_confirmation(matched_drugs, 7)
                 
                 # テキストメッセージとクイックアクションボタンを送信
                 messaging_api.push_message(
