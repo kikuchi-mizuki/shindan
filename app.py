@@ -203,7 +203,7 @@ def handle_image_message(event):
                     user_drug_buffer[user_id].append(matched_drug_name)
                 
                 # 検出結果の確認メッセージを表示
-                response_text = response_service.generate_drug_detection_confirmation(matched_drugs, 7)
+                response_text = response_service.generate_simple_response(matched_drugs)
             else:
                 response_text = "薬剤名が検出されませんでした。より鮮明な画像で撮影してください。"
         else:

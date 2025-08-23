@@ -384,56 +384,27 @@ class ResponseService:
         
         return error_messages.get(error_type, error_messages["general"]) 
 
-    def generate_drug_detection_confirmation(self, detected_drugs, original_count=7):
-        """薬剤検出結果の確認メッセージを生成"""
+    def generate_simple_response(self, detected_drugs):
+        """薬剤検出結果のシンプルな表示を生成"""
         try:
+            if not detected_drugs:
+                return "薬剤名が検出されませんでした。より鮮明な画像で撮影してください。"
+            
             response_parts = []
+            response_parts.append("【薬剤検出結果】")
+            response_parts.append("━━━━━━━━━")
             
-            # ヘッダー
-            response_parts.append("🔍 **薬剤検出結果の確認**")
-            response_parts.append("")
-            
-            # 検出状況
-            detected_count = len(detected_drugs)
-            response_parts.append(f"📊 **検出状況**: {detected_count}剤 / {original_count}剤")
-            response_parts.append("")
-            
-            if detected_count < original_count:
-                response_parts.append("⚠️ **注意**: 一部の薬剤が検出されていません")
-                response_parts.append("")
-            
-            # 検出された薬剤リスト
-            response_parts.append("📋 **検出された薬剤**:")
             for i, drug in enumerate(detected_drugs, 1):
                 response_parts.append(f"{i}. {drug}")
             
-            response_parts.append("")
-            
-            # 確認メッセージ
-            response_parts.append("✅ **確認してください**:")
-            response_parts.append("• すべての薬剤が正しく検出されていますか？")
-            response_parts.append("• 薬剤名に誤りはありませんか？")
-            response_parts.append("• 検出されていない薬剤はありますか？")
-            response_parts.append("")
-            
-            # 操作案内
-            response_parts.append("🔄 **操作方法**:")
-            response_parts.append("• 「診断」→ 現在の結果で相互作用分析を実行")
-            response_parts.append("• 「薬剤追加：〇〇」→ 検出されていない薬剤を手動追加")
-            response_parts.append("• 「再検出」→ 画像の再分析を実行")
-            response_parts.append("")
-            
-            # 手動追加の例
-            response_parts.append("📝 **手動追加の例**:")
-            response_parts.append("• 薬剤追加：テラムロAP")
-            response_parts.append("• 薬剤追加：タケキャブ")
-            response_parts.append("• 薬剤追加：エンレスト")
+            response_parts.append("━━━━━━━━━")
+            response_parts.append("💡 「診断」で飲み合わせチェックを実行できます")
             
             return "\n".join(response_parts)
             
         except Exception as e:
-            logger.error(f"Error generating confirmation message: {e}")
-            return "薬剤検出結果の確認中にエラーが発生しました。"
+            logger.error(f"Error generating simple response: {e}")
+            return "薬剤検出結果の生成中にエラーが発生しました。"
 
     def generate_manual_addition_guide(self):
         """手動追加ガイドを生成"""
