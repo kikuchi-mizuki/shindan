@@ -60,10 +60,34 @@ class ResponseService:
                 
                 # 1. 併用禁忌の詳細表示
                 critical_risks = ai_analysis.get('risk_summary', {}).get('critical_risk', [])
-                if critical_risks:
+                contraindicated_risks = [risk for risk in ai_analysis.get('detected_risks', []) if risk.get('risk_level') == 'contraindicated']
+                
+                # interactionsからも禁忌を検出
+                contraindicated_interactions = [interaction for interaction in drug_info.get('interactions', []) if interaction.get('risk') == 'contraindicated']
+                for interaction in contraindicated_interactions:
+                    contraindicated_risks.append({
+                        'involved_drugs': [interaction.get('drug1', ''), interaction.get('drug2', '')],
+                        'description': interaction.get('description', '禁忌相互作用'),
+                        'clinical_impact': '血中濃度上昇、過度の眠気、転倒リスク',
+                        'recommendation': '医師・薬剤師に相談してください'
+                    })
+                
+                if critical_risks or contraindicated_risks:
                     response_parts.append("🚨 併用禁忌（重大リスク）")
                     response_parts.append("")
+                    
+                    # critical_risksの表示
                     for risk in critical_risks:
+                        response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
+                        response_parts.append(f"✅ 理由: {risk.get('description', '')}")
+                        response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
+                        response_parts.append(f"✅ 推奨事項: {risk.get('recommendation', '')}")
+                        response_parts.append("")
+                        response_parts.append("━━━━━━━━━━━━━━")
+                        response_parts.append("")
+                    
+                    # contraindicated_risksの表示
+                    for risk in contraindicated_risks:
                         response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
                         response_parts.append(f"✅ 理由: {risk.get('description', '')}")
                         response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
