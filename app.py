@@ -25,6 +25,10 @@ messaging_api = MessagingApi(api_client)
 messaging_blob_api = MessagingApiBlob(api_client)
 handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
 
+# ログ設定
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # サービスの初期化（遅延実行）
 ocr_service = None
 drug_service = None
@@ -35,19 +39,43 @@ def initialize_services():
     """サービスの初期化（遅延実行）"""
     global ocr_service, drug_service, response_service, redis_service
     try:
-        ocr_service = OCRService()
-        drug_service = DrugService()
-        response_service = ResponseService()
-        redis_service = RedisService()
+        logger.info("Starting service initialization...")
+        
+        # 各サービスを個別に初期化
+        try:
+            ocr_service = OCRService()
+            logger.info("OCRService initialized successfully")
+        except Exception as e:
+            logger.error(f"OCRService initialization failed: {e}")
+            return False
+        
+        try:
+            drug_service = DrugService()
+            logger.info("DrugService initialized successfully")
+        except Exception as e:
+            logger.error(f"DrugService initialization failed: {e}")
+            return False
+        
+        try:
+            response_service = ResponseService()
+            logger.info("ResponseService initialized successfully")
+        except Exception as e:
+            logger.error(f"ResponseService initialization failed: {e}")
+            return False
+        
+        try:
+            redis_service = RedisService()
+            logger.info("RedisService initialized successfully")
+        except Exception as e:
+            logger.error(f"RedisService initialization failed: {e}")
+            # Redisは必須ではないので、失敗しても続行
+            redis_service = None
+        
         logger.info("All services initialized successfully")
         return True
     except Exception as e:
         logger.error(f"Service initialization error: {e}")
         return False
-
-# ログ設定
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # ユーザーごとの薬剤名バッファ（Redisが利用できない場合のフォールバック）
 user_drug_buffer = {}
@@ -723,26 +751,46 @@ def handle_image_message(event):
             logger.error(f"Push message error: {push_error}")
             # プッシュメッセージも失敗した場合は何もしない
 
+@app.route("/", methods=['GET'])
+def root():
+    """ルートエンドポイント"""
+    return {"status": "ok", "message": "薬局サポートBot is running"}, 200
+
 @app.route("/health", methods=['GET'])
 def health_check():
     """ヘルスチェックエンドポイント"""
     try:
+        logger.info("Health check requested")
+        
         # 基本的なアプリケーション状態をチェック
-        # サービス初期化のテスト
+        if not os.getenv('LINE_CHANNEL_ACCESS_TOKEN'):
+            logger.error("LINE_CHANNEL_ACCESS_TOKEN not found")
+            return {"status": "unhealthy", "message": "Missing LINE_CHANNEL_ACCESS_TOKEN"}, 500
+        
+        if not os.getenv('LINE_CHANNEL_SECRET'):
+            logger.error("LINE_CHANNEL_SECRET not found")
+            return {"status": "unhealthy", "message": "Missing LINE_CHANNEL_SECRET"}, 500
+        
+        # サービス初期化のテスト（簡略化）
         if ocr_service is None or drug_service is None or response_service is None:
-            # サービスが初期化されていない場合は初期化を試行
+            logger.info("Services not initialized, attempting initialization...")
             if not initialize_services():
                 logger.error("Service initialization failed during health check")
                 return {"status": "unhealthy", "message": "Service initialization failed"}, 500
         
+        logger.info("Health check passed")
         return {"status": "healthy", "message": "薬局サポートBot is running"}, 200
     except Exception as e:
         logger.error(f"Health check error: {e}")
+        import traceback
+        logger.error(f"Health check traceback: {traceback.format_exc()}")
         return {"status": "unhealthy", "message": f"Service error: {str(e)}"}, 500
 
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
     debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    logger.info(f"Starting application on port {port}, debug mode: {debug_mode}")
     
     # アプリケーション起動時にサービスを初期化
     logger.info("Initializing services on startup...")
@@ -751,4 +799,5 @@ if __name__ == "__main__":
     else:
         logger.warning("Service initialization failed on startup, will retry on first request")
     
+    logger.info("Starting Flask application...")
     app.run(host='0.0.0.0', port=port, debug=debug_mode) 
