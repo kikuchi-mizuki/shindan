@@ -691,9 +691,7 @@ class AIDrugMatcher:
             return 'diabetes_medication'
         elif any(pattern in drug_lower for pattern in ['デエビゴ', 'レンボレキサント']):
             return 'sleep_medication'
-        elif any(pattern in drug_lower for pattern in ['クラリスロマイシン', 'エリスロマイシン', 'アジスロマイシン']):
-            return 'cyp3a4_inhibitor'
-        elif any(pattern in drug_lower for pattern in ['アモキシシリン', 'セファレキシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン']):
+        elif any(pattern in drug_lower for pattern in ['アモキシシリン', 'セファレキシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン', 'クラリスロマイシン', 'エリスロマイシン', 'アジスロマイシン']):
             return 'antibiotic'
         elif any(pattern in drug_lower for pattern in ['フルボキサミン', 'フルボキサミン']):
             return 'ssri_antidepressant'
@@ -709,8 +707,6 @@ class AIDrugMatcher:
             return 'antihistamine'
         elif any(pattern in drug_lower for pattern in ['フルボキサミン', 'フルボキサミン']):
             return 'ssri_antidepressant'
-        elif any(pattern in drug_lower for pattern in ['クラリスロマイシン', 'エリスロマイシン', 'アジスロマイシン']):
-            return 'cyp3a4_inhibitor'
         else:
             return 'unknown'
 
