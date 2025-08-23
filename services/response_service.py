@@ -58,7 +58,7 @@ class ResponseService:
             else:
                 # AI分析結果が正常な場合の詳細表示
                 
-                # 1. 併用禁忌の詳細表示
+                # 1. 併用禁忌の詳細表示（重複除去）
                 critical_risks = ai_analysis.get('risk_summary', {}).get('critical_risk', [])
                 contraindicated_risks = [risk for risk in ai_analysis.get('detected_risks', []) if risk.get('risk_level') == 'contraindicated']
                 
@@ -72,22 +72,21 @@ class ResponseService:
                         'recommendation': '医師・薬剤師に相談してください'
                     })
                 
-                if critical_risks or contraindicated_risks:
+                # 重複を除去
+                seen_combinations = set()
+                unique_critical_risks = []
+                
+                for risk in critical_risks + contraindicated_risks:
+                    involved_drugs = tuple(sorted(risk.get('involved_drugs', [])))
+                    if involved_drugs not in seen_combinations:
+                        seen_combinations.add(involved_drugs)
+                        unique_critical_risks.append(risk)
+                
+                if unique_critical_risks:
                     response_parts.append("🚨 併用禁忌（重大リスク）")
                     response_parts.append("")
                     
-                    # critical_risksの表示
-                    for risk in critical_risks:
-                        response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
-                        response_parts.append(f"✅ 理由: {risk.get('description', '')}")
-                        response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
-                        response_parts.append(f"✅ 推奨事項: {risk.get('recommendation', '')}")
-                        response_parts.append("")
-                        response_parts.append("━━━━━━━━━━━━━━")
-                        response_parts.append("")
-                    
-                    # contraindicated_risksの表示
-                    for risk in contraindicated_risks:
+                    for risk in unique_critical_risks:
                         response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
                         response_parts.append(f"✅ 理由: {risk.get('description', '')}")
                         response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
@@ -96,35 +95,57 @@ class ResponseService:
                         response_parts.append("━━━━━━━━━━━━━━")
                         response_parts.append("")
                 
-                # 2. 同効薬の重複の詳細表示
+                # 2. 同効薬の重複の詳細表示（重複除去）
                 high_risks = ai_analysis.get('risk_summary', {}).get('high_risk', [])
                 if high_risks:
-                    response_parts.append("⚠️ 同効薬の重複（注意リスク）")
-                    response_parts.append("")
+                    # 重複を除去
+                    seen_combinations = set()
+                    unique_high_risks = []
+                    
                     for risk in high_risks:
-                        response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
-                        if risk.get('involved_categories'):
-                            response_parts.append(f"✅ 薬効分類: {', '.join(risk.get('involved_categories', []))}")
-                        response_parts.append(f"✅ 理由: {risk.get('description', '')}")
-                        response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
-                        response_parts.append(f"✅ 推奨事項: {risk.get('recommendation', '')}")
+                        involved_drugs = tuple(sorted(risk.get('involved_drugs', [])))
+                        if involved_drugs not in seen_combinations:
+                            seen_combinations.add(involved_drugs)
+                            unique_high_risks.append(risk)
+                    
+                    if unique_high_risks:
+                        response_parts.append("⚠️ 同効薬の重複（注意リスク）")
                         response_parts.append("")
-                        response_parts.append("━━━━━━━━━━━━━━")
-                        response_parts.append("")
+                        for risk in unique_high_risks:
+                            response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
+                            if risk.get('involved_categories'):
+                                response_parts.append(f"✅ 薬効分類: {', '.join(risk.get('involved_categories', []))}")
+                            response_parts.append(f"✅ 理由: {risk.get('description', '')}")
+                            response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
+                            response_parts.append(f"✅ 推奨事項: {risk.get('recommendation', '')}")
+                            response_parts.append("")
+                            response_parts.append("━━━━━━━━━━━━━━")
+                            response_parts.append("")
                 
-                # 3. 併用注意の詳細表示
+                # 3. 併用注意の詳細表示（重複除去）
                 medium_risks = ai_analysis.get('risk_summary', {}).get('medium_risk', [])
                 if medium_risks:
-                    response_parts.append("📋 併用注意（軽微リスク）")
-                    response_parts.append("")
+                    # 重複を除去
+                    seen_combinations = set()
+                    unique_medium_risks = []
+                    
                     for risk in medium_risks:
-                        response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
-                        response_parts.append(f"✅ 理由: {risk.get('description', '')}")
-                        response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
-                        response_parts.append(f"✅ 推奨事項: {risk.get('recommendation', '')}")
+                        involved_drugs = tuple(sorted(risk.get('involved_drugs', [])))
+                        if involved_drugs not in seen_combinations:
+                            seen_combinations.add(involved_drugs)
+                            unique_medium_risks.append(risk)
+                    
+                    if unique_medium_risks:
+                        response_parts.append("📋 併用注意（軽微リスク）")
                         response_parts.append("")
-                        response_parts.append("━━━━━━━━━━━━━━")
-                        response_parts.append("")
+                        for risk in unique_medium_risks:
+                            response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
+                            response_parts.append(f"✅ 理由: {risk.get('description', '')}")
+                            response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
+                            response_parts.append(f"✅ 推奨事項: {risk.get('recommendation', '')}")
+                            response_parts.append("")
+                            response_parts.append("━━━━━━━━━━━━━━")
+                            response_parts.append("")
                 
                 # 4. 患者プロファイル分析
                 if ai_analysis.get('detailed_analysis', {}).get('patient_profile'):
