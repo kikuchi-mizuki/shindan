@@ -92,45 +92,31 @@ class OCRService:
         return False
     
     def preprocess_image(self, image_content):
-        """OCR前処理: グレースケール化・二値化・シャープ化・ノイズ除去・コントラスト調整・解像度向上"""
+        """OCR前処理: 最小限の処理で精度を向上"""
         try:
             # バイトデータから画像を開く
             image = Image.open(io.BytesIO(image_content))
             
-            # 解像度向上（2倍に拡大）
+            # 解像度向上（1.5倍に拡大）- 2倍から1.5倍に変更
             width, height = image.size
-            image = image.resize((width * 2, height * 2), Image.Resampling.LANCZOS)
+            image = image.resize((int(width * 1.5), int(height * 1.5)), Image.Resampling.LANCZOS)
             
             # グレースケール化
             image = image.convert('L')
             
-            # コントラスト調整（PILのEnhance機能を使用）
+            # 軽微なコントラスト調整（2.0から1.3に変更）
             enhancer = ImageEnhance.Contrast(image)
-            image = enhancer.enhance(2.0)  # コントラストを2倍に
+            image = enhancer.enhance(1.3)
             
-            # 明度調整
+            # 軽微な明度調整（1.2から1.1に変更）
             enhancer = ImageEnhance.Brightness(image)
-            image = enhancer.enhance(1.2)  # 明度を1.2倍に
+            image = enhancer.enhance(1.1)
             
-            # ノイズ除去（ガウシアンフィルタ）
-            image = image.filter(ImageFilter.GaussianBlur(radius=1))
-            
-            # シャープ化（複数回適用）
-            image = image.filter(ImageFilter.SHARPEN)
-            image = image.filter(ImageFilter.SHARPEN)
+            # 軽微なシャープ化（3回から1回に変更）
             image = image.filter(ImageFilter.SHARPEN)
             
-            # 二値化（適応的閾値処理）
-            img_array = np.array(image)
-            # 局所的な閾値を計算
-            threshold = np.mean(img_array) + np.std(img_array) * 0.5
-            binary = img_array > threshold
-            image = Image.fromarray(binary.astype(np.uint8) * 255)
-            
-            # モルフォロジー処理でノイズ除去（PILベース）
-            # 小さなノイズを除去するため、エッジ検出と組み合わせ
-            image = image.filter(ImageFilter.FIND_EDGES)
-            image = image.filter(ImageFilter.SMOOTH)
+            # 二値化処理を削除（文字認識精度を向上）
+            # エッジ検出も削除
             
             # PIL画像をバイトデータに戻す
             output = io.BytesIO()
@@ -155,6 +141,15 @@ OCRテキスト:
 {ocr_text}
 
 重要: 必ず以下の形式で出力してください。ハイフン（-）は使用しないでください。
+
+特に注意: 以下の薬剤名を必ず正確に検出してください：
+- デエビゴ（デエビゴ、デイビゴ、デイビゴーなど類似表記も含む）
+- クラリスロマイシン
+- ベルソムラ
+- ロゼレム
+- フルボキサミン
+- アムロジピン
+- エソメプラゾール
 
 出力形式:
 薬剤名: アルプラゾラム
