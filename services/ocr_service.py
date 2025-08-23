@@ -733,6 +733,9 @@ OCRテキスト:
                                 name = name.replace('ロゼレックス', 'ロゼレム')
                                 logger.info(f"Corrected to: {name}")
                             
+                            # デバッグ: 正規化前の薬剤名をログ出力
+                            logger.info(f"Before normalization: {name}")
+                            
                             normalized_name = self._normalize_drug_name(name)
                             drug_names.append(normalized_name)
                             logger.info(f"GPT Vision parsed drug name: '{name}' -> '{normalized_name}'")
@@ -1020,6 +1023,7 @@ OCRテキスト:
             'ロゼレックス': 'ロゼレム',  # ロゼレックスに誤認識された場合の修正
             'ロゼレックス錠': 'ロゼレム',
             'ロゼレックスmg': 'ロゼレム',
+            'ロゼレックス': 'ロゼレム',  # 重複チェック
             'フルニトラゼパム': 'フルニトラゼパム',
             'エチゾラム': 'エチゾラム',
             'ゾルピデム': 'ゾルピデム',
