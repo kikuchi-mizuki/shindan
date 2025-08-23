@@ -229,21 +229,21 @@ class AIDrugMatcher:
         # 1. パターンベースの分類
         pattern_category = self._simple_category_prediction(drug_name)
         
-        # 2. パターンベース分類を優先、AI分類は補助的に使用（改善版）
+        # 2. パターンベース分類を絶対優先、AI分類は完全に無効化
         analysis['category'] = pattern_category
         analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
         logger.info(f"パターンベース分類: {drug_name} -> {pattern_category}")
         
-        # AI分類は補助的に使用（パターンベースでunknownの場合のみ）
-        if pattern_category == 'unknown':
-            try:
-                ai_category = self._ai_category_prediction(drug_name)
-                if ai_category and ai_category != 'unknown':
-                    analysis['category'] = ai_category
-                    analysis['confidence'] = 0.9  # AI分類の場合は高信頼度
-                    logger.info(f"AI分類成功: {drug_name} -> {ai_category}")
-            except Exception as e:
-                logger.warning(f"AI分類エラー: {drug_name} - {e}")
+        # AI分類は完全に無効化（パターンベース分類を絶対優先）
+        # if pattern_category == 'unknown':
+        #     try:
+        #         ai_category = self._ai_category_prediction(drug_name)
+        #         if ai_category and ai_category != 'unknown':
+        #             analysis['category'] = ai_category
+        #             analysis['confidence'] = 0.9  # AI分類の場合は高信頼度
+        #             logger.info(f"AI分類成功: {drug_name} -> {ai_category}")
+        #     except Exception as e:
+        #         logger.warning(f"AI分類エラー: {drug_name} - {e}")
         
         # 検索優先度の決定
         analysis['search_priority'] = self._determine_search_priority(drug_name, analysis)
