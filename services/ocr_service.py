@@ -712,9 +712,13 @@ OCRテキスト:
             if text_output:
                 logger.info(f"Parsing GPT Vision API output: {text_output}")
                 
-                # より柔軟なパース処理
+                # より柔軟なパース処理（複数形式に対応）
                 for line in text_output.splitlines():
-                    # 複数の形式に対応
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # 形式1: "- 薬剤名: 名前" または "薬剤名: 名前"
                     if any(line.startswith(prefix) for prefix in ["- 薬剤名:", "薬剤名:", "薬剤:", "- 薬剤:"]):
                         # コロンで分割して薬剤名を抽出
                         if ":" in line:
@@ -725,8 +729,19 @@ OCRテキスト:
                                 name = line.replace(prefix, "").strip()
                                 if name != line:
                                     break
-                        
-                        if name and len(name) >= 2:
+                    
+                    # 形式2: "- 名前" または "名前"（ハイフンで始まる単純なリスト）
+                    elif line.startswith("- "):
+                        name = line[2:].strip()  # "- "を除去
+                    elif line.startswith("-"):
+                        name = line[1:].strip()  # "-"を除去
+                    
+                    # 形式3: 単純な薬剤名（ハイフンなし）
+                    else:
+                        name = line.strip()
+                    
+                    # 薬剤名として有効かチェック
+                    if name and len(name) >= 2 and not name.startswith("注意:") and not name.startswith("抽出ルール:"):
                             # 重要な薬剤名の保護（正規化前）
                             original_name = name
                             
