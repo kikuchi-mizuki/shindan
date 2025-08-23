@@ -433,6 +433,10 @@ class AIDrugMatcher:
             'ベニジピン塩酸塩錠mg': 'ベニジピン',
             'アムロジピンロ腔内崩壊錠mg': 'アムロジピン',
             'タケキャブ錠mg': 'タケキャブ',
+            'タケミン': 'タケキャブ',  # 誤認識を修正
+            'タケキャブ': 'タケキャブ',  # 正しい名前はそのまま
+            'テラゾシン': 'テラムロAP',  # 誤認識を修正
+            'テラムロAP': 'テラムロAP',  # 正しい名前はそのまま
         }
         
         # 完全一致で修正
@@ -473,6 +477,8 @@ class AIDrugMatcher:
 - アムロジピン → ca_antagonist（カルシウム拮抗薬）
 - エソメプラゾール → ppi（PPI・胃薬）
 - エソメプラゾル → ppi（PPI・胃薬、エソメプラゾールの誤記）
+- テラムロAP → angiotensin_receptor_blocker（ARB・アンジオテンシン受容体拮抗薬）
+- タケキャブ → p_cab（P-CAB・カリウム競合型アシッドブロッカー）
 
 【重要】エソメプラゾール関連:
 - エソメプラゾール、エソメプラゾルは必ずppiとして分類
@@ -722,7 +728,7 @@ class AIDrugMatcher:
         elif any(pattern in drug_lower for pattern in ['エンレスト', 'サクビトリル']):
             return 'arni'
         elif any(pattern in drug_lower for pattern in ['テラムロ']):
-            return 'ca_antagonist_arb_combination'
+            return 'angiotensin_receptor_blocker'  # ARBとして分類（テルミサルタン成分）
         elif any(pattern in drug_lower for pattern in ['エナラプリル', 'カプトプリル']):
             return 'ace_inhibitor'
         elif any(pattern in drug_lower for pattern in ['タケキャブ', 'ボノプラザン']):
