@@ -682,11 +682,6 @@ def handle_image_message(event):
             logger.error(f"Push message error: {push_error}")
             # プッシュメッセージも失敗した場合は何もしない
 
-@app.route("/health", methods=['GET'])
-def health_check():
-    """ヘルスチェックエンドポイント"""
-    return {"status": "healthy", "message": "薬局サポートBot is running"}
-
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True) 
