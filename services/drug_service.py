@@ -229,21 +229,21 @@ class AIDrugMatcher:
         # 1. パターンベースの分類
         pattern_category = self._simple_category_prediction(drug_name)
         
-        # 2. パターンベース分類のみを使用（AI分類は無効化）
+        # 2. パターンベース分類を優先、AI分類は補助的に使用（改善版）
         analysis['category'] = pattern_category
         analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
         logger.info(f"パターンベース分類: {drug_name} -> {pattern_category}")
         
-        # AI分類は無効化
-        # if pattern_category == 'unknown':
-        #     try:
-        #         ai_category = self._ai_category_prediction(drug_name)
-        #         if ai_category and ai_category != 'unknown':
-        #             analysis['category'] = ai_category
-        #             analysis['confidence'] = 0.9  # AI分類の場合は高信頼度
-        #             logger.info(f"AI分類成功: {drug_name} -> {ai_category}")
-        #     except Exception as e:
-        #         logger.warning(f"AI分類エラー: {drug_name} - {e}")
+        # AI分類は補助的に使用（パターンベースでunknownの場合のみ）
+        if pattern_category == 'unknown':
+            try:
+                ai_category = self._ai_category_prediction(drug_name)
+                if ai_category and ai_category != 'unknown':
+                    analysis['category'] = ai_category
+                    analysis['confidence'] = 0.9  # AI分類の場合は高信頼度
+                    logger.info(f"AI分類成功: {drug_name} -> {ai_category}")
+            except Exception as e:
+                logger.warning(f"AI分類エラー: {drug_name} - {e}")
         
         # 検索優先度の決定
         analysis['search_priority'] = self._determine_search_priority(drug_name, analysis)
@@ -316,20 +316,23 @@ class AIDrugMatcher:
         try:
             import openai
             
-            # 薬剤名修正のプロンプト
+            # 薬剤名修正のプロンプト（改善版）
             prompt = f"""
-以下の薬剤名が正しいかどうか確認し、正しい薬剤名に修正してください。
-入力された薬剤名: {drug_name}
+薬剤名の修正を行ってください。
 
-特に以下のような誤認識を修正してください：
-- フルラゼパム → フルボキサミン（SSRI抗うつ薬）
-- デエビゴ → デビゴ（オレキシン受容体拮抗薬）
-- エソメプラゾル → エソメプラゾール（PPI胃薬）
-- ロゼレックス → ロゼレム（睡眠薬・オレキシン受容体拮抗薬）
-- その他の類似薬剤名の誤認識
+入力: {drug_name}
 
-重要: 「正しい薬剤名:」や「→」などの表記は絶対に含めないでください。
-正しい薬剤名のみを返してください。修正が必要ない場合は元の名前を返してください。
+ルール:
+1. 薬剤名のみを返す（「正しい薬剤名:」などの表記は絶対に含めない）
+2. 修正が必要ない場合は元の名前をそのまま返す
+3. 修正する場合は正しい薬剤名のみを返す
+
+例:
+- フルラゼパム → フルボキサミン
+- エソメプラゾル → エソメプラゾール
+- ロゼレックス → ロゼレム
+
+回答形式: 薬剤名のみ（例: フルボキサミン）
 """
             
             client = openai.OpenAI()
@@ -416,38 +419,30 @@ class AIDrugMatcher:
         try:
             import openai
             
-            # 薬剤分類のプロンプト
+            # 薬剤分類のプロンプト（改善版）
             prompt = f"""
-以下の薬剤名の薬効分類を予測してください。
+薬剤の分類を行ってください。
+
 薬剤名: {drug_name}
 
-以下のカテゴリから最も適切なものを選択してください：
-- benzodiazepine (ベンゾジアゼピン系)
+分類ルール:
+- クラリスロマイシン → antibiotic（抗生物質）
+- デエビゴ → sleep_medication（睡眠薬・オレキシン受容体拮抗薬）
+- ロゼレム → sleep_medication（睡眠薬・オレキシン受容体拮抗薬）
+- ベルソムラ → sleep_medication（睡眠薬・オレキシン受容体拮抗薬）
+- フルボキサミン → ssri_antidepressant（SSRI抗うつ薬）
+- アムロジピン → ca_antagonist（カルシウム拮抗薬）
+- エソメプラゾール → ppi（PPI・胃薬）
+
+利用可能な分類:
+- antibiotic (抗生物質)
 - sleep_medication (睡眠薬・催眠薬)
 - ssri_antidepressant (SSRI抗うつ薬)
 - ca_antagonist (カルシウム拮抗薬)
-- ace_inhibitor (ACE阻害薬)
-- arb (ARB)
-- beta_blocker (β遮断薬)
-- diuretic (利尿薬)
-- statin (スタチン)
-- nsaid (NSAIDs)
-- antibiotic (抗生物質)
-- antihistamine (抗ヒスタミン薬)
 - ppi (PPI・胃薬)
-- p_cab (P-CAB・胃薬)
-- uric_acid_lowering (尿酸生成抑制薬)
-- phosphate_binder (リン吸着薬)
-- vitamin_d (活性型ビタミンD製剤)
-- diabetes_medication (糖尿病治療薬)
-- antidepressant (抗うつ薬)
-- antipsychotic (抗精神病薬)
-- anticoagulant (抗凝固薬)
-- opioid (オピオイド)
-- barbiturate (バルビツール酸系)
+- unknown (分類不明)
 
-分類できない場合は 'unknown' を返してください。
-回答は英語のカテゴリ名のみを返してください。
+回答形式: 英語の分類名のみ（例: antibiotic）
 """
             
             # ChatGPT APIを呼び出し
