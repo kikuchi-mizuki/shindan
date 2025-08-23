@@ -728,12 +728,27 @@ def health_check():
     """ヘルスチェックエンドポイント"""
     try:
         # 基本的なアプリケーション状態をチェック
+        # サービス初期化のテスト
+        if ocr_service is None or drug_service is None or response_service is None:
+            # サービスが初期化されていない場合は初期化を試行
+            if not initialize_services():
+                logger.error("Service initialization failed during health check")
+                return {"status": "unhealthy", "message": "Service initialization failed"}, 500
+        
         return {"status": "healthy", "message": "薬局サポートBot is running"}, 200
     except Exception as e:
         logger.error(f"Health check error: {e}")
-        return {"status": "unhealthy", "message": "Service error"}, 500
+        return {"status": "unhealthy", "message": f"Service error: {str(e)}"}, 500
 
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
     debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    # アプリケーション起動時にサービスを初期化
+    logger.info("Initializing services on startup...")
+    if initialize_services():
+        logger.info("Services initialized successfully on startup")
+    else:
+        logger.warning("Service initialization failed on startup, will retry on first request")
+    
     app.run(host='0.0.0.0', port=port, debug=debug_mode) 
