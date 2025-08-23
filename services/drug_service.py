@@ -1001,7 +1001,8 @@ class DrugService:
             },
             'ロゼレム': {
                 'ベルソムラ': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'},
-                'デエビゴ': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'}
+                'デエビゴ': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'},
+                'フルボキサミン': {'risk': 'contraindicated', 'description': '禁忌：血中濃度70倍以上上昇', 'mechanism': 'CYP1A2阻害によるロゼレム代謝阻害', 'clinical_impact': '過度の眠気、転倒リスク、日中の傾眠'}
             },
             'デエビゴ': {
                 'ベルソムラ': {'risk': 'high', 'description': '睡眠薬の重複投与', 'mechanism': '睡眠改善薬の多剤併用', 'clinical_impact': '過度の眠気、ふらつき、転倒リスク、日中の傾眠'},
@@ -1018,7 +1019,7 @@ class DrugService:
                 'クラリスロマイシン': {'risk': 'high', 'description': 'CYP3A4阻害作用の重複', 'mechanism': '他剤の血中濃度上昇', 'clinical_impact': '強い眠気、ふらつき、低血圧リスク'},
                 'ベルソムラ': {'risk': 'high', 'description': 'ベルソムラの血中濃度上昇', 'mechanism': 'CYP3A4阻害', 'clinical_impact': '過度の眠気、集中力低下、転倒リスク'},
                 'デエビゴ': {'risk': 'high', 'description': 'デエビゴの血中濃度上昇', 'mechanism': 'CYP3A4阻害', 'clinical_impact': '過度の眠気、集中力低下、転倒リスク'},
-                'ロゼレム': {'risk': 'high', 'description': 'ロゼレムの血中濃度上昇', 'mechanism': 'CYP3A4阻害', 'clinical_impact': '過度の眠気、集中力低下、転倒リスク'}
+                'ロゼレム': {'risk': 'contraindicated', 'description': '禁忌：血中濃度70倍以上上昇', 'mechanism': 'CYP1A2阻害によるロゼレム代謝阻害', 'clinical_impact': '過度の眠気、転倒リスク、日中の傾眠'}
             }
         }
         logger.info(f"Loaded interaction rules: {len(self.interaction_rules)} drug mappings")
@@ -2481,6 +2482,12 @@ class DrugService:
         else:
             logger.info("胃薬重複なし: PPIまたはP-CABが不足")
         
+        # AI駆動の相互作用分析を実行
+        ai_interactions = self._analyze_interactions_with_ai(drug_names, drug_categories)
+        if ai_interactions:
+            detected_risks.extend(ai_interactions)
+            logger.info(f"AI駆動相互作用分析で{len(ai_interactions)}件の相互作用を検出")
+        
         # 詳細な臨床分析の実行
         detailed_analysis = self._perform_detailed_clinical_analysis(drug_names, drug_categories, detected_risks)
         
@@ -2496,6 +2503,133 @@ class DrugService:
             'overall_risk_assessment': self._calculate_overall_risk_assessment(risk_summary),
             'patient_safety_alerts': self._generate_patient_safety_alerts(risk_summary, detailed_analysis)
         }
+
+    def _analyze_interactions_with_ai(self, drug_names: List[str], drug_categories: Dict[str, str]) -> List[Dict[str, Any]]:
+        """AI駆動の相互作用分析（動的学習）"""
+        try:
+            import openai
+            
+            # 薬剤リストを文字列に変換
+            drug_list = []
+            for drug, category in drug_categories.items():
+                drug_list.append(f"{drug}（{category}）")
+            
+            drug_text = "、".join(drug_list)
+            
+            # AIプロンプト
+            prompt = f"""
+以下の薬剤の相互作用を分析してください：
+
+薬剤リスト：
+{drug_text}
+
+分析ルール：
+1. 最新の医療ガイドラインに基づいて分析
+2. 禁忌、注意、軽微の3段階でリスク評価
+3. 機序、臨床的影響、推奨事項を含める
+4. 特に重要な相互作用を優先
+
+出力形式：
+薬剤A + 薬剤B: リスクレベル（禁忌/注意/軽微）
+機序: [相互作用の機序]
+臨床的影響: [症状やリスク]
+推奨事項: [対応方法]
+
+重要な相互作用のみを出力してください。
+"""
+
+            client = openai.OpenAI()
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "あなたは薬剤相互作用の専門家です。最新の医療ガイドラインに基づいて薬剤相互作用を分析してください。"},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1000,
+                temperature=0.1
+            )
+            
+            ai_response = response.choices[0].message.content
+            logger.info(f"AI相互作用分析結果: {ai_response}")
+            
+            # AIの回答を解析して相互作用リストに変換
+            interactions = self._parse_ai_interaction_response(ai_response, drug_names)
+            
+            return interactions
+            
+        except Exception as e:
+            logger.warning(f"AI相互作用分析エラー: {e}")
+            return []
+
+    def _parse_ai_interaction_response(self, ai_response: str, drug_names: List[str]) -> List[Dict[str, Any]]:
+        """AIの回答を解析して相互作用リストに変換"""
+        interactions = []
+        
+        try:
+            lines = ai_response.split('\n')
+            current_interaction = {}
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # 薬剤名の行を検出
+                if ':' in line and any(drug in line for drug in drug_names):
+                    if current_interaction:
+                        interactions.append(current_interaction)
+                        current_interaction = {}
+                    
+                    # 薬剤名とリスクレベルを抽出
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        drug_part = parts[0].strip()
+                        risk_part = parts[1].strip()
+                        
+                        # 薬剤名を抽出
+                        involved_drugs = []
+                        for drug in drug_names:
+                            if drug in drug_part:
+                                involved_drugs.append(drug)
+                        
+                        if len(involved_drugs) >= 2:
+                            current_interaction = {
+                                'risk_name': f"ai_interaction_{len(interactions)}",
+                                'risk_level': self._map_ai_risk_level(risk_part),
+                                'description': f"AI検出相互作用: {' + '.join(involved_drugs)}",
+                                'involved_drugs': involved_drugs,
+                                'priority': 1
+                            }
+                
+                # 機序、臨床的影響、推奨事項を抽出
+                elif line.startswith('機序:'):
+                    current_interaction['mechanism'] = line.replace('機序:', '').strip()
+                elif line.startswith('臨床的影響:'):
+                    current_interaction['clinical_impact'] = line.replace('臨床的影響:', '').strip()
+                elif line.startswith('推奨事項:'):
+                    current_interaction['recommendation'] = line.replace('推奨事項:', '').strip()
+            
+            # 最後の相互作用を追加
+            if current_interaction:
+                interactions.append(current_interaction)
+            
+        except Exception as e:
+            logger.warning(f"AI相互作用解析エラー: {e}")
+        
+        return interactions
+
+    def _map_ai_risk_level(self, risk_text: str) -> str:
+        """AIのリスクレベルをシステムのリスクレベルにマッピング"""
+        risk_text_lower = risk_text.lower()
+        
+        if '禁忌' in risk_text_lower or 'contraindicated' in risk_text_lower:
+            return 'contraindicated'
+        elif '注意' in risk_text_lower or 'caution' in risk_text_lower:
+            return 'high'
+        elif '軽微' in risk_text_lower or 'minor' in risk_text_lower:
+            return 'medium'
+        else:
+            return 'high'  # デフォルトは高リスク
     
     def _generate_advanced_clinical_recommendations(self, risk_summary: Dict, drug_categories: Dict, detailed_analysis: Dict) -> List[str]:
         """高度な臨床推奨事項の生成"""
