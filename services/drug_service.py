@@ -2490,7 +2490,8 @@ class DrugService:
         p_cab_drugs = [drug for drug, cat in drug_categories.items() if cat == 'p_cab']
         logger.info(f"胃薬重複チェック: PPI={ppi_drugs}, P-CAB={p_cab_drugs}")
         
-        if ppi_drugs and p_cab_drugs:
+        # 最低2剤以上で重複と判定
+        if len(ppi_drugs) + len(p_cab_drugs) >= 2:
             # 胃薬重複が検出された場合、確実にリスクとして記録
             gastric_risk = {
                 'risk_name': 'gastric_medications',
@@ -2503,7 +2504,9 @@ class DrugService:
                 'priority': 1
             }
             risk_summary['high_risk'].append(gastric_risk)
-            logger.info(f"胃薬重複を強制検出: {ppi_drugs} + {p_cab_drugs}")
+            logger.info(f"胃薬重複を強制検出: {ppi_drugs} + {p_cab_drugs}（合計{len(ppi_drugs) + len(p_cab_drugs)}剤）")
+        else:
+            logger.info(f"胃薬重複なし: PPI={len(ppi_drugs)}剤, P-CAB={len(p_cab_drugs)}剤（合計{len(ppi_drugs) + len(p_cab_drugs)}剤）")
         
         # CYP3A4阻害薬との相互作用の特別チェック
         cyp3a4_drugs = [drug for drug, cat in drug_categories.items() if cat == 'cyp3a4_inhibitor']
