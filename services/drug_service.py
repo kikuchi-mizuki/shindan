@@ -1285,12 +1285,12 @@ class DrugService:
                     # 最低薬剤数のチェック
                     min_drugs = rule.get('min_drugs', 2)
                     if len(drug_list) >= min_drugs:
-                duplicates.append({
-                    'category': category,
-                    'drugs': [drug['name'] for drug in drug_list],
-                    'count': len(drug_list),
-                    'description': f"{category}の薬剤が{len(drug_list)}種類検出されました"
-                })
+                                duplicates.append({
+                                    'category': category,
+                                    'drugs': [drug['name'] for drug in drug_list],
+                                    'count': len(drug_list),
+                                    'description': f"{category}の薬剤が{len(drug_list)}種類検出されました"
+                        })
         
         return duplicates
 
