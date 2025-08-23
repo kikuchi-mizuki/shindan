@@ -707,20 +707,29 @@ OCRテキスト:
             text_output = response.choices[0].message.content
             logger.info(f"GPT Vision API response: {text_output}")
             
-            # ChatGPTの出力をパース（改善版）
+            # GPT Vision API出力の直接活用（最適化版）
             drug_names = []
             if text_output:
                 logger.info(f"Parsing GPT Vision API output: {text_output}")
+                
+                # より柔軟なパース処理
                 for line in text_output.splitlines():
-                    if (line.startswith("- 薬剤名:") or 
-                        line.startswith("薬剤名:")):
-                        
+                    # 複数の形式に対応
+                    if any(line.startswith(prefix) for prefix in ["- 薬剤名:", "薬剤名:", "薬剤:", "- 薬剤:"]):
+                        # コロンで分割して薬剤名を抽出
                         if ":" in line:
                             name = line.split(":", 1)[1].strip()
                         else:
-                            name = line.replace("- 薬剤名:", "").replace("薬剤名:", "").strip()
+                            # プレフィックスを除去
+                            for prefix in ["- 薬剤名:", "薬剤名:", "薬剤:", "- 薬剤:"]:
+                                name = line.replace(prefix, "").strip()
+                                if name != line:
+                                    break
                         
                         if name and len(name) >= 2:
+                            # 重要な薬剤名の保護（正規化前）
+                            original_name = name
+                            
                             # デビゴの誤認識を特別にチェック
                             if 'デパケン' in name:
                                 logger.warning(f"Detected potential misrecognition: {name}")
@@ -733,12 +742,20 @@ OCRテキスト:
                                 name = name.replace('ロゼレックス', 'ロゼレム')
                                 logger.info(f"Corrected to: {name}")
                             
+                            # フルボキサミンの保護
+                            if 'フルボキサミン' in name:
+                                logger.info(f"Protecting Fluvoxamine: {name}")
+                                # 正規化処理をスキップして直接追加
+                                drug_names.append(name)
+                                continue
+                            
                             # デバッグ: 正規化前の薬剤名をログ出力
                             logger.info(f"Before normalization: {name}")
                             
-                            normalized_name = self._normalize_drug_name(name)
+                            # 軽微な正規化のみ適用
+                            normalized_name = self._light_normalize_drug_name(name)
                             drug_names.append(normalized_name)
-                            logger.info(f"GPT Vision parsed drug name: '{name}' -> '{normalized_name}'")
+                            logger.info(f"GPT Vision parsed drug name: '{original_name}' -> '{normalized_name}'")
             
             logger.info(f"GPT Vision API extracted drug names: {drug_names}")
             return drug_names
@@ -1089,6 +1106,36 @@ OCRテキスト:
         # フルボキサミンの最終保護
         if is_fluvoxamine:
             return 'フルボキサミン'
+        
+        # 軽微な正規化処理を追加
+        def _light_normalize_drug_name(self, drug_name):
+            """軽微な薬剤名の正規化（情報損失を最小化）"""
+            import re
+            
+            # 基本的なクリーニングのみ
+            name = drug_name.strip()
+            
+            # 数字・記号の除去（最小限）
+            name = re.sub(r'[0-9０-９.．・,，、.。()（）【】［］\[\]{}｛｝<>《》"\'\-―ー=+*/\\]', '', name)
+            name = name.strip()
+            
+            # 重要な薬剤名の保護
+            if 'フルボキサミン' in name:
+                return 'フルボキサミン'
+            if 'デビゴ' in name:
+                return 'デビゴ'
+            if 'ロゼレム' in name:
+                return 'ロゼレム'
+            if 'ベルソムラ' in name:
+                return 'ベルソムラ'
+            if 'クラリスロマイシン' in name:
+                return 'クラリスロマイシン'
+            if 'アムロジピン' in name:
+                return 'アムロジピン'
+            if 'エソメプラゾール' in name:
+                return 'エソメプラゾール'
+            
+            return name
         
         # 語尾パターンによる推測
         if name.endswith('ゼパム'):

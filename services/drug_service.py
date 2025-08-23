@@ -239,8 +239,15 @@ class AIDrugMatcher:
             pattern_category = 'ssri_antidepressant'
             logger.info(f"フルボキサミン強制分類: {drug_name} -> ssri_antidepressant")
         
-        # 3. パターンベース分類を絶対優先、AI分類は完全に無効化
-        analysis['category'] = pattern_category
+        # 3. 信頼度ベースの分類選択
+        if pattern_category != 'unknown':
+            # パターンベース分類が成功した場合は使用
+            analysis['category'] = pattern_category
+            logger.info(f"Pattern-based classification used: {drug_name} -> {pattern_category}")
+        else:
+            # パターンベース分類が失敗した場合のみAI分類を使用
+            analysis['category'] = ai_category
+            logger.info(f"AI classification used: {drug_name} -> {ai_category}")
         analysis['confidence'] = self._calculate_confidence(drug_name, analysis)
         logger.info(f"パターンベース分類: {drug_name} -> {pattern_category}")
         
@@ -1280,7 +1287,7 @@ class DrugService:
         return duplication_rules.get(category, {'check_duplication': True, 'min_drugs': 2})
 
     def _remove_duplicate_risks(self, risks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """重複するリスクを除去"""
+        """重複するリスクを除去（最適化版）"""
         unique_risks = []
         seen_combinations = set()
         
@@ -1295,14 +1302,19 @@ class DrugService:
                 unique_risks.append(risk)
                 continue
             
-            # カテゴリも含めてキーを作成
+            # カテゴリとリスクレベルも含めてキーを作成
             category = risk.get('category', risk.get('risk_name', ''))
-            full_key = (drugs_key, category)
+            risk_level = risk.get('risk_level', '')
+            full_key = (drugs_key, category, risk_level)
             
             if full_key not in seen_combinations:
                 seen_combinations.add(full_key)
                 unique_risks.append(risk)
+                logger.info(f"Added unique risk: {risk.get('risk_name', 'unknown')} - {drugs_key}")
+            else:
+                logger.info(f"Removed duplicate risk: {risk.get('risk_name', 'unknown')} - {drugs_key}")
         
+        logger.info(f"Risk deduplication: {len(risks)} -> {len(unique_risks)}")
         return unique_risks
 
     def normalize_name(self, name: str) -> str:
