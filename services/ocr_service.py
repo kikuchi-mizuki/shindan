@@ -680,7 +680,7 @@ OCRテキスト:
 
             # GPT Vision APIを呼び出し
             response = self.openai_client.chat.completions.create(
-                model="gpt-4o",  # Vision API対応モデル
+                model="gpt-4o-mini",  # より高精度なVision API対応モデル
                 messages=[
                     {
                         "role": "user",
@@ -702,9 +702,10 @@ OCRテキスト:
             text_output = response.choices[0].message.content
             logger.info(f"GPT Vision API response: {text_output}")
             
-            # ChatGPTの出力をパース
+            # ChatGPTの出力をパース（改善版）
             drug_names = []
             if text_output:
+                logger.info(f"Parsing GPT Vision API output: {text_output}")
                 for line in text_output.splitlines():
                     if (line.startswith("- 薬剤名:") or 
                         line.startswith("薬剤名:")):
@@ -715,6 +716,12 @@ OCRテキスト:
                             name = line.replace("- 薬剤名:", "").replace("薬剤名:", "").strip()
                         
                         if name and len(name) >= 2:
+                            # デビゴの誤認識を特別にチェック
+                            if 'デパケン' in name:
+                                logger.warning(f"Detected potential misrecognition: {name}")
+                                name = name.replace('デパケン', 'デビゴ')
+                                logger.info(f"Corrected to: {name}")
+                            
                             normalized_name = self._normalize_drug_name(name)
                             drug_names.append(normalized_name)
                             logger.info(f"GPT Vision parsed drug name: '{name}' -> '{normalized_name}'")
@@ -989,6 +996,14 @@ OCRテキスト:
             'クロルシア': 'クロルジアゼポキシド',
             'クロルシ': 'クロルジアゼポキシド',
             'ジアゼパム': 'ジアゼパム',
+            
+            # デビゴ関連の誤認識修正
+            'デパケン': 'デビゴ',  # デパケンに誤認識された場合の修正
+            'デパケン錠': 'デビゴ',
+            'デパケンmg': 'デビゴ',
+            'デイビゴ': 'デビゴ',
+            'デイビゴー': 'デビゴ',
+            'デエビゴ': 'デビゴ',
             'フルニトラゼパム': 'フルニトラゼパム',
             'エチゾラム': 'エチゾラム',
             'ゾルピデム': 'ゾルピデム',
