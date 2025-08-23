@@ -5,7 +5,7 @@
     "buildCommand": "pip install --upgrade --force-reinstall -r requirements.txt"
   },
   "deploy": {
-    "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 300 --preload",
+    "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --preload --log-level warning",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
