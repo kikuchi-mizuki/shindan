@@ -833,35 +833,81 @@ OCRテキスト:
         
         return normalized
 
-    def _evaluate_image_quality(self, image_content):
-        """画像品質を評価し、前処理が必要かどうかを判断"""
+    def check_image_quality(self, image_content):
+        """画像品質チェック（安全柵）"""
         try:
-            image = Image.open(io.BytesIO(image_content))
-            
-            # 1. 解像度チェック
-            width, height = image.size
-            resolution_score = min(width * height / (1920 * 1080), 1.0)  # フルHD基準
-            
-            # 2. コントラスト評価
-            gray_image = image.convert('L')
+            import cv2
             import numpy as np
-            img_array = np.array(gray_image)
-            contrast_score = np.std(img_array) / 128.0  # 標準偏差でコントラスト評価
             
-            # 3. 明度評価
-            brightness_score = 1.0 - abs(np.mean(img_array) - 128) / 128.0
+            # バイトデータから画像を読み込み
+            nparr = np.frombuffer(image_content, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             
-            # 4. 総合スコア
-            total_score = (resolution_score + contrast_score + brightness_score) / 3.0
+            if image is None:
+                return {
+                    'is_acceptable': False,
+                    'issues': '❌ 画像の読み込みに失敗しました'
+                }
             
-            logger.info(f"Image quality assessment - Resolution: {resolution_score:.2f}, Contrast: {contrast_score:.2f}, Brightness: {brightness_score:.2f}, Total: {total_score:.2f}")
+            issues = []
             
-            return total_score
+            # 1. ぼやけ検出（Laplacian分散）
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+            if laplacian_var < 200:
+                issues.append('❌ 画像がぼやけています（ピントを合わせてください）')
+            
+            # 2. 明るさチェック
+            mean_brightness = np.mean(gray)
+            if mean_brightness < 80:
+                issues.append('❌ 画像が暗すぎます（明るい場所で撮影してください）')
+            elif mean_brightness > 200:
+                issues.append('❌ 画像が明るすぎます（反射を避けてください）')
+            
+            # 3. 解像度チェック
+            height, width = image.shape[:2]
+            min_side = min(height, width)
+            if min_side < 1200:
+                issues.append('❌ 解像度が不足しています（より近くから撮影してください）')
+            
+            # 4. アスペクト比チェック（極端な横長・縦長を検出）
+            aspect_ratio = width / height
+            if aspect_ratio > 3.0 or aspect_ratio < 0.33:
+                issues.append('❌ 画像の比率が不適切です（1ページずつ撮影してください）')
+            
+            # 5. 文字領域の検出
+            # エッジ検出で文字らしい領域を検出
+            edges = cv2.Canny(gray, 50, 150)
+            text_region_ratio = np.sum(edges > 0) / (height * width)
+            if text_region_ratio < 0.01:  # 1%未満
+                issues.append('❌ 文字が検出できません（処方箋が正しく写っていますか？）')
+            
+            is_acceptable = len(issues) == 0
+            
+            if not is_acceptable:
+                issues_text = '\n'.join(issues)
+            else:
+                issues_text = '✅ 画質は良好です'
+            
+            logger.info(f"Image quality check: acceptable={is_acceptable}, issues={len(issues)}")
+            
+            return {
+                'is_acceptable': is_acceptable,
+                'issues': issues_text,
+                'laplacian_var': laplacian_var,
+                'mean_brightness': mean_brightness,
+                'resolution': f"{width}x{height}",
+                'aspect_ratio': aspect_ratio,
+                'text_region_ratio': text_region_ratio
+            }
             
         except Exception as e:
-            logger.warning(f"Image quality assessment error: {e}")
-            return 0.5  # エラーの場合は中程度の品質と仮定
-    
+            logger.error(f"Image quality check error: {e}")
+            return {
+                'is_acceptable': True,  # エラーの場合は通過させる
+                'issues': '⚠️ 画質チェックでエラーが発生しました'
+            }
+
     def extract_drug_names(self, image_content):
         """画像から薬剤名を抽出（最適化版：画像品質に基づく判断）"""
         try:

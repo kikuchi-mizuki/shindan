@@ -140,17 +140,66 @@ def handle_text_message(event):
                         messages=[TextMessage(text=response_text)]
                     )
                 )
-                return
             else:
-                response_text = "薬剤リストが空です。画像を送信して薬剤を登録してください。"
+                messaging_api.reply_message(
+                    ReplyMessageRequest(
+                        replyToken=event.reply_token,
+                        messages=[TextMessage(text="薬剤が登録されていません。画像を送信して薬剤を登録してください。")]
+                    )
+                )
+        
         elif user_message.lower() in ['リスト確認', 'りすとかくにん', 'list']:
             if user_id in user_drug_buffer and user_drug_buffer[user_id]:
-                response_text = "📋 **現在の薬剤リスト**\n\n"
-                for i, drug in enumerate(user_drug_buffer[user_id], 1):
-                    response_text += f"{i}. {drug}\n"
-                response_text += f"\n📊 **合計**: {len(user_drug_buffer[user_id])}剤"
+                drug_list = "\n".join([f"• {drug}" for drug in user_drug_buffer[user_id]])
+                response_text = f"📋 **現在の薬剤リスト**\n\n{drug_list}\n\n💡 「診断」で飲み合わせチェックを実行できます"
             else:
-                response_text = "📋 **現在の薬剤リスト**\n\n（登録なし）\n\n💡 画像を送信して薬剤を登録してください。"
+                response_text = "薬剤が登録されていません。画像を送信して薬剤を登録してください。"
+            
+            messaging_api.reply_message(
+                ReplyMessageRequest(
+                    replyToken=event.reply_token,
+                    messages=[TextMessage(text=response_text)]
+                )
+            )
+        
+        elif user_message.lower() in ['ヘルプ', 'へるぷ', 'help', '使い方', 'つかいかた']:
+            help_text = """🏥 **薬局サポートBot 使い方**
+
+**📸 薬剤の登録方法：**
+1. 処方箋の画像を送信
+2. 検出された薬剤を確認
+3. 「診断」で飲み合わせチェック
+
+**📋 撮影のコツ：**
+• 真上から撮影（左右2ページは分割）
+• 影・反射を避ける
+• 処方名の行がはっきり写るように
+• **iOSの「書類をスキャン」推奨**
+• 文字の向きを正しく（横向きはNG）
+
+**🔧 改善方法：**
+• 明るい場所で撮影
+• カメラを安定させる
+• 処方箋全体が画面に入るように
+• ピントを合わせてから撮影
+
+**💊 コマンド一覧：**
+• 診断 - 飲み合わせチェック
+• リスト確認 - 現在の薬剤リスト
+• ヘルプ - この使い方表示
+
+**⚠️ 注意事項：**
+• 最終判断は医師・薬剤師にご相談ください
+• 画質が悪い場合は再撮影をお願いします
+• 手書きの処方箋は読み取り精度が低下する場合があります"""
+            
+            messaging_api.reply_message(
+                ReplyMessageRequest(
+                    replyToken=event.reply_token,
+                    messages=[TextMessage(text=help_text)]
+                )
+            )
+        
         elif user_message.startswith('薬剤追加：'):
             drug_name = user_message.replace('薬剤追加：', '').strip()
             if drug_name:
@@ -160,11 +209,19 @@ def handle_text_message(event):
                     user_drug_buffer[user_id].append(drug_name)
                     response_text = f"✅ 薬剤「{drug_name}」を追加しました。"
                 else:
-                    response_text = f"⚠️ 薬剤「{drug_name}」は既にリストに含まれています。"
+                    response_text = f"薬剤「{drug_name}」は既に登録されています。"
             else:
-                response_text = "❌ 薬剤名を入力してください。"
+                response_text = "薬剤名を入力してください。例：薬剤追加：アムロジピン"
+            
+            messaging_api.reply_message(
+                ReplyMessageRequest(
+                    replyToken=event.reply_token,
+                    messages=[TextMessage(text=response_text)]
+                )
+            )
+        
         else:
-            response_text = "薬局サポートBotへようこそ！\n\n画像を送信して薬剤を登録するか、以下のコマンドを使用してください：\n• 診断 - 飲み合わせチェック\n• 薬剤追加：〇〇 - 薬剤を手動追加\n• リスト確認 - 現在の薬剤リスト"
+            response_text = "薬局サポートBotへようこそ！\n\n画像を送信して薬剤を登録するか、以下のコマンドを使用してください：\n• 診断 - 飲み合わせチェック\n• 薬剤追加：〇〇 - 薬剤を手動追加\n• リスト確認 - 現在の薬剤リスト\n• ヘルプ - 使い方表示"
         
         messaging_api.reply_message(
             ReplyMessageRequest(
@@ -217,6 +274,37 @@ def handle_image_message(event):
         
         # 画像処理
         message_content = messaging_blob_api.get_message_content(event.message.id)
+        
+        # 画像品質チェック
+        quality_result = ocr_service.check_image_quality(message_content)
+        if not quality_result['is_acceptable']:
+            # 画質が不十分な場合のガイドメッセージ
+            guide_message = f"""📸 **画質が不十分のため診断できません**
+
+{quality_result['issues']}
+
+**📋 撮影のコツ：**
+• 真上から撮影（左右2ページは分割）
+• 影・反射を避ける
+• 処方名の行がはっきり写るように
+• **iOSの「書類をスキャン」推奨**
+• 文字の向きを正しく（横向きはNG）
+
+**🔧 改善方法：**
+• 明るい場所で撮影
+• カメラを安定させる
+• 処方箋全体が画面に入るように
+• ピントを合わせてから撮影
+
+より鮮明な画像で再度お試しください。"""
+            
+            messaging_api.push_message(
+                PushMessageRequest(
+                    to=user_id,
+                    messages=[TextMessage(text=guide_message)]
+                )
+            )
+            return
         
         # OCRで薬剤名を抽出
         drug_names = ocr_service.extract_drug_names(message_content)
