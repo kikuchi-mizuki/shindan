@@ -1390,20 +1390,40 @@ class DrugService:
         return set(analysis['search_priority'])
 
     def match_to_database(self, ocr_names: list) -> list:
-        """OCRで検出された薬剤名をデータベースにマッチング（改善版：薬剤の漏れを防ぐ）"""
+        """OCRで検出された薬剤名をデータベースにマッチング（薬剤名正規化システム統合版）"""
         if not ocr_names:
             return []
-            
-        # AIベースのバッチ処理最適化（制限を緩和）
-        optimized_names = self._ai_batch_optimize(ocr_names)
         
+        logger.info(f"Starting drug name normalization for {len(ocr_names)} OCR names: {ocr_names}")
+        
+        # 1. 薬剤名正規化システムによる処理
+        normalized_results = []
+        for ocr_name in ocr_names:
+            # 薬剤名正規化
+            normalized_name = self._normalize_drug_name(ocr_name)
+            
+            # 辞書照合による最適マッチ検索
+            best_match, confidence = self._find_best_drug_match(normalized_name)
+            
+            if best_match and confidence >= 70:  # 70%以上の類似度
+                normalized_results.append(best_match)
+                logger.info(f"Normalized '{ocr_name}' -> '{best_match}' (confidence: {confidence}%)")
+            else:
+                # 正規化できなかった場合は元の名前を使用
+                normalized_results.append(ocr_name)
+                logger.warning(f"Could not normalize '{ocr_name}', using original name")
+        
+        # 2. AIベースのバッチ処理最適化
+        optimized_names = self._ai_batch_optimize(normalized_results)
+        
+        # 3. データベースマッチング
         results = []
         for drug_name in optimized_names:
             # ローカルDBキャッシュチェック
             if drug_name in self.local_db_cache:
                 cached_result = self.local_db_cache[drug_name]
                 if cached_result is not None:
-                    results.append(drug_name)  # 薬剤名のみを追加
+                    results.append(drug_name)
                     continue
             
             # 薬剤情報を検索
@@ -1414,11 +1434,11 @@ class DrugService:
             
             # より寛容な条件で薬剤を追加
             if drug_info is not None:
-                results.append(drug_name)  # 薬剤名のみを追加
+                results.append(drug_name)
             else:
                 # データベースにない場合でも、信頼度が高い場合は追加
                 analysis = self.ai_matcher.analyze_drug_name(drug_name)
-                if analysis['confidence'] >= 0.2:  # 信頼度の閾値を下げる
+                if analysis['confidence'] >= 0.2:
                     results.append(drug_name)
                     logger.info(f"Added drug '{drug_name}' with confidence {analysis['confidence']}")
         
@@ -1427,8 +1447,77 @@ class DrugService:
             results = ocr_names
             logger.warning(f"No drugs matched to database, returning original OCR names: {ocr_names}")
         
-        logger.info(f"Matched {len(results)} drugs from {len(ocr_names)} OCR names")
+        logger.info(f"Final matched {len(results)} drugs from {len(ocr_names)} OCR names: {results}")
         return results
+    
+    def _normalize_drug_name(self, raw_name: str) -> str:
+        """薬剤名の正規化"""
+        if not raw_name:
+            return raw_name
+        
+        # 正規化辞書
+        normalization_dict = {
+            '口': 'ロ',  # OCR誤認識
+            'ソ': 'ン',  # OCR誤認識
+            'シ': 'ン',  # OCR誤認識
+            'ツ': 'ッ',  # OCR誤認識
+            'タ': 'ク',  # OCR誤認識
+            'ナ': 'メ',  # OCR誤認識
+        }
+        
+        # 1. 基本的な正規化
+        normalized = raw_name.strip()
+        
+        # 2. 剤形の除去
+        for suffix in ['錠', 'カプセル', '散剤', '液剤', '注射剤', 'OD錠', '口腔内崩壊錠', '徐放錠', '塩酸塩錠']:
+            normalized = normalized.replace(suffix, '')
+        
+        # 3. 用量の除去
+        normalized = re.sub(r'\s*\d+\.?\d*\s*(mg|g|ml|μg|mcg)', '', normalized)
+        
+        # 4. 空白の正規化
+        normalized = re.sub(r'\s+', '', normalized)
+        
+        # 5. 辞書による修正
+        for pattern, replacement in normalization_dict.items():
+            normalized = normalized.replace(pattern, replacement)
+        
+        return normalized
+    
+    def _find_best_drug_match(self, normalized_name: str) -> tuple:
+        """正規化された薬剤名から最適なマッチを検索"""
+        # 主要な薬剤データベース
+        drug_database = {
+            'アムロジピン': 'ca_antagonist',
+            'ニフェジピン': 'ca_antagonist',
+            'ベニジピン': 'ca_antagonist',
+            'クラリスロマイシン': 'antibiotic',
+            'ベルソムラ': 'sleep_medication',
+            'デビゴ': 'orexin_receptor_antagonist',
+            'ロゼレム': 'sleep_medication',
+            'フルボキサミン': 'ssri_antidepressant',
+            'エソメプラゾール': 'ppi',
+            'タケキャブ': 'p_cab',
+            'ランソプラゾール': 'ppi',
+            'アルファカルシドール': 'vitamin_d',
+            'フェブキソスタット': 'xanthine_oxidase_inhibitor',
+            '炭酸ランタン': 'phosphate_binder',
+            'ルパフィン': 'antihistamine',
+            'リオナ': 'iron_preparation',
+        }
+        
+        best_match = None
+        best_score = 0
+        
+        for drug_name in drug_database.keys():
+            # 類似度計算
+            score = fuzz.ratio(normalized_name, drug_name)
+            
+            if score > best_score and score >= 70:  # 70%以上の類似度
+                best_score = score
+                best_match = drug_name
+        
+        return best_match, best_score
     
     def _ai_batch_optimize(self, drug_names: List[str]) -> List[str]:
         """AIベースのバッチ処理最適化（改善版：薬剤の漏れを防ぐ）"""

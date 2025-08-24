@@ -202,6 +202,11 @@ def handle_image_message(event):
                 )
                 return
         
+        # キャッシュクリア（前回の検出結果をリセット）
+        if user_id in user_drug_buffer:
+            user_drug_buffer[user_id] = []
+            logger.info(f"Cleared drug buffer for user {user_id}")
+        
         # 診断中のメッセージを送信
         messaging_api.reply_message(
             ReplyMessageRequest(
@@ -303,8 +308,8 @@ def handle_image_message(event):
         try:
             messaging_api.push_message(
                 PushMessageRequest(
-                    to=event.source.user_id,
-                    messages=[TextMessage(text="画像処理エラーが発生しました。しばらく時間をおいて再度お試しください。")]
+                    to=user_id,
+                    messages=[TextMessage(text="画像処理中にエラーが発生しました。しばらく時間をおいて再度お試しください。")]
                 )
             )
         except:
