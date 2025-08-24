@@ -850,7 +850,7 @@ OCRテキスト:
         return normalized
 
     def check_image_quality(self, image_content):
-        """画像品質チェック（安全柵）"""
+        """画像品質チェック（大幅緩和版：基本的にはすべて通過）"""
         try:
             import cv2
             import numpy as np
@@ -867,36 +867,35 @@ OCRテキスト:
             
             issues = []
             
-            # 1. ぼやけ検出（Laplacian分散）
+            # 1. ぼやけ検出（大幅緩和）
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-            if laplacian_var < 100:  # 閾値を下げてメモアプリに対応
-                issues.append('❌ 画像がぼやけています（ピントを合わせてください）')
+            if laplacian_var < 20:  # 大幅に緩和
+                issues.append('❌ 画像が非常にぼやけています（ピントを合わせてください）')
             
-            # 2. 明るさチェック
+            # 2. 明るさチェック（大幅緩和）
             mean_brightness = np.mean(gray)
-            if mean_brightness < 50:  # 閾値を下げてメモアプリに対応
-                issues.append('❌ 画像が暗すぎます（明るい場所で撮影してください）')
-            elif mean_brightness > 220:  # 閾値を上げてメモアプリに対応
-                issues.append('❌ 画像が明るすぎます（反射を避けてください）')
+            if mean_brightness < 20:  # 大幅に緩和
+                issues.append('❌ 画像が非常に暗いです（明るい場所で撮影してください）')
+            elif mean_brightness > 240:  # 大幅に緩和
+                issues.append('❌ 画像が非常に明るすぎます（反射を避けてください）')
             
-            # 3. 解像度チェック
+            # 3. 解像度チェック（大幅緩和）
             height, width = image.shape[:2]
             min_side = min(height, width)
-            if min_side < 800:  # 閾値を下げてメモアプリに対応
-                issues.append('❌ 解像度が不足しています（より近くから撮影してください）')
+            if min_side < 300:  # 大幅に緩和
+                issues.append('❌ 解像度が非常に低いです（より近くから撮影してください）')
             
-            # 4. アスペクト比チェック（極端な横長・縦長を検出）
+            # 4. アスペクト比チェック（大幅緩和）
             aspect_ratio = width / height
-            if aspect_ratio > 4.0 or aspect_ratio < 0.25:  # 閾値を緩和してメモアプリに対応
-                issues.append('❌ 画像の比率が不適切です（1ページずつ撮影してください）')
+            if aspect_ratio > 10.0 or aspect_ratio < 0.1:  # 大幅に緩和
+                issues.append('❌ 画像の比率が非常に不適切です（1ページずつ撮影してください）')
             
-            # 5. 文字領域の検出
-            # エッジ検出で文字らしい領域を検出
+            # 5. 文字領域の検出（大幅緩和）
             edges = cv2.Canny(gray, 50, 150)
             text_region_ratio = np.sum(edges > 0) / (height * width)
-            if text_region_ratio < 0.005:  # 閾値を下げてメモアプリに対応
-                issues.append('❌ 文字が検出できません（処方箋が正しく写っていますか？）')
+            if text_region_ratio < 0.001:  # 大幅に緩和
+                issues.append('❌ 文字が全く検出できません（処方箋が正しく写っていますか？）')
             
             is_acceptable = len(issues) == 0
             
@@ -925,81 +924,110 @@ OCRテキスト:
             }
 
     def extract_drug_names(self, image_content):
-        """画像から薬剤名を抽出（最適化版：画像品質に基づく判断）"""
+        """画像から薬剤名を抽出（信頼度チェック付き）"""
         try:
             if not self.openai_client:
                 logger.error("OpenAI API not available")
                 return []
             
-            logger.info("Using quality-based optimization approach")
+            logger.info("Using GPT Vision API for drug name extraction")
             
-            # 1. 画像品質を評価
-            quality_score = self._evaluate_image_quality(image_content)
+            # GPT Vision APIで薬剤名を抽出
+            drug_names = self._extract_with_gpt_vision(image_content)
             
-            # 2. 高品質画像の場合は前処理なしで試行
-            if quality_score >= 0.7:  # 70%以上の品質
-                logger.info(f"High quality image detected (score: {quality_score:.2f}), trying without preprocessing")
-                
-                original_results = self._extract_with_gpt_vision(image_content)
-                original_confidence = self._evaluate_results_quality(original_results)
-                
-                logger.info(f"Original image results: {len(original_results)} drugs, confidence: {original_confidence}")
-                
-                # 十分な結果が得られた場合はそのまま返す
-                if original_confidence >= 0.6:  # 60%以上の信頼度
-                    logger.info("Original image provided sufficient results, no preprocessing needed")
-                    return original_results
+            # 信頼度チェック
+            confidence_result = self._check_extraction_confidence(drug_names, image_content)
             
-            # 3. 品質が低い場合または結果が不十分な場合は前処理を試行
-            logger.info("Image quality low or results insufficient, trying preprocessing")
-            
-            preprocessing_variations = [
-                ("standard", self._preprocess_standard),
-                ("enhanced", self._preprocess_enhanced),
-                ("aggressive", self._preprocess_aggressive)
-            ]
-            
-            best_results = []
-            best_confidence = 0
-            
-            for variation_name, preprocess_func in preprocessing_variations:
-                try:
-                    logger.info(f"Trying {variation_name} preprocessing")
-                    
-                    # 前処理を適用
-                    processed_image = preprocess_func(image_content)
-                    
-                    # GPT Vision APIで薬剤名を抽出
-                    drug_names = self._extract_with_gpt_vision(processed_image)
-                    
-                    # 結果の品質を評価
-                    confidence = self._evaluate_results_quality(drug_names)
-                    
-                    logger.info(f"{variation_name} preprocessing: {len(drug_names)} drugs, confidence: {confidence}")
-                    
-                    # より良い結果を選択
-                    if confidence > best_confidence:
-                        best_confidence = confidence
-                        best_results = drug_names
-                        logger.info(f"New best result: {variation_name} preprocessing")
-                    
-                    # 十分な結果が得られた場合は早期終了
-                    if confidence >= 0.8:  # 80%以上の信頼度
-                        logger.info(f"Sufficient results achieved with {variation_name} preprocessing, stopping")
-                        break
-                    
-                except Exception as e:
-                    logger.warning(f"Error in {variation_name} preprocessing: {e}")
-                    continue
-            
-            logger.info(f"Final result: {len(best_results)} drugs with confidence {best_confidence}")
-            return best_results
+            if confidence_result['is_confident']:
+                logger.info(f"High confidence extraction: {len(drug_names)} drugs detected")
+                return drug_names
+            else:
+                logger.warning(f"Low confidence extraction: {confidence_result['issues']}")
+                # 信頼度が低い場合は空のリストを返してガイドを表示
+                return []
             
         except Exception as e:
-            logger.error(f"Error in extract_drug_names: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error(f"Drug name extraction error: {e}")
             return []
+    
+    def _check_extraction_confidence(self, drug_names, image_content):
+        """OCR結果の信頼度をチェック"""
+        try:
+            issues = []
+            
+            # 1. 薬剤数チェック
+            if len(drug_names) == 0:
+                issues.append('薬剤が検出されませんでした')
+            elif len(drug_names) < 2:
+                issues.append('検出された薬剤が少なすぎます')
+            elif len(drug_names) > 20:
+                issues.append('検出された薬剤が多すぎます')
+            
+            # 2. 薬剤名の妥当性チェック
+            valid_drug_count = 0
+            for drug_name in drug_names:
+                if self._is_valid_drug_name(drug_name):
+                    valid_drug_count += 1
+            
+            if valid_drug_count < len(drug_names) * 0.7:  # 70%以上が有効な薬剤名である必要
+                issues.append('検出された薬剤名の多くが無効です')
+            
+            # 3. 文字長チェック
+            for drug_name in drug_names:
+                if len(drug_name) < 3:
+                    issues.append('薬剤名が短すぎます')
+                elif len(drug_name) > 50:
+                    issues.append('薬剤名が長すぎます')
+            
+            is_confident = len(issues) == 0
+            
+            return {
+                'is_confident': is_confident,
+                'issues': issues,
+                'drug_count': len(drug_names),
+                'valid_drug_count': valid_drug_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Confidence check error: {e}")
+            return {
+                'is_confident': True,  # エラーの場合は信頼できると仮定
+                'issues': []
+            }
+    
+    def _is_valid_drug_name(self, drug_name):
+        """薬剤名の妥当性をチェック"""
+        if not drug_name or len(drug_name) < 3:
+            return False
+        
+        # 明らかに無効なパターンを除外
+        invalid_patterns = [
+            '時間', '分', '秒', '日', '月', '年',
+            '保存', '転送', 'Keep', '名前を付けて保存',
+            '午前', '午後', 'AM', 'PM',
+            '電池', '信号', 'WiFi', 'バッテリー'
+        ]
+        
+        for pattern in invalid_patterns:
+            if pattern in drug_name:
+                return False
+        
+        # 薬剤名らしいパターンをチェック
+        valid_patterns = [
+            'シン', 'マイシン', 'ジピン', 'プラゾール', 'ソムラ', 'ビゴ', 'ゼレム',
+            'ボキサミン', 'ロジピン', 'メプラゾール', 'キャブ', 'レム', 'ビゴ'
+        ]
+        
+        for pattern in valid_patterns:
+            if pattern in drug_name:
+                return True
+        
+        # カタカナ文字が含まれているかチェック
+        katakana_count = sum(1 for char in drug_name if '\u30A0' <= char <= '\u30FF')
+        if katakana_count >= len(drug_name) * 0.5:  # 50%以上がカタカナ
+            return True
+        
+        return False
     
     def _preprocess_standard(self, image_content):
         """標準的な前処理"""
