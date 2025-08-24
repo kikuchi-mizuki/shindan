@@ -726,7 +726,7 @@ class AIDrugMatcher:
         elif any(pattern in drug_lower for pattern in ['ロール', 'プロプラ', 'アテノ']):
             return 'beta_blocker'
         elif any(pattern in drug_lower for pattern in ['ジピン', 'ニフェ', 'アムロ']):
-            return 'ca_antagonist'
+            return 'カルシウム拮抗薬'
         elif any(pattern in drug_lower for pattern in ['サイド', 'フロセ', 'ヒドロ']):
             return 'diuretic'
         elif any(pattern in drug_lower for pattern in ['タダラフィル', 'シルデナフィル']):
@@ -738,35 +738,37 @@ class AIDrugMatcher:
         elif any(pattern in drug_lower for pattern in ['テラムロ']):
             return 'angiotensin_receptor_blocker'  # ARBとして分類（テルミサルタン成分）
         elif any(pattern in drug_lower for pattern in ['タケキャブ', 'ボノプラザン']):
-            return 'p_cab'
+            return 'P-CAB（カリウム競合型アシッドブロッカー）'
         elif any(pattern in drug_lower for pattern in ['エナラプリル', 'カプトプリル']):
             return 'ace_inhibitor'
         elif any(pattern in drug_lower for pattern in ['ランソプラゾール', 'ランソプラゾル', 'オメプラゾール', 'エソメプラゾール', 'エソメプラゾル', 'ラベプラゾール', 'パントプラゾール']):
-            return 'ppi'
-        elif any(pattern in drug_lower for pattern in ['ベルソムラ', 'ロゼレム', 'ラメルテオン', 'スボレキサント', 'ゾルピデム', 'ゾピクロン', 'エスゾピクロン', 'トリアゾラム', 'ブロチゾラム', 'フルラゼパム', 'エスタゾラム', 'ニトラゼパム', 'ブロマゼパム', 'テマゼパム', 'ロラゼパム', 'アルプラゾラム', 'クロナゼパム', 'ジアゼパム']):
-            return 'sleep_medication'
+            return 'プロトンポンプ阻害薬'
+        elif any(pattern in drug_lower for pattern in ['ベルソムラ', 'スボレキサント']):
+            return 'オレキシン受容体拮抗薬'
+        elif any(pattern in drug_lower for pattern in ['ロゼレム', 'ラメルテオン']):
+            return 'メラトニン受容体作動薬'
+        elif any(pattern in drug_lower for pattern in ['ゾルピデム', 'ゾピクロン', 'エスゾピクロン', 'トリアゾラム', 'ブロチゾラム', 'フルラゼパム', 'エスタゾラム', 'ニトラゼパム', 'ブロマゼパム', 'テマゼパム', 'ロラゼパム', 'アルプラゾラム', 'クロナゼパム', 'ジアゼパム']):
+            return 'ベンゾジアゼピン系睡眠薬'
         elif any(pattern in drug_lower for pattern in ['ビルダグリプチン', 'シタグリプチン', 'リナグリプチン', 'アログリプチン', 'テネリグリプチン']):
             return 'diabetes_medication'
         elif any(pattern in drug_lower for pattern in ['デエビゴ', 'レンボレキサント', 'デビゴ']):
-            return 'orexin_receptor_antagonist'
+            return 'オレキシン受容体拮抗薬'
         elif any(pattern in drug_lower for pattern in ['アモキシシリン', 'セファレキシン', 'ドキシサイクリン', 'ミノサイクリン', 'レボフロキサシン', 'シプロフロキサシン', 'ノルフロキサシン', 'バンコマイシン', 'テイコプラニン', 'メロペネム', 'イミペネム', 'セフトリアキソン', 'エリスロマイシン', 'アジスロマイシン']):
             return 'antibiotic'
         elif any(pattern in drug_lower for pattern in ['クラリスロマイシン']):
-            return 'macrolide_antibiotic_cyp3a4_inhibitor'  # マクロライド系抗菌薬 + CYP3A4阻害薬
+            return 'マクロライド系抗生物質'
         elif any(pattern in drug_lower for pattern in ['フルボキサミン', 'フルボキサミン']):
-            return 'ssri_antidepressant'
+            return 'SSRI抗うつ薬'
         elif any(pattern in drug_lower for pattern in ['フェブキソスタット', 'アロプリノール', 'トピロキソスタット']):
-            return 'uric_acid_lowering'
+            return 'キサンチンオキシダーゼ阻害薬'
         elif any(pattern in drug_lower for pattern in ['デパケン', 'バルプロ酸', 'バルプロ酸ナトリウム']):
-            return 'antiepileptic'
+            return '抗てんかん薬'
         elif any(pattern in drug_lower for pattern in ['リオナ', '炭酸ランタン', 'セベラマー', '炭酸カルシウム']):
-            return 'phosphate_binder'
+            return 'リン吸着薬'
         elif any(pattern in drug_lower for pattern in ['アルファカルシドール', 'アルファカルシドル', 'カルシトリオール', 'エルデカルシトール']):
-            return 'vitamin_d'
+            return '活性型ビタミンD製剤'
         elif any(pattern in drug_lower for pattern in ['ルパフィン', 'ロラタジン', 'フェキソフェナジン', 'セチリジン']):
-            return 'antihistamine'
-        elif any(pattern in drug_lower for pattern in ['フルボキサミン', 'フルボキサミン']):
-            return 'ssri_antidepressant'
+            return '抗ヒスタミン薬'
         else:
             return 'unknown'
 
@@ -1486,24 +1488,24 @@ class DrugService:
     
     def _find_best_drug_match(self, normalized_name: str) -> tuple:
         """正規化された薬剤名から最適なマッチを検索"""
-        # 主要な薬剤データベース
+        # 主要な薬剤データベース（統一された分類）
         drug_database = {
-            'アムロジピン': 'ca_antagonist',
-            'ニフェジピン': 'ca_antagonist',
-            'ベニジピン': 'ca_antagonist',
-            'クラリスロマイシン': 'antibiotic',
-            'ベルソムラ': 'sleep_medication',
-            'デビゴ': 'orexin_receptor_antagonist',
-            'ロゼレム': 'sleep_medication',
-            'フルボキサミン': 'ssri_antidepressant',
-            'エソメプラゾール': 'ppi',
-            'タケキャブ': 'p_cab',
-            'ランソプラゾール': 'ppi',
-            'アルファカルシドール': 'vitamin_d',
-            'フェブキソスタット': 'xanthine_oxidase_inhibitor',
-            '炭酸ランタン': 'phosphate_binder',
-            'ルパフィン': 'antihistamine',
-            'リオナ': 'iron_preparation',
+            'アムロジピン': 'カルシウム拮抗薬',
+            'ニフェジピン': 'カルシウム拮抗薬',
+            'ベニジピン': 'カルシウム拮抗薬',
+            'クラリスロマイシン': 'マクロライド系抗生物質',
+            'ベルソムラ': 'オレキシン受容体拮抗薬',
+            'デビゴ': 'オレキシン受容体拮抗薬',
+            'ロゼレム': 'メラトニン受容体作動薬',
+            'フルボキサミン': 'SSRI抗うつ薬',
+            'エソメプラゾール': 'プロトンポンプ阻害薬',
+            'タケキャブ': 'P-CAB（カリウム競合型アシッドブロッカー）',
+            'ランソプラゾール': 'プロトンポンプ阻害薬',
+            'アルファカルシドール': '活性型ビタミンD製剤',
+            'フェブキソスタット': 'キサンチンオキシダーゼ阻害薬',
+            '炭酸ランタン': 'リン吸着薬',
+            'ルパフィン': '抗ヒスタミン薬',
+            'リオナ': '鉄剤',
         }
         
         best_match = None
