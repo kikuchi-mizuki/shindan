@@ -323,6 +323,14 @@ def handle_image_message(event):
                 # 検出結果の確認メッセージを表示
                 response_text = response_service.generate_simple_response(matched_drugs)
                 
+                # 検出結果を送信
+                messaging_api.push_message(
+                    PushMessageRequest(
+                        to=user_id,
+                        messages=[TextMessage(text=response_text)]
+                    )
+                )
+                
                 # 診断ボタン付きFlex Messageを送信（薬剤が検出された場合のみ）
                 try:
                     from linebot.v3.messaging import FlexMessage, FlexContainer
@@ -445,13 +453,14 @@ def handle_image_message(event):
 
 より鮮明な画像で再度お試しください。"""
         
-        # 検出結果を送信
-        messaging_api.push_message(
-            PushMessageRequest(
-                to=user_id,
-                messages=[TextMessage(text=response_text)]
+        # 検出結果を送信（薬剤が検出されなかった場合のみ）
+        if not drug_names or not matched_drugs:
+            messaging_api.push_message(
+                PushMessageRequest(
+                    to=user_id,
+                    messages=[TextMessage(text=response_text)]
+                )
             )
-        )
         
     except Exception as e:
         logger.error(f"Image message handling error: {e}")
