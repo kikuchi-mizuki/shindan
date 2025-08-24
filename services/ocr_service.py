@@ -724,15 +724,21 @@ OCRテキスト:
                 image_content = output.getvalue()
                 image_base64 = base64.b64encode(image_content).decode('utf-8')
             
-            # GPT Vision API用のプロンプト（汎用的な薬剤検出版）
+            # GPT Vision API用のプロンプト（メモアプリ対応版）
             prompt = """
 この画像に含まれる薬剤名をすべて抽出してください。
 
+【検出対象】
+- 処方箋、メモアプリ、手書きメモなど、あらゆる形式の薬剤リスト
+- 薬剤名のみ（用量、説明、分類は不要）
+- 記載されているすべての薬剤
+
 【薬剤検出の基本ルール】
 1. 画像に実際に記載されている薬剤名のみを抽出してください
-2. 用量（mg、g、ml、µgなど）がある場合は正確に含めてください
+2. 用量（mg、g、ml、µgなど）がある場合は除去してください
 3. 薬剤名のみを出力してください（説明は不要）
 4. 記載されている薬剤をすべて検出してください
+5. メモアプリのスクリーンショットでも薬剤名を検出してください
 
 【文字認識の注意】
 - 「ム」と「ン」は異なる文字です
@@ -746,11 +752,21 @@ OCRテキスト:
 - 画像に記載されていない薬剤は検出しないでください
 - 必ず実際に記載されている薬剤のみを検出してください
 - 推測や憶測は避けてください
+- メモアプリのUI要素（時間、電池残量など）は無視してください
+- 薬剤名のリストのみに注目してください
 
 出力形式：
 - 薬剤名のみを1行ずつ出力してください
-- 用量がある場合は薬剤名の後に記載してください
+- ハイフン（-）は不要です
 - 説明や分類は不要です
+- 例：
+クラリスロマイシン
+ベルソムラ
+デエビゴ
+ロゼレム
+フルボキサミン
+アムロジピン
+エソメプラゾール
 """
 
             # GPT Vision APIを呼び出し
@@ -854,32 +870,32 @@ OCRテキスト:
             # 1. ぼやけ検出（Laplacian分散）
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-            if laplacian_var < 200:
+            if laplacian_var < 100:  # 閾値を下げてメモアプリに対応
                 issues.append('❌ 画像がぼやけています（ピントを合わせてください）')
             
             # 2. 明るさチェック
             mean_brightness = np.mean(gray)
-            if mean_brightness < 80:
+            if mean_brightness < 50:  # 閾値を下げてメモアプリに対応
                 issues.append('❌ 画像が暗すぎます（明るい場所で撮影してください）')
-            elif mean_brightness > 200:
+            elif mean_brightness > 220:  # 閾値を上げてメモアプリに対応
                 issues.append('❌ 画像が明るすぎます（反射を避けてください）')
             
             # 3. 解像度チェック
             height, width = image.shape[:2]
             min_side = min(height, width)
-            if min_side < 1200:
+            if min_side < 800:  # 閾値を下げてメモアプリに対応
                 issues.append('❌ 解像度が不足しています（より近くから撮影してください）')
             
             # 4. アスペクト比チェック（極端な横長・縦長を検出）
             aspect_ratio = width / height
-            if aspect_ratio > 3.0 or aspect_ratio < 0.33:
+            if aspect_ratio > 4.0 or aspect_ratio < 0.25:  # 閾値を緩和してメモアプリに対応
                 issues.append('❌ 画像の比率が不適切です（1ページずつ撮影してください）')
             
             # 5. 文字領域の検出
             # エッジ検出で文字らしい領域を検出
             edges = cv2.Canny(gray, 50, 150)
             text_region_ratio = np.sum(edges > 0) / (height * width)
-            if text_region_ratio < 0.01:  # 1%未満
+            if text_region_ratio < 0.005:  # 閾値を下げてメモアプリに対応
                 issues.append('❌ 文字が検出できません（処方箋が正しく写っていますか？）')
             
             is_acceptable = len(issues) == 0
