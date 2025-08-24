@@ -429,13 +429,15 @@ class ResponseService:
                 'arni': 'ARNI (心不全治療薬)',
                 'angiotensin_receptor_blocker': 'ARB',
                 'ca_antagonist_arb_combination': 'ARB・Ca拮抗薬配合',
+                'ca_antagonist': 'カルシウム拮抗薬',
                 'ace_inhibitor': 'ACE阻害薬',
                 'p_cab': 'P-CAB (胃薬)',
-                'ppi': 'PPI (胃薬)',
+                'ppi': 'プロトンポンプ阻害薬',
                 'sleep_medication': '睡眠薬',
                 'orexin_receptor_antagonist': 'オレキシン受容体拮抗薬',
+                'melatonin_receptor_agonist': 'メラトニン受容体作動薬',
                 'ssri_antidepressant': 'SSRI抗うつ薬',
-                'macrolide_antibiotic_cyp3a4_inhibitor': 'マクロライド系抗生物質（CYP3A4阻害薬）',
+                'macrolide_antibiotic_cyp3a4_inhibitor': 'マクロライド系抗生物質',
                 'benzodiazepine': 'ベンゾジアゼピン系',
                 'unknown': '分類不明'
             }
@@ -463,11 +465,15 @@ class ResponseService:
                 elif any(term in drug_lower for term in ['ランソプラゾール']):
                     category = 'ppi'
                 elif any(term in drug_lower for term in ['ベルソムラ']):
-                    category = 'sleep_medication'
+                    category = 'orexin_receptor_antagonist'
                 elif any(term in drug_lower for term in ['デビゴ']):
                     category = 'orexin_receptor_antagonist'
                 elif any(term in drug_lower for term in ['フルボキサミン']):
                     category = 'ssri_antidepressant'
+                elif any(term in drug_lower for term in ['ロゼレム']):
+                    category = 'melatonin_receptor_agonist'
+                elif any(term in drug_lower for term in ['アムロジピン']):
+                    category = 'ca_antagonist'
                 elif any(term in drug_lower for term in ['クラリスロマイシン']):
                     category = 'macrolide_antibiotic_cyp3a4_inhibitor'
                 
