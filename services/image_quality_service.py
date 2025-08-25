@@ -11,9 +11,19 @@ class ImageQualityService:
     
     def __init__(self):
         self.quality_thresholds = {
-            'high': 0.7,      # 高品質閾値（緩和）
-            'medium': 0.4,    # 中品質閾値（緩和）
-            'low': 0.2        # 低品質閾値（緩和）
+            'high': 0.75,     # 高品質閾値（厳格化）
+            'medium': 0.5,    # 中品質閾値（厳格化）
+            'low': 0.3        # 低品質閾値（厳格化）
+        }
+        
+        # 品質ゲートの厳格な判定基準
+        self.strict_gate = {
+            'min_sharpness': 0.4,    # 最小鮮明度
+            'min_contrast': 0.4,     # 最小コントラスト
+            'max_noise': 0.3,        # 最大ノイズ（逆数）
+            'min_resolution': 800,   # 最小解像度（幅）
+            'max_skew': 15,          # 最大傾き角度
+            'min_text_ratio': 0.05   # 最小文字占有率
         }
     
     def evaluate_image_quality(self, image_path: str) -> Dict[str, Any]:
@@ -33,8 +43,14 @@ class ImageQualityService:
             # 総合品質スコア
             overall_score = (sharpness_score + contrast_score + noise_score + complexity_score) / 4
             
+            # 厳格な品質ゲートチェック
+            gate_check = self._check_strict_quality_gate(image, sharpness_score, contrast_score, noise_score)
+            
             # 品質レベル判定
             quality_level = self._determine_quality_level(overall_score)
+            
+            # 厳格ゲートをパスした場合のみ処理を許可
+            should_process = gate_check['passed'] and quality_level in ['high', 'medium']
             
             result = {
                 'quality_level': quality_level,
@@ -43,8 +59,9 @@ class ImageQualityService:
                 'contrast_score': contrast_score,
                 'noise_score': noise_score,
                 'complexity_score': complexity_score,
-                'recommendation': self._get_recommendation(quality_level),
-                'should_process': quality_level in ['high', 'medium']
+                'recommendation': self._get_recommendation(quality_level, gate_check),
+                'should_process': should_process,
+                'gate_check': gate_check
             }
             
             logger.info(f"Image quality evaluation: {quality_level} (score: {overall_score:.2f})")
@@ -53,6 +70,58 @@ class ImageQualityService:
         except Exception as e:
             logger.error(f"Error evaluating image quality: {e}")
             return self._get_low_quality_result(f"品質評価エラー: {e}")
+    
+    def _check_strict_quality_gate(self, image: np.ndarray, sharpness_score: float, contrast_score: float, noise_score: float) -> Dict[str, Any]:
+        """厳格な品質ゲートチェック"""
+        try:
+            issues = []
+            
+            # 1. 鮮明度チェック
+            if sharpness_score < self.strict_gate['min_sharpness']:
+                issues.append(f"鮮明度不足 (スコア: {sharpness_score:.2f})")
+            
+            # 2. コントラストチェック
+            if contrast_score < self.strict_gate['min_contrast']:
+                issues.append(f"コントラスト不足 (スコア: {contrast_score:.2f})")
+            
+            # 3. ノイズチェック
+            if noise_score < self.strict_gate['max_noise']:
+                issues.append(f"ノイズ過多 (スコア: {noise_score:.2f})")
+            
+            # 4. 解像度チェック
+            height, width = image.shape[:2]
+            if width < self.strict_gate['min_resolution']:
+                issues.append(f"解像度不足 (幅: {width}px)")
+            
+            # 5. 傾きチェック
+            skew_angle = self._calculate_skew_angle(image)
+            if abs(skew_angle) > self.strict_gate['max_skew']:
+                issues.append(f"傾き過多 (角度: {skew_angle:.1f}°)")
+            
+            # 6. 文字占有率チェック
+            text_ratio = self._calculate_text_ratio(image)
+            if text_ratio < self.strict_gate['min_text_ratio']:
+                issues.append(f"文字占有率不足 ({text_ratio:.3f})")
+            
+            passed = len(issues) == 0
+            
+            return {
+                'passed': passed,
+                'issues': issues,
+                'skew_angle': skew_angle,
+                'text_ratio': text_ratio,
+                'resolution': f"{width}x{height}"
+            }
+            
+        except Exception as e:
+            logger.error(f"Strict gate check error: {e}")
+            return {
+                'passed': False,
+                'issues': [f"ゲートチェックエラー: {e}"],
+                'skew_angle': 0,
+                'text_ratio': 0,
+                'resolution': "unknown"
+            }
     
     def _calculate_sharpness(self, image: np.ndarray) -> float:
         """鮮明度を計算（ラプラシアン分散）"""
@@ -93,6 +162,51 @@ class ImageQualityService:
         except:
             return 0.5
     
+    def _calculate_skew_angle(self, image: np.ndarray) -> float:
+        """画像の傾き角度を計算"""
+        try:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            # エッジ検出
+            edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+            # 直線検出
+            lines = cv2.HoughLines(edges, 1, np.pi/180, threshold=100)
+            
+            if lines is None:
+                return 0.0
+            
+            angles = []
+            for rho, theta in lines[:10]:  # 最初の10本の線のみ
+                angle = theta * 180 / np.pi
+                if angle < 90:
+                    angles.append(angle)
+                else:
+                    angles.append(angle - 180)
+            
+            if not angles:
+                return 0.0
+            
+            # 中央値で傾きを推定
+            return np.median(angles)
+            
+        except Exception as e:
+            logger.warning(f"Skew angle calculation error: {e}")
+            return 0.0
+    
+    def _calculate_text_ratio(self, image: np.ndarray) -> float:
+        """文字占有率を計算"""
+        try:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            # 二値化
+            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            # 文字領域の割合を計算
+            text_pixels = np.sum(binary == 0)  # 黒い部分（文字）
+            total_pixels = binary.size
+            return text_pixels / total_pixels
+            
+        except Exception as e:
+            logger.warning(f"Text ratio calculation error: {e}")
+            return 0.0
+    
     def _calculate_complexity(self, image: np.ndarray) -> float:
         """画像の複雑度を計算"""
         try:
@@ -122,14 +236,28 @@ class ImageQualityService:
         else:
             return 'low'
     
-    def _get_recommendation(self, quality_level: str) -> str:
+    def _get_recommendation(self, quality_level: str, gate_check: Dict[str, Any] = None) -> str:
         """品質レベルに応じた推奨事項"""
+        if gate_check and not gate_check.get('passed', True):
+            issues = gate_check.get('issues', [])
+            recommendation = "🚫 **品質ゲート未通過**\n\n"
+            recommendation += "以下の問題が検出されました：\n"
+            for issue in issues:
+                recommendation += f"• {issue}\n"
+            recommendation += "\n**改善方法：**\n"
+            recommendation += "• 1ページずつ撮影してください\n"
+            recommendation += "• 真上から撮影してください\n"
+            recommendation += "• 明るい場所で撮影してください\n"
+            recommendation += "• 影や反射を避けてください\n"
+            recommendation += "• 書類スキャンアプリの使用を推奨します\n"
+            return recommendation
+        
         recommendations = {
-            'high': "高品質な画像です。通常の処理を実行します。",
-            'medium': "中品質な画像です。処理を実行しますが、結果を確認してください。",
-            'low': "低品質な画像です。手動入力または画像の改善をお勧めします。"
+            'high': "✅ 画像品質は良好です。薬剤名の読み取りを続行します。",
+            'medium': "⚠️ 画像品質は中程度です。より鮮明な画像での再撮影を推奨します。",
+            'low': "❌ 画像品質が低いため、薬剤名の読み取りが困難です。"
         }
-        return recommendations.get(quality_level, "品質評価に失敗しました")
+        return recommendations.get(quality_level, "画像品質を評価できませんでした。")
     
     def _get_low_quality_result(self, error_message: str) -> Dict[str, Any]:
         """低品質結果を返す"""
