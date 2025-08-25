@@ -299,7 +299,9 @@ def handle_image_message(event):
             
             # マッチした薬剤名をバッファに追加
             matched_drugs = drug_service.match_to_database(drug_names)
-            if matched_drugs:
+            # しきい値: 読み取りが不十分と判断する最小件数
+            MIN_CONFIDENT_DRUGS = 5
+            if matched_drugs and len(matched_drugs) >= MIN_CONFIDENT_DRUGS:
                 for matched_drug_name in matched_drugs:
                     user_drug_buffer[user_id].append(matched_drug_name)
                 
@@ -369,6 +371,29 @@ def handle_image_message(event):
                             messages=[TextMessage(text=fallback_text)]
                         )
                     )
+            elif matched_drugs:
+                # 件数が少なく精度が不十分と判断 → ガイドを送信
+                guide_text = """📸 読み取り精度が十分ではありません
+
+現在の画像からは薬剤名を一部しか認識できませんでした。より正確な診断のため、次をお試しください：
+
+📋 撮影のコツ
+• 真上から1ページずつ撮影（左右2ページは分割）
+• 明るい場所で、影や反射を避ける
+• 文字がはっきり写る距離でピントを合わせる
+• iOSの「書類をスキャン」機能の利用を推奨
+
+💊 手動追加（例）
+• 薬剤追加：アムロジピン
+• 薬剤追加：エソメプラゾール
+
+より鮮明な画像で再度お試しください。"""
+                messaging_api.push_message(
+                    PushMessageRequest(
+                        to=user_id,
+                        messages=[TextMessage(text=guide_text)]
+                    )
+                )
             else:
                 response_text = """📸 薬剤名が検出されませんでした
 
