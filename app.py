@@ -49,12 +49,12 @@ def initialize_services():
         from services.response_service import ResponseService
         from services.redis_service import RedisService
         
-ocr_service = OCRService()
-drug_service = DrugService()
-response_service = ResponseService()
+        ocr_service = OCRService()
+        drug_service = DrugService()
+        response_service = ResponseService()
         
         try:
-redis_service = RedisService()
+            redis_service = RedisService()
         except Exception as e:
             logger.warning(f"Redis service initialization failed: {e}")
             redis_service = None
