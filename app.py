@@ -17,12 +17,40 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# LINE Bot設定
-configuration = Configuration(access_token=os.getenv('LINE_CHANNEL_ACCESS_TOKEN'))
-api_client = ApiClient(configuration)
-messaging_api = MessagingApi(api_client)
-messaging_blob_api = MessagingApiBlob(api_client)
-handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
+# LINE Bot設定（遅延初期化）
+configuration = None
+api_client = None
+messaging_api = None
+messaging_blob_api = None
+handler = None
+
+def initialize_line_bot():
+    """LINE Bot設定の初期化"""
+    global configuration, api_client, messaging_api, messaging_blob_api, handler
+    
+    try:
+        access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+        channel_secret = os.getenv('LINE_CHANNEL_SECRET')
+        
+        if not access_token:
+            logger.error("LINE_CHANNEL_ACCESS_TOKEN not found")
+            return False
+        if not channel_secret:
+            logger.error("LINE_CHANNEL_SECRET not found")
+            return False
+        
+        configuration = Configuration(access_token=access_token)
+        api_client = ApiClient(configuration)
+        messaging_api = MessagingApi(api_client)
+        messaging_blob_api = MessagingApiBlob(api_client)
+        handler = WebhookHandler(channel_secret)
+        
+        logger.info("LINE Bot configuration initialized successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"LINE Bot initialization failed: {e}")
+        return False
 
 # ユーザーごとの薬剤名バッファ
 user_drug_buffer = {}
