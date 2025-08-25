@@ -275,39 +275,22 @@ def handle_image_message(event):
         # 画像処理
         message_content = messaging_blob_api.get_message_content(event.message.id)
         
-        # 画像品質チェック
-        quality_result = ocr_service.check_image_quality(message_content)
-        if not quality_result['is_acceptable']:
-            # 画質が不十分な場合のガイドメッセージ
-            guide_message = f"""📸 **画質が不十分のため診断できません**
-
-{quality_result['issues']}
-
-**📋 撮影のコツ：**
-• 真上から撮影（左右2ページは分割）
-• 影・反射を避ける
-• 処方名の行がはっきり写るように
-• **iOSの「書類をスキャン」推奨**
-• 文字の向きを正しく（横向きはNG）
-
-**🔧 改善方法：**
-• 明るい場所で撮影
-• カメラを安定させる
-• 処方箋全体が画面に入るように
-• ピントを合わせてから撮影
-
-より鮮明な画像で再度お試しください。"""
-            
+        # 画像品質評価付きOCR処理
+        ocr_result = ocr_service.extract_drug_names(message_content)
+        
+        # 品質に応じた処理分岐
+        if not ocr_result['should_process']:
+            # 低品質画像の場合、ガイドを表示
             messaging_api.push_message(
                 PushMessageRequest(
                     to=user_id,
-                    messages=[TextMessage(text=guide_message)]
+                    messages=[TextMessage(text=ocr_result['guide'])]
                 )
             )
             return
         
-        # OCRで薬剤名を抽出
-        drug_names = ocr_service.extract_drug_names(message_content)
+        # 薬剤名抽出（品質評価済み）
+        drug_names = ocr_result['drug_names']
         
         if drug_names:
             # ユーザーバッファに薬剤名を追加

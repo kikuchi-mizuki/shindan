@@ -5,9 +5,10 @@ import re
 import os
 import numpy as np
 import unicodedata
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import base64
 import tempfile
+from .image_quality_service import ImageQualityService
 
 # Railway等でGOOGLE_APPLICATION_CREDENTIALSにJSONの中身が直接入っている場合の対応
 creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -37,6 +38,9 @@ logger = logging.getLogger(__name__)
 
 class OCRService:
     def __init__(self):
+        # 画像品質評価サービスの初期化
+        self.quality_service = ImageQualityService()
+        
         # Tesseract OCRの利用可能性をチェック
         self.tesseract_available = TESSERACT_AVAILABLE
         logger.info(f"Tesseract OCR available: {self.tesseract_available}")
@@ -924,31 +928,79 @@ OCRテキスト:
             }
 
     def extract_drug_names(self, image_content):
-        """画像から薬剤名を抽出（信頼度チェック付き）"""
+        """画像から薬剤名を抽出（画像品質評価付き）"""
         try:
-            if not self.openai_client:
-                logger.error("OpenAI API not available")
-                return []
+            logger.info("Starting drug name extraction with quality assessment")
             
-            logger.info("Using GPT Vision API for drug name extraction")
+            # 一時ファイルに画像を保存
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+                temp_file.write(image_content)
+                temp_path = temp_file.name
             
-            # GPT Vision APIで薬剤名を抽出
-            drug_names = self._extract_with_gpt_vision(image_content)
-            
-            # 信頼度チェック
-            confidence_result = self._check_extraction_confidence(drug_names, image_content)
-            
-            if confidence_result['is_confident']:
-                logger.info(f"High confidence extraction: {len(drug_names)} drugs detected")
-                return drug_names
-            else:
-                logger.warning(f"Low confidence extraction: {confidence_result['issues']}")
-                # 信頼度が低い場合は空のリストを返してガイドを表示
-                return []
+            try:
+                # 画像品質評価
+                quality_result = self.quality_service.evaluate_image_quality(temp_path)
+                logger.info(f"Image quality assessment: {quality_result['quality_level']} (score: {quality_result['overall_score']:.2f})")
+                
+                # 品質に応じた処理分岐
+                if not quality_result['should_process']:
+                    logger.info("Image quality too low, returning quality guide")
+                    return {
+                        'drug_names': [],
+                        'quality_result': quality_result,
+                        'should_process': False,
+                        'guide': self.quality_service.generate_quality_guide(quality_result['quality_level'])
+                    }
+                
+                # 高品質・中品質の場合は通常のOCR処理
+                logger.info("Proceeding with OCR processing")
+                
+                if not self.openai_client:
+                    logger.error("OpenAI API not available")
+                    return {
+                        'drug_names': [],
+                        'quality_result': quality_result,
+                        'should_process': False,
+                        'guide': "OCR処理に必要なAPIが利用できません。"
+                    }
+                
+                # GPT Vision APIで薬剤名を抽出
+                drug_names = self._extract_with_gpt_vision(image_content)
+                
+                # 信頼度チェック
+                confidence_result = self._check_extraction_confidence(drug_names, image_content)
+                
+                if confidence_result['is_confident']:
+                    logger.info(f"High confidence extraction: {len(drug_names)} drugs detected")
+                    return {
+                        'drug_names': drug_names,
+                        'quality_result': quality_result,
+                        'should_process': True,
+                        'guide': None
+                    }
+                else:
+                    logger.warning(f"Low confidence extraction: {confidence_result['issues']}")
+                    # 信頼度が低い場合は品質ガイドを表示
+                    return {
+                        'drug_names': [],
+                        'quality_result': quality_result,
+                        'should_process': False,
+                        'guide': self.quality_service.generate_quality_guide('low')
+                    }
+                
+            finally:
+                # 一時ファイルを削除
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
             
         except Exception as e:
             logger.error(f"Drug name extraction error: {e}")
-            return []
+            return {
+                'drug_names': [],
+                'quality_result': {'quality_level': 'low', 'should_process': False},
+                'should_process': False,
+                'guide': "画像処理中にエラーが発生しました。"
+            }
     
     def _check_extraction_confidence(self, drug_names, image_content):
         """OCR結果の信頼度をチェック"""
