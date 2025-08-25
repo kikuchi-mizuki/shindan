@@ -70,7 +70,13 @@ redis_service = RedisService()
 @app.route("/", methods=['GET'])
 def root():
     """ルートエンドポイント"""
-    return {"status": "ok", "message": "薬局サポートBot is running"}, 200
+    try:
+        # 基本的な環境変数チェック
+        if not os.getenv('LINE_CHANNEL_ACCESS_TOKEN'):
+            return {"status": "error", "message": "Missing LINE_CHANNEL_ACCESS_TOKEN"}, 500
+        return {"status": "ok", "message": "薬局サポートBot is running"}, 200
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
 
 @app.route("/health", methods=['GET'])
 def health_check():
