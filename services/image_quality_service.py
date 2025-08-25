@@ -23,7 +23,7 @@ class ImageQualityService:
             'max_noise': 0.2,        # 最大ノイズ（逆数、緩和）
             'min_resolution': 600,   # 最小解像度（幅、緩和）
             'max_skew': 20,          # 最大傾き角度（緩和）
-            'min_text_ratio': 0.02   # 最小文字占有率（緩和）
+            'min_text_ratio': 0.005  # 最小文字占有率（さらに緩和）
         }
     
     def evaluate_image_quality(self, image_path: str) -> Dict[str, Any]:
@@ -103,10 +103,14 @@ class ImageQualityService:
             if abs(skew_angle) > self.strict_gate['max_skew']:
                 issues.append(f"傾き過多 (角度: {skew_angle:.1f}°)")
             
-            # 6. 文字占有率チェック
+            # 6. 文字占有率チェック（メモアプリ対応）
             text_ratio = self._calculate_text_ratio(image)
             if text_ratio < self.strict_gate['min_text_ratio']:
-                issues.append(f"文字占有率不足 ({text_ratio:.3f})")
+                # メモアプリの場合は文字占有率の要求を緩和
+                if self._is_memo_app_image(image):
+                    logger.info(f"Memo app detected, relaxing text ratio requirement: {text_ratio:.3f}")
+                else:
+                    issues.append(f"文字占有率不足 ({text_ratio:.3f})")
             
             passed = len(issues) == 0
             
@@ -168,13 +172,15 @@ class ImageQualityService:
             return 0.5
     
     def _calculate_skew_angle(self, image: np.ndarray) -> float:
-        """画像の傾き角度を計算"""
+        """画像の傾き角度を計算（改善版）"""
         try:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            # エッジ検出
-            edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-            # 直線検出
-            lines = cv2.HoughLines(edges, 1, np.pi/180, threshold=100)
+            
+            # より適応的なエッジ検出
+            edges = cv2.Canny(gray, 30, 100, apertureSize=3)
+            
+            # 直線検出の閾値を調整
+            lines = cv2.HoughLines(edges, 1, np.pi/180, threshold=50)
             
             if lines is None:
                 return 0.0
@@ -184,13 +190,19 @@ class ImageQualityService:
             if len(lines.shape) == 3:  # (1, N, 2) の形状
                 lines = lines.reshape(-1, 2)
             
-            for i, (rho, theta) in enumerate(lines[:10]):  # 最初の10本の線のみ
+            for i, (rho, theta) in enumerate(lines[:20]):  # より多くの線を検出
                 try:
                     angle = theta * 180 / np.pi
-                    if angle < 90:
+                    # 角度の正規化（-90度から90度の範囲に）
+                    if angle > 90:
+                        angle = angle - 180
+                    elif angle < -90:
+                        angle = angle + 180
+                    
+                    # 極端な角度を除外（メモアプリでは通常-45度から45度の範囲）
+                    if -45 <= angle <= 45:
                         angles.append(angle)
-                    else:
-                        angles.append(angle - 180)
+                        
                 except (ValueError, TypeError) as e:
                     logger.debug(f"Line {i} processing error: {e}")
                     continue
@@ -199,7 +211,14 @@ class ImageQualityService:
                 return 0.0
             
             # 中央値で傾きを推定
-            return np.median(angles)
+            median_angle = np.median(angles)
+            
+            # 極端な値の場合は0度として扱う
+            if abs(median_angle) > 45:
+                logger.info(f"Extreme skew angle detected ({median_angle:.1f}°), treating as 0°")
+                return 0.0
+            
+            return median_angle
             
         except Exception as e:
             logger.warning(f"Skew angle calculation error: {e}")
@@ -219,6 +238,36 @@ class ImageQualityService:
         except Exception as e:
             logger.warning(f"Text ratio calculation error: {e}")
             return 0.0
+    
+    def _is_memo_app_image(self, image: np.ndarray) -> bool:
+        """メモアプリ画像かどうかを判定"""
+        try:
+            # 1. 色の特徴をチェック（メモアプリは白背景が多い）
+            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            saturation = hsv[:, :, 1]
+            avg_saturation = np.mean(saturation)
+            
+            # 2. エッジ密度をチェック（メモアプリは比較的単純）
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            edges = cv2.Canny(gray, 50, 150)
+            edge_density = np.sum(edges > 0) / (edges.shape[0] * edges.shape[1])
+            
+            # 3. 文字占有率をチェック（メモアプリは低い傾向）
+            text_ratio = self._calculate_text_ratio(image)
+            
+            # メモアプリの特徴
+            is_low_saturation = avg_saturation < 50  # 低彩度（白背景）
+            is_low_edge_density = edge_density < 0.05  # 低エッジ密度
+            is_low_text_ratio = text_ratio < 0.02  # 低文字占有率
+            
+            # 3つの条件のうち2つ以上を満たす場合
+            memo_app_score = sum([is_low_saturation, is_low_edge_density, is_low_text_ratio])
+            
+            return memo_app_score >= 2
+            
+        except Exception as e:
+            logger.warning(f"Memo app detection error: {e}")
+            return False
     
     def _calculate_complexity(self, image: np.ndarray) -> float:
         """画像の複雑度を計算"""
