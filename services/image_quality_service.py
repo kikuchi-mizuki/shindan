@@ -11,9 +11,9 @@ class ImageQualityService:
     
     def __init__(self):
         self.quality_thresholds = {
-            'high': 0.8,      # 高品質閾値
-            'medium': 0.6,    # 中品質閾値
-            'low': 0.4        # 低品質閾値
+            'high': 0.7,      # 高品質閾値（緩和）
+            'medium': 0.4,    # 中品質閾値（緩和）
+            'low': 0.2        # 低品質閾値（緩和）
         }
     
     def evaluate_image_quality(self, image_path: str) -> Dict[str, Any]:
@@ -59,9 +59,10 @@ class ImageQualityService:
         try:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-            # 正規化（0-1の範囲に）
-            sharpness_score = min(laplacian_var / 500, 1.0)
-            return sharpness_score
+            # 正規化（0-1の範囲に）- 閾値を緩和
+            sharpness_score = min(laplacian_var / 300, 1.0)
+            # 最小値を設定して、比較的クリアな画像でも適切なスコアを付与
+            return max(sharpness_score, 0.3)
         except:
             return 0.5
     
@@ -71,9 +72,10 @@ class ImageQualityService:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             # 標準偏差でコントラストを評価
             contrast = np.std(gray)
-            # 正規化（0-1の範囲に）
-            contrast_score = min(contrast / 50, 1.0)
-            return contrast_score
+            # 正規化（0-1の範囲に）- 閾値を緩和
+            contrast_score = min(contrast / 30, 1.0)
+            # 最小値を設定
+            return max(contrast_score, 0.3)
         except:
             return 0.5
     
@@ -98,10 +100,12 @@ class ImageQualityService:
             # エッジ検出で複雑度を評価
             edges = cv2.Canny(gray, 50, 150)
             edge_density = np.sum(edges > 0) / (edges.shape[0] * edges.shape[1])
-            # 複雑度が適度なほど高スコア
-            if edge_density < 0.01:  # 単純すぎる
-                complexity_score = 0.3
-            elif edge_density > 0.1:  # 複雑すぎる
+            # 複雑度評価を改善 - メモアプリのような比較的単純な画像も適切に評価
+            if edge_density < 0.005:  # 非常に単純（白紙など）
+                complexity_score = 0.2
+            elif edge_density < 0.02:  # 適度に単純（メモアプリなど）
+                complexity_score = 0.7
+            elif edge_density > 0.15:  # 非常に複雑
                 complexity_score = 0.4
             else:  # 適度な複雑度
                 complexity_score = 0.8
