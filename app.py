@@ -253,9 +253,10 @@ def handle_text_message(event):
             )
         
         # 薬剤名を直接入力して診断する機能
-        elif ' ' in user_message and len(user_message.split()) >= 2:
-            # スペース区切りの薬剤名を解析
-            drug_names = user_message.split()
+        elif (' ' in user_message or '\n' in user_message) and len(user_message.replace('\n', ' ').split()) >= 2:
+            # スペース区切りまたは改行区切りの薬剤名を解析
+            drug_names = user_message.replace('\n', ' ').split()
+            logger.info(f"Direct drug input detected: {drug_names}")
             
             # 診断中のメッセージを送信
             messaging_api.reply_message(
@@ -267,6 +268,7 @@ def handle_text_message(event):
             
             # 薬剤名を正規化してマッチング
             matched_drugs = drug_service.match_to_database(drug_names)
+            logger.info(f"Matched drugs: {matched_drugs}")
             
             if matched_drugs:
                 # ユーザーバッファに追加
