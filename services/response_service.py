@@ -93,6 +93,8 @@ class ResponseService:
                 # 重複を除去
                 seen_combinations = set()
                 unique_critical_risks = []
+                unique_high_risks = []
+                unique_medium_risks = []
                 
                 for risk in critical_risks + contraindicated_risks:
                     involved_drugs = tuple(sorted(risk.get('involved_drugs', [])))
@@ -118,7 +120,6 @@ class ResponseService:
                 if high_risks:
                     # 重複を除去
                     seen_combinations = set()
-                    unique_high_risks = []
                     
                     for risk in high_risks:
                         involved_drugs = tuple(sorted(risk.get('involved_drugs', [])))
@@ -145,7 +146,6 @@ class ResponseService:
                 if medium_risks:
                     # 重複を除去
                     seen_combinations = set()
-                    unique_medium_risks = []
                     
                     for risk in medium_risks:
                         involved_drugs = tuple(sorted(risk.get('involved_drugs', [])))
