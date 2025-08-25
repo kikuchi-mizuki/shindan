@@ -49,12 +49,12 @@ def initialize_services():
         from services.response_service import ResponseService
         from services.redis_service import RedisService
         
-        ocr_service = OCRService()
-        drug_service = DrugService()
-        response_service = ResponseService()
+ocr_service = OCRService()
+drug_service = DrugService()
+response_service = ResponseService()
         
         try:
-            redis_service = RedisService()
+redis_service = RedisService()
         except Exception as e:
             logger.warning(f"Redis service initialization failed: {e}")
             redis_service = None
@@ -206,7 +206,7 @@ def handle_text_message(event):
                 if user_id not in user_drug_buffer:
                     user_drug_buffer[user_id] = []
                 if drug_name not in user_drug_buffer[user_id]:
-                    user_drug_buffer[user_id].append(drug_name)
+                user_drug_buffer[user_id].append(drug_name)
                     response_text = f"✅ 薬剤「{drug_name}」を追加しました。"
                 else:
                     response_text = f"薬剤「{drug_name}」は既に登録されています。"
@@ -220,12 +220,12 @@ def handle_text_message(event):
                 )
             )
         
-        else:
+                else:
             response_text = "薬局サポートBotへようこそ！\n\n画像を送信して薬剤を登録するか、以下のコマンドを使用してください：\n• 診断 - 飲み合わせチェック\n• 薬剤追加：〇〇 - 薬剤を手動追加\n• リスト確認 - 現在の薬剤リスト\n• ヘルプ - 使い方表示"
         
-        messaging_api.reply_message(
-            ReplyMessageRequest(
-                replyToken=event.reply_token,
+            messaging_api.reply_message(
+                ReplyMessageRequest(
+                    replyToken=event.reply_token,
                 messages=[TextMessage(text=response_text)]
             )
         )
@@ -299,6 +299,7 @@ def handle_image_message(event):
             
             # マッチした薬剤名をバッファに追加
             matched_drugs = drug_service.match_to_database(drug_names)
+            unique_input_count = len(set(drug_names))
             # しきい値: 読み取りが不十分と判断する最小件数
             MIN_CONFIDENT_DRUGS = 5
             if matched_drugs and len(matched_drugs) >= MIN_CONFIDENT_DRUGS:
@@ -369,6 +370,27 @@ def handle_image_message(event):
                         PushMessageRequest(
                             to=user_id,
                             messages=[TextMessage(text=fallback_text)]
+                        )
+                    )
+                # 部分的にしか読めていない場合はガイドも併送
+                if len(matched_drugs) < unique_input_count:
+                    partial_guide = """⚠️ 一部の薬剤名を正確に読み取れませんでした
+
+検出結果を確認し、不足があれば手動で追加してください。
+
+📋 撮影のコツ
+• 真上から1ページずつ撮影（左右2ページは分割）
+• 明るい場所で、影や反射を避ける
+• 文字がはっきり写る距離でピント
+
+💊 手動追加（例）
+• 薬剤追加：アムロジピン
+• 薬剤追加：エソメプラゾール
+"""
+                    messaging_api.push_message(
+                        PushMessageRequest(
+                            to=user_id,
+                            messages=[TextMessage(text=partial_guide)]
                         )
                     )
             elif matched_drugs:
