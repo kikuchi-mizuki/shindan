@@ -16,14 +16,14 @@ class ImageQualityService:
             'low': 0.3        # 低品質閾値（厳格化）
         }
         
-        # 品質ゲートの厳格な判定基準
+        # 品質ゲートの厳格な判定基準（緩和）
         self.strict_gate = {
-            'min_sharpness': 0.4,    # 最小鮮明度
-            'min_contrast': 0.4,     # 最小コントラスト
-            'max_noise': 0.3,        # 最大ノイズ（逆数）
-            'min_resolution': 800,   # 最小解像度（幅）
-            'max_skew': 15,          # 最大傾き角度
-            'min_text_ratio': 0.05   # 最小文字占有率
+            'min_sharpness': 0.3,    # 最小鮮明度（緩和）
+            'min_contrast': 0.3,     # 最小コントラスト（緩和）
+            'max_noise': 0.2,        # 最大ノイズ（逆数、緩和）
+            'min_resolution': 600,   # 最小解像度（幅、緩和）
+            'max_skew': 20,          # 最大傾き角度（緩和）
+            'min_text_ratio': 0.02   # 最小文字占有率（緩和）
         }
     
     def evaluate_image_quality(self, image_path: str) -> Dict[str, Any]:
@@ -51,6 +51,11 @@ class ImageQualityService:
             
             # 厳格ゲートをパスした場合のみ処理を許可
             should_process = gate_check['passed'] and quality_level in ['high', 'medium']
+            
+            # デバッグ情報をログに出力
+            logger.info(f"Quality gate check: passed={gate_check['passed']}, quality_level={quality_level}, should_process={should_process}")
+            if not gate_check['passed']:
+                logger.info(f"Quality gate issues: {gate_check['issues']}")
             
             result = {
                 'quality_level': quality_level,
@@ -175,12 +180,20 @@ class ImageQualityService:
                 return 0.0
             
             angles = []
-            for rho, theta in lines[:10]:  # 最初の10本の線のみ
-                angle = theta * 180 / np.pi
-                if angle < 90:
-                    angles.append(angle)
-                else:
-                    angles.append(angle - 180)
+            # linesの形状を安全に処理
+            if len(lines.shape) == 3:  # (1, N, 2) の形状
+                lines = lines.reshape(-1, 2)
+            
+            for i, (rho, theta) in enumerate(lines[:10]):  # 最初の10本の線のみ
+                try:
+                    angle = theta * 180 / np.pi
+                    if angle < 90:
+                        angles.append(angle)
+                    else:
+                        angles.append(angle - 180)
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"Line {i} processing error: {e}")
+                    continue
             
             if not angles:
                 return 0.0
