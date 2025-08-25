@@ -44,17 +44,35 @@ def initialize_services():
     try:
         logger.info("Initializing services...")
         
-        from services.ocr_service import OCRService
-        from services.drug_service import DrugService
-        from services.response_service import ResponseService
-        from services.redis_service import RedisService
-        
-        ocr_service = OCRService()
-        drug_service = DrugService()
-        response_service = ResponseService()
+        # 基本的なサービスから順次初期化
+        try:
+            from services.response_service import ResponseService
+            response_service = ResponseService()
+            logger.info("ResponseService initialized")
+        except Exception as e:
+            logger.error(f"ResponseService initialization failed: {e}")
+            return False
         
         try:
+            from services.drug_service import DrugService
+            drug_service = DrugService()
+            logger.info("DrugService initialized")
+        except Exception as e:
+            logger.error(f"DrugService initialization failed: {e}")
+            return False
+        
+        try:
+            from services.ocr_service import OCRService
+            ocr_service = OCRService()
+            logger.info("OCRService initialized")
+        except Exception as e:
+            logger.error(f"OCRService initialization failed: {e}")
+            return False
+        
+        try:
+            from services.redis_service import RedisService
             redis_service = RedisService()
+            logger.info("RedisService initialized")
         except Exception as e:
             logger.warning(f"Redis service initialization failed: {e}")
             redis_service = None
@@ -502,8 +520,14 @@ def handle_image_message(event):
             pass
 
 if __name__ == "__main__":
-    port = int(os.getenv('PORT', 5000))
-    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    
-    logger.info(f"Starting application on port {port}, debug mode: {debug_mode}")
-    app.run(host='0.0.0.0', port=port, debug=debug_mode) 
+    try:
+        port = int(os.getenv('PORT', 5000))
+        debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+        
+        logger.info(f"Starting application on port {port}, debug mode: {debug_mode}")
+        logger.info("Application startup completed successfully")
+        
+        app.run(host='0.0.0.0', port=port, debug=debug_mode)
+    except Exception as e:
+        logger.error(f"Application startup failed: {e}")
+        raise 
