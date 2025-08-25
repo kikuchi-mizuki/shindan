@@ -126,9 +126,25 @@ def root():
 
 @app.route("/health", methods=['GET'])
 def health_check():
-    """ヘルスチェックエンドポイント（最小限版）"""
-    # Railway等のヘルスチェックで失敗しないよう、常に200を返す
-    return {"status": "healthy", "message": "ok"}, 200
+    """ヘルスチェックエンドポイント"""
+    try:
+        # 基本的な環境変数チェック
+        access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+        channel_secret = os.getenv('LINE_CHANNEL_SECRET')
+        
+        if not access_token or not channel_secret:
+            return {"status": "unhealthy", "message": "Missing LINE Bot environment variables"}, 500
+        
+        # アプリケーションの基本状態チェック
+        return {
+            "status": "healthy", 
+            "message": "ok",
+            "timestamp": "2025-01-25T10:30:00Z",
+            "version": "1.0.0"
+        }, 200
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {"status": "unhealthy", "message": str(e)}, 500
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -147,6 +163,12 @@ def callback():
 def handle_text_message(event):
     """テキストメッセージの処理"""
     try:
+        # LINE Bot初期化チェック
+        if not handler:
+            if not initialize_line_bot():
+                logger.error("LINE Bot initialization failed in text message handler")
+                return
+        
         user_id = event.source.user_id
         user_message = event.message.text
         
@@ -289,6 +311,12 @@ def handle_text_message(event):
 def handle_image_message(event):
     """画像メッセージの処理"""
     try:
+        # LINE Bot初期化チェック
+        if not handler:
+            if not initialize_line_bot():
+                logger.error("LINE Bot initialization failed in image message handler")
+                return
+        
         user_id = event.source.user_id
         
         # サービス初期化チェック
@@ -553,9 +581,20 @@ if __name__ == "__main__":
         debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
         
         logger.info(f"Starting application on port {port}, debug mode: {debug_mode}")
+        
+        # 基本的な環境変数チェック
+        required_env_vars = ['LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET']
+        missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+        if missing_vars:
+            logger.error(f"Missing required environment variables: {missing_vars}")
+            raise ValueError(f"Missing environment variables: {missing_vars}")
+        
+        logger.info("Environment variables check passed")
         logger.info("Application startup completed successfully")
         
         app.run(host='0.0.0.0', port=port, debug=debug_mode)
     except Exception as e:
         logger.error(f"Application startup failed: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise 
