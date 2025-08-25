@@ -41,6 +41,12 @@ class ResponseService:
                         if interaction.get('mechanism'):
                             response_parts.append(f"機序: {interaction['mechanism']}")
                         response_parts.append("")
+                else:
+                    # 相互作用がない場合
+                    response_parts.append("✅ 相互作用チェック")
+                    response_parts.append("現在の薬剤組み合わせでは、")
+                    response_parts.append("重大な相互作用は検出されませんでした。")
+                    response_parts.append("")
                 
                 # 警告事項
                 if drug_info.get('warnings'):
@@ -48,12 +54,24 @@ class ResponseService:
                     for warning in drug_info['warnings']:
                         response_parts.append(f"・{warning}")
                     response_parts.append("")
+                else:
+                    # 警告がない場合
+                    response_parts.append("✅ 警告事項")
+                    response_parts.append("現在の薬剤組み合わせでは、")
+                    response_parts.append("特別な警告事項はありません。")
+                    response_parts.append("")
                 
                 # 推奨事項
                 if drug_info.get('recommendations'):
                     response_parts.append("💡 推奨事項")
                     for recommendation in drug_info['recommendations']:
                         response_parts.append(f"・{recommendation}")
+                    response_parts.append("")
+                else:
+                    # 推奨事項がない場合
+                    response_parts.append("💡 推奨事項")
+                    response_parts.append("・定期的な健康チェックを継続してください")
+                    response_parts.append("・体調に変化があれば医師に相談してください")
                     response_parts.append("")
             else:
                 # AI分析結果が正常な場合の詳細表示
@@ -155,6 +173,19 @@ class ResponseService:
                         response_parts.append(f"推定疾患: {', '.join(profile['likely_conditions'])}")
                     if profile.get('polypharmacy_risk') != 'low':
                         response_parts.append(f"多剤併用リスク: {profile['polypharmacy_risk']}")
+                    response_parts.append("")
+                
+                # 5. 問題がない場合の表示
+                if not unique_critical_risks and not high_risks and not unique_medium_risks:
+                    response_parts.append("✅ 診断結果")
+                    response_parts.append("現在の薬剤組み合わせでは、")
+                    response_parts.append("重大な相互作用や注意すべきリスクは")
+                    response_parts.append("検出されませんでした。")
+                    response_parts.append("")
+                    response_parts.append("💡 一般的な注意事項:")
+                    response_parts.append("・定期的な健康チェックを継続してください")
+                    response_parts.append("・体調に変化があれば医師に相談してください")
+                    response_parts.append("・薬の副作用が出た場合はすぐに医師に連絡してください")
                     response_parts.append("")
                 
                 # 5. 代替療法の提案
