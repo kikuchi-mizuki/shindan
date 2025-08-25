@@ -331,6 +331,17 @@ class ResponseService:
             category = drug_categories.get(drug_name, 'unknown')
             japanese_category = category_mapping.get(category, '分類不明')
             
+            # 睡眠薬の詳細分類を表示
+            if category == 'sleep_medication':
+                if 'ベルソムラ' in drug_name or 'スボレキサント' in drug_name:
+                    japanese_category = 'オレキシン受容体拮抗薬（睡眠薬）'
+                elif 'デビゴ' in drug_name or 'レンボレキサント' in drug_name:
+                    japanese_category = 'オレキシン受容体拮抗薬（睡眠薬）'
+                elif 'ロゼレム' in drug_name or 'ラメルテオン' in drug_name:
+                    japanese_category = 'メラトニン受容体作動薬（睡眠薬）'
+                else:
+                    japanese_category = '睡眠薬'
+            
             # 番号記号の取得
             number_symbols = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
             number_symbol = number_symbols[i-1] if i <= len(number_symbols) else f"{i}."

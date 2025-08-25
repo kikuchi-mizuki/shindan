@@ -2459,7 +2459,7 @@ class DrugService:
                 'categories': ['ssri_antidepressant', 'sleep_medication'],
                 'risk_level': 'high',
                 'description': 'SSRI抗うつ薬と睡眠薬の併用による相互作用',
-                'clinical_impact': '過度の眠気、セロトニン症候群のリスク、睡眠薬の血中濃度上昇',
+                'clinical_impact': '過度の眠気、鎮静作用の増強、睡眠薬の血中濃度上昇',
                 'recommendation': 'SSRIと睡眠薬の併用は慎重に。用量調整と副作用モニタリングが必要',
                 'priority': 2
             },
@@ -2474,7 +2474,7 @@ class DrugService:
             'cyp3a4_inhibition': {
                 'categories': ['cyp3a4_inhibitor', 'ca_antagonist', 'sleep_medication', 'ssri_antidepressant'],
                 'risk_level': 'high',
-                'description': 'CYP3A4阻害薬による他剤の血中濃度上昇',
+                'description': 'CYP3A4阻害薬（クラリスロマイシン）による他剤の血中濃度上昇',
                 'clinical_impact': '強い眠気、ふらつき、低血圧、転倒リスク、SSRIの副作用増強',
                 'recommendation': '投与量調整または併用回避を検討。特にSSRIとの併用は慎重に',
                 'priority': 1  # 最高優先度
@@ -2494,6 +2494,14 @@ class DrugService:
                 'clinical_impact': '横紋筋融解症、CK上昇のリスク増加',
                 'recommendation': '筋肉痛などの症状に注意し、CK値のモニタリング',
                 'priority': 8
+            },
+            'ca_antagonist_cyp3a4_inhibitor': {
+                'categories': ['ca_antagonist', 'cyp3a4_inhibitor'],
+                'risk_level': 'high',
+                'description': 'Ca拮抗薬とCYP3A4阻害薬の併用による血中濃度上昇',
+                'clinical_impact': '低血圧、浮腫、めまい、ふらつきのリスク増加',
+                'recommendation': 'Ca拮抗薬の用量調整と血圧モニタリングが必要',
+                'priority': 3
             }
         }
         
