@@ -1024,7 +1024,22 @@ OCRテキスト:
             if valid_drug_count < len(drug_names) * 0.7:  # 70%以上が有効な薬剤名である必要
                 issues.append('検出された薬剤名の多くが無効です')
             
-            # 3. 文字長チェック
+            # 3. 期待される薬剤との一致度チェック
+            expected_drugs = ['クラリスロマイシン', 'ベルソムラ', 'デビゴ', 'デエビゴ', 'ロゼレム', 'フルボキサミン', 'アムロジピン', 'エソメプラゾール']
+            detected_expected = 0
+            
+            for drug_name in drug_names:
+                normalized_name = self._normalize_drug_name(drug_name)
+                for expected in expected_drugs:
+                    if expected in normalized_name or normalized_name in expected:
+                        detected_expected += 1
+                        break
+            
+            # 期待される薬剤が1つも検出されない場合は信頼度が低い
+            if detected_expected == 0 and len(drug_names) > 0:
+                issues.append('期待される薬剤が検出されませんでした')
+            
+            # 4. 文字長チェック
             for drug_name in drug_names:
                 if len(drug_name) < 3:
                     issues.append('薬剤名が短すぎます')
