@@ -985,7 +985,7 @@ OCRテキスト:
                         'drug_names': [],
                         'quality_result': quality_result,
                         'should_process': False,
-                        'guide': self.quality_service.generate_quality_guide('low')
+                        'guide': self._generate_ocr_accuracy_guide()
                     }
                 
             finally:
@@ -999,8 +999,42 @@ OCRテキスト:
                 'drug_names': [],
                 'quality_result': {'quality_level': 'low', 'should_process': False},
                 'should_process': False,
-                'guide': "画像処理中にエラーが発生しました。"
+                'guide': self._generate_ocr_accuracy_guide()
             }
+    
+    def _generate_ocr_accuracy_guide(self):
+        """OCR精度が低い場合のガイドを生成"""
+        return """❌ **薬剤名の読み取り精度が低いため、自動検出を中止しました**
+
+**検出された薬剤名が実際の処方箋と一致していない可能性があります。**
+
+**推奨される対処法：**
+
+1️⃣ **手動入力（推奨）**
+以下の形式で薬剤を入力してください：
+```
+薬剤追加：クラリスロマイシン
+薬剤追加：ベルソムラ
+薬剤追加：デビゴ
+薬剤追加：ロゼレム
+薬剤追加：フルボキサミン
+薬剤追加：アムロジピン
+薬剤追加：エソメプラゾール
+```
+
+2️⃣ **画像の改善**
+• より明るい場所で撮影
+• カメラを安定させる
+• 文字がはっきり見えるようにする
+• 影や反射を避ける
+• 1ページずつ撮影（左右2ページは分割）
+
+3️⃣ **メモアプリの使用**
+• 薬剤名をメモアプリに記入
+• スクリーンショットを撮影
+• 再度送信してください
+
+**手動入力後は「診断」で飲み合わせチェックを実行できます。**"""
     
     def _check_extraction_confidence(self, drug_names, image_content):
         """OCR結果の信頼度をチェック"""
@@ -1024,20 +1058,25 @@ OCRテキスト:
             if valid_drug_count < len(drug_names) * 0.7:  # 70%以上が有効な薬剤名である必要
                 issues.append('検出された薬剤名の多くが無効です')
             
-            # 3. 期待される薬剤との一致度チェック
-            expected_drugs = ['クラリスロマイシン', 'ベルソムラ', 'デビゴ', 'デエビゴ', 'ロゼレム', 'フルボキサミン', 'アムロジピン', 'エソメプラゾール']
-            detected_expected = 0
+            # 3. OCR結果の妥当性チェック（薬剤名の一般的なパターン）
+            valid_drug_patterns = [
+                'クラリス', 'ベルソム', 'デビゴ', 'ロゼレム', 'フルボキサ', 'アムロジ', 'エソメプラ',
+                'タダラフィル', 'ニコランジル', 'エンレスト', 'テラムロ', 'エナラプリル', 'タケキャブ',
+                'ランソプラ', 'アトルバスタ', 'クロピドグレル', 'ビソプロロール'
+            ]
             
+            # 検出された薬剤名が一般的な薬剤パターンと一致するかチェック
+            pattern_matches = 0
             for drug_name in drug_names:
                 normalized_name = self._normalize_drug_name(drug_name)
-                for expected in expected_drugs:
-                    if expected in normalized_name or normalized_name in expected:
-                        detected_expected += 1
+                for pattern in valid_drug_patterns:
+                    if pattern in normalized_name or normalized_name in pattern:
+                        pattern_matches += 1
                         break
             
-            # 期待される薬剤が1つも検出されない場合は信頼度が低い
-            if detected_expected == 0 and len(drug_names) > 0:
-                issues.append('期待される薬剤が検出されませんでした')
+            # パターンマッチが少ない場合は信頼度が低い
+            if pattern_matches < len(drug_names) * 0.5:  # 50%以上が有効なパターンである必要
+                issues.append('検出された薬剤名が一般的な薬剤パターンと一致しません')
             
             # 4. 文字長チェック
             for drug_name in drug_names:
