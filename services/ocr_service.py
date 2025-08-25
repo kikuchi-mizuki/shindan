@@ -233,95 +233,54 @@ class OCRService:
             return image
 
     def extract_drug_names_with_chatgpt(self, ocr_text: str) -> List[str]:
-        """ChatGPTを使用してOCR結果から薬剤名を抽出・正規化"""
+        """ChatGPTを使用してOCR結果から薬剤名を抽出・正規化（医学的補正付き）"""
         if not self.openai_available:
             logger.info("OpenAI API not available, using traditional extraction method")
             return self._extract_drug_names_from_text(ocr_text)
         
         try:
             prompt = f"""
-以下のOCRで抽出されたテキストから、薬剤名のみを抽出して正規化してください。
+あなたは薬剤名の専門家です。以下のOCRで抽出されたテキストから、薬剤名のみを抽出して医学的に正規化してください。
 
 OCRテキスト:
 {ocr_text}
 
-重要: 必ず以下の形式で出力してください。ハイフン（-）は使用しないでください。
+**重要な指示:**
+1. OCRの誤字を医学的に補正してください（例：「フルボキサミン」→「フルボキサミン」）
+2. 薬剤名の正式名称に統一してください
+3. 用量情報（mg、g等）は除外してください
+4. 必ず「薬剤名: 正規化後の名前」の形式で出力してください
 
-特に注意: 以下の薬剤名を必ず正確に検出してください：
-- デエビゴ（デエビゴ、デイビゴ、デイビゴーなど類似表記も含む）
-- クラリスロマイシン
-- ベルソムラ
-- ロゼレム
-- フルボキサミン
-- アムロジピン
-- エソメプラゾール
+**医学的補正の例:**
+- 「クラリスロマイシン」→「クラリスロマイシン」
+- 「ベルソムラ」→「ベルソムラ」
+- 「デエビゴ」「デイビゴ」→「デビゴ」
+- 「ロゼレム」→「ロゼレム」
+- 「フルボキサミン」→「フルボキサミン」
+- 「アムロジピン」→「アムロジピン」
+- 「エソメプラゾール」→「エソメプラゾール」
 
-出力形式:
-薬剤名: アルプラゾラム
-薬剤名: アモバルビタル
-薬剤名: ブロマゼパム
-薬剤名: クロルジアゼポキシド
-薬剤名: クロバザム
-薬剤名: クロナゼパム
-薬剤名: クロラゼペート
-薬剤名: クロチアゼパム
-薬剤名: クロキサゾラム
-薬剤名: ジアゼパム
-薬剤名: エチゾラム
-薬剤名: フルジアゼパム
-薬剤名: フルタゾラム
-薬剤名: フルトプラゼパム
-薬剤名: ロフラゼペート
-薬剤名: ロラゼパム
-薬剤名: メダゼパム
-薬剤名: メキサゾラム
-薬剤名: オキサゼパム
-薬剤名: オキサゾラム
-薬剤名: プラゼパム
-薬剤名: タンドスピロン
-薬剤名: トフィソパム
-薬剤名: バルビタル
-薬剤名: ブロモバレリル尿素
-薬剤名: ブロチゾラム
-薬剤名: ブトクトアミド
-薬剤名: 抱水クロラル
-薬剤名: エスタゾラム
-薬剤名: エスゾピクロン
-薬剤名: フルニトラゼパム
-薬剤名: フルラゼパム
-薬剤名: ハロキサゾラム
-薬剤名: ロルメタゼパム
-薬剤名: ニメタゼパム
-薬剤名: ニトラゼパム
-薬剤名: トケイソウエキス
-薬剤名: ペントバルビタル
-薬剤名: フェノバルビタル
-薬剤名: クゼパム
-薬剤名: リルマザフォン
-薬剤名: セコバルビタル
-薬剤名: トリアゾラム
-薬剤名: ゾルピデム
-薬剤名: ゾピクロン
+**出力形式:**
+薬剤名: クラリスロマイシン
+薬剤名: ベルソムラ
+薬剤名: デビゴ
+薬剤名: ロゼレム
+薬剤名: フルボキサミン
+薬剤名: アムロジピン
+薬剤名: エソメプラゾール
 
-抽出ルール:
-1. 薬剤名のみを抽出（数字、単位、説明文は除外）
-2. 必ず「薬剤名: 正規化後の名前」の形式で出力
-3. 販売中止の薬剤も含める
-4. 漢方薬や生薬も含める
-5. 英語名や略称は日本語名に統一
-6. ひらがな表記の薬剤名は必ずカタカナに変換してください
-7. 薬剤名は正式名称（カタカナ）で出力してください
-8. 分割された薬剤名（例：「フル」「タゼパ」→「フルタゾラム」）を結合してください
-9. 可能な限り多くの薬剤名を抽出してください（目標：45種類）
+**補正ルール:**
+1. OCR誤字を医学的に補正
+2. 薬剤名の正式名称に統一
+3. 用量情報は除外
+4. 薬剤名のみを抽出（説明文は除外）
+5. 分割された薬剤名を結合
+6. ひらがなはカタカナに変換
 
-注意: 
-- ハイフン（-）を使った形式は使用しないでください
-- ひらがなの薬剤名は必ずカタカナに変換してください
-- 抽出された薬剤名のみを出力してください。説明やコメントは不要です
-- 分割された薬剤名を見つけた場合は、正しい完全な薬剤名に結合してください
+抽出された薬剤名のみを出力してください。説明やコメントは不要です。
 """
 
-            logger.info(f"Sending OCR text to ChatGPT for drug name extraction")
+            logger.info(f"Sending OCR text to ChatGPT for medical correction and drug name extraction")
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",  # コスト効率の良いモデルを使用
                 messages=[{"role": "user", "content": prompt}],
@@ -964,8 +923,11 @@ OCRテキスト:
                         'guide': "OCR処理に必要なAPIが利用できません。"
                     }
                 
-                # GPT Vision APIで薬剤名を抽出
-                drug_names = self._extract_with_gpt_vision(image_content)
+                # まずGoogle Cloud Vision APIでOCRテキストを抽出
+                ocr_text = self._extract_text_with_vision_api(image_content)
+                
+                # OCRテキストをGPTに渡して医学的補正
+                drug_names = self.extract_drug_names_with_chatgpt(ocr_text)
                 
                 # 信頼度チェック
                 confidence_result = self._check_extraction_confidence(drug_names, image_content)
@@ -1001,6 +963,37 @@ OCRテキスト:
                 'should_process': False,
                 'guide': self._generate_ocr_accuracy_guide()
             }
+    
+    def _extract_text_with_vision_api(self, image_content):
+        """Google Cloud Vision APIでテキストを抽出"""
+        try:
+            if not self.vision_available:
+                logger.warning("Vision API not available")
+                return ""
+            
+            from google.cloud import vision
+            
+            # 画像をVision APIに送信
+            image = vision.Image(content=image_content)
+            response = self.client.text_detection(image=image)
+            
+            if response.error.message:
+                logger.error(f"Vision API error: {response.error.message}")
+                return ""
+            
+            # テキストを抽出
+            texts = response.text_annotations
+            if texts:
+                full_text = texts[0].description
+                logger.info(f"Vision API extracted text: {full_text[:200]}...")
+                return full_text
+            else:
+                logger.warning("No text detected by Vision API")
+                return ""
+                
+        except Exception as e:
+            logger.error(f"Vision API text extraction error: {e}")
+            return ""
     
     def _generate_ocr_accuracy_guide(self):
         """OCR精度が低い場合のガイドを生成"""
