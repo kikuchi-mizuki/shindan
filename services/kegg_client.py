@@ -74,7 +74,15 @@ class KEGGClient:
     def link_atc(self, kegg_id: str):
         """drug:Dxxxxx → ATCコード配列（文字列）"""
         try:
-            kid = kegg_id if kegg_id.startswith("drug:") else f"drug:{kegg_id}"
+            # KEGG IDの形式を正規化
+            if kegg_id.startswith("dr:"):
+                kid = f"drug:{kegg_id[3:]}"  # dr:D00903 -> drug:D00903
+            elif kegg_id.startswith("drug:"):
+                kid = kegg_id
+            else:
+                kid = f"drug:{kegg_id}"
+            
+            logger.info(f"Requesting ATC codes for: {kid}")
             r = _http_get(f"{self.BASE}/link/atc/{kid}")
             codes = set()
             for line in r.text.strip().splitlines():

@@ -511,43 +511,65 @@ class ResponseService:
             number_symbols = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
             
             for i, drug in enumerate(detected_drugs):
-                # 薬剤名から分類を推定
-                drug_lower = drug.lower()
-                category = 'unknown'
-                
-                if any(term in drug_lower for term in ['タダラフィル']):
-                    category = 'pde5_inhibitor'
-                elif any(term in drug_lower for term in ['ニコランジル']):
-                    category = 'nitrate'
-                elif any(term in drug_lower for term in ['エンレスト']):
-                    category = 'arni'
-                elif any(term in drug_lower for term in ['テラムロ']):
-                    category = 'ca_antagonist_arb_combination'
-                elif any(term in drug_lower for term in ['エナラプリル']):
-                    category = 'ace_inhibitor'
-                elif any(term in drug_lower for term in ['タケキャブ']):
-                    category = 'p_cab'
-                elif any(term in drug_lower for term in ['ランソプラゾール']):
-                    category = 'ppi'
-                elif any(term in drug_lower for term in ['ベルソムラ']):
-                    category = 'orexin_receptor_antagonist'
-                elif any(term in drug_lower for term in ['デビゴ']):
-                    category = 'orexin_receptor_antagonist'
-                elif any(term in drug_lower for term in ['フルボキサミン']):
-                    category = 'ssri_antidepressant'
-                elif any(term in drug_lower for term in ['ロゼレム']):
-                    category = 'melatonin_receptor_agonist'
-                elif any(term in drug_lower for term in ['アムロジピン']):
-                    category = 'ca_antagonist'
-                elif any(term in drug_lower for term in ['クラリスロマイシン']):
-                    category = 'macrolide_antibiotic_cyp3a4_inhibitor'
-                
-                category_jp = category_mapping.get(category, '分類不明')
-                number_symbol = number_symbols[i] if i < len(number_symbols) else f"{i+1}."
-                
-                # mgを含む薬剤名をそのまま表示
-                response_parts.append(f"{number_symbol} {drug}")
-                response_parts.append(f"   分類: {category_jp}")
+                # 薬剤情報の形式を判定
+                if isinstance(drug, dict):
+                    # 新しい分類システム（辞書形式）
+                    drug_name = drug.get('name', drug.get('generic', drug.get('raw', 'Unknown')))
+                    classification = drug.get('final_classification', '分類未設定')
+                    strength = drug.get('strength', '')
+                    dose = drug.get('dose', '')
+                    freq = drug.get('freq', '')
+                    
+                    # 薬剤情報を表示
+                    symbol = number_symbols[i] if i < len(number_symbols) else f"{i+1}."
+                    response_parts.append(f"{symbol} {drug_name}")
+                    if strength:
+                        response_parts.append(f"   用量: {strength}")
+                    if dose:
+                        response_parts.append(f"   用法: {dose}")
+                    if freq:
+                        response_parts.append(f"   頻度: {freq}")
+                    response_parts.append(f"   分類: {classification}")
+                    response_parts.append("")
+                else:
+                    # 従来の文字列形式
+                    drug_lower = drug.lower()
+                    category = 'unknown'
+                    
+                    if any(term in drug_lower for term in ['タダラフィル']):
+                        category = 'pde5_inhibitor'
+                    elif any(term in drug_lower for term in ['ニコランジル']):
+                        category = 'nitrate'
+                    elif any(term in drug_lower for term in ['エンレスト']):
+                        category = 'arni'
+                    elif any(term in drug_lower for term in ['テラムロ']):
+                        category = 'ca_antagonist_arb_combination'
+                    elif any(term in drug_lower for term in ['エナラプリル']):
+                        category = 'ace_inhibitor'
+                    elif any(term in drug_lower for term in ['タケキャブ']):
+                        category = 'p_cab'
+                    elif any(term in drug_lower for term in ['ランソプラゾール']):
+                        category = 'ppi'
+                    elif any(term in drug_lower for term in ['ベルソムラ']):
+                        category = 'orexin_receptor_antagonist'
+                    elif any(term in drug_lower for term in ['デビゴ']):
+                        category = 'orexin_receptor_antagonist'
+                    elif any(term in drug_lower for term in ['フルボキサミン']):
+                        category = 'ssri_antidepressant'
+                    elif any(term in drug_lower for term in ['ロゼレム']):
+                        category = 'melatonin_receptor_agonist'
+                    elif any(term in drug_lower for term in ['アムロジピン']):
+                        category = 'ca_antagonist'
+                    elif any(term in drug_lower for term in ['クラリスロマイシン']):
+                        category = 'macrolide_antibiotic_cyp3a4_inhibitor'
+                    
+                    category_jp = category_mapping.get(category, '分類不明')
+                    symbol = number_symbols[i] if i < len(number_symbols) else f"{i+1}."
+                    
+                    # mgを含む薬剤名をそのまま表示
+                    response_parts.append(f"{symbol} {drug}")
+                    response_parts.append(f"   分類: {category_jp}")
+                    response_parts.append("")
             
             response_parts.append("")
             response_parts.append("🔍 「診断」で飲み合わせチェックを実行できます")
