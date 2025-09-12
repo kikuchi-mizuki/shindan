@@ -128,7 +128,7 @@ class OCRService:
             
             # 7. シャープ化（複数回適用）
             for _ in range(2):
-                image = image.filter(ImageFilter.SHARPEN)
+            image = image.filter(ImageFilter.SHARPEN)
             
             # 8. エッジ強調
             image = image.filter(ImageFilter.EDGE_ENHANCE)
@@ -774,7 +774,7 @@ OCRテキスト:
                         name = line[2:].strip()
                     elif line.startswith("-"):
                         name = line[1:].strip()
-                    else:
+            else:
                         name = line.strip()
                     
                     # 薬剤名として有効かチェック
@@ -987,17 +987,17 @@ OCRテキスト:
             # テキストを抽出
             texts = response.text_annotations
             if texts:
-                full_text = texts[0].description
+            full_text = texts[0].description
                 logger.info(f"Vision API extracted text: {full_text[:200]}...")
-                return full_text
+            return full_text
             else:
                 logger.warning("No text detected by Vision API")
-                return ""
-                
+            return ""
+    
         except Exception as e:
             logger.error(f"Vision API text extraction error: {e}")
             return ""
-    
+
     def _generate_ocr_accuracy_guide(self):
         """OCR精度が低い場合のガイドを生成"""
         return """❌ **薬剤名の読み取り精度が低いため、自動検出を中止しました**
@@ -1091,7 +1091,7 @@ OCRテキスト:
                 'valid_drug_count': valid_drug_count
             }
             
-        except Exception as e:
+            except Exception as e:
             logger.error(f"Confidence check error: {e}")
             return {
                 'is_confident': True,  # エラーの場合は信頼できると仮定
@@ -1161,7 +1161,7 @@ OCRテキスト:
             image.save(output, format='PNG', optimize=True, quality=100)
             return output.getvalue()
             
-        except Exception as e:
+            except Exception as e:
             logger.error(f"Enhanced preprocessing error: {e}")
             return image_content
     
@@ -1193,7 +1193,7 @@ OCRテキスト:
             image.save(output, format='PNG', optimize=True, quality=100)
             return output.getvalue()
             
-        except Exception as e:
+            except Exception as e:
             logger.error(f"Aggressive preprocessing error: {e}")
             return image_content
     
@@ -1316,7 +1316,7 @@ OCRテキスト:
         except Exception as e:
             logger.error(f"Tesseract OCR error: {e}")
             return []
-    
+
     def _extract_drug_names_from_text(self, text):
         """テキストから薬剤名を抽出（強化版）"""
         try:
@@ -1333,8 +1333,8 @@ OCRテキスト:
                 r'タケキャブ錠\s*\d+mg'
             ]
             
-            import re
-            drug_names = []
+        import re
+        drug_names = []
             
             for pattern in expected_patterns:
                 matches = re.findall(pattern, text, re.IGNORECASE)
@@ -1344,9 +1344,9 @@ OCRテキスト:
             if not drug_names:
                 # 薬剤名の特徴的なパターンを検索
                 drug_keywords = ['錠', 'mg', 'µg', 'g']
-                lines = text.split('\n')
-                
-                for line in lines:
+        lines = text.split('\n')
+        
+        for line in lines:
                     line = line.strip()
                     if any(keyword in line for keyword in drug_keywords):
                         # 数字を含む行を薬剤名として扱う
