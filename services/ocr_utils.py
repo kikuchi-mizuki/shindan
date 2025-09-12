@@ -19,7 +19,8 @@ def split_numbered_blocks(text: str) -> List[Tuple[str, str]]:
     """
     try:
         # 例) 「7 ...\n...\n8 ...\n...」を [("7",block7),("8",block8),...] に
-        pat = re.compile(r"(?m)^\s*(\d{1,2})\s+(.*?)(?=^\s*\d{1,2}\s+|\Z)", re.S)
+        # より柔軟なパターンで番号ブロックを検出
+        pat = re.compile(r"(?m)^\s*(\d{1,2})\s*[【】]?\s*(.*?)(?=^\s*\d{1,2}\s*[【】]?\s*|\Z)", re.S)
         blocks = pat.findall(text)
         
         logger.info(f"Split text into {len(blocks)} numbered blocks")
@@ -32,9 +33,9 @@ def split_numbered_blocks(text: str) -> List[Tuple[str, str]]:
         logger.error(f"Error splitting numbered blocks: {e}")
         return []
 
-# 薬剤名抽出パターン
+# 薬剤名抽出パターン（改良版）
 NAME_PAT = re.compile(
-    r"(?:ツムラ)?([ぁ-んァ-ヶ一-龥A-Za-z0-9・ー]+?)(?:錠|カプセル|口腔内崩壊錠|顆粒|ゲル|散|液|エキス顆粒|テープ|点眼液|点鼻液|吸入液|注射剤|注射液)"
+    r"(?:ツムラ)?([ぁ-んァ-ヶ一-龥A-Za-z0-9・ー]+?)(?:錠|カプセル|口腔内崩壊錠|顆粒|ゲル|散|液|エキス顆粒|テープ|点眼液|点鼻液|吸入液|注射剤|注射液|錠剤|カプセル剤|顆粒剤|ゲル剤|散剤|液剤)"
 )
 
 def extract_names_from_block(block_text: str) -> List[str]:
@@ -58,7 +59,28 @@ def extract_names_from_block(block_text: str) -> List[str]:
         for match in matches:
             name = match.group(1).strip()
             if name and len(name) >= 2:  # 最低2文字以上
-                names.append(name)
+                # 数字で始まる場合は除去（例：7オルケディア → オルケディア）
+                if name[0].isdigit():
+                    name = name[1:]
+                if name and len(name) >= 2:
+                    names.append(name)
+        
+        # 追加のパターンマッチング（剤形が明示されていない場合）
+        additional_patterns = [
+            r"([ぁ-んァ-ヶ一-龥A-Za-z0-9・ー]+?)(?=\s*\d+mg|\s*\d+μg|\s*\d+g|\s*\d+%)",
+            r"([ぁ-んァ-ヶ一-龥A-Za-z0-9・ー]+?)(?=\s*×|\s*食後|\s*食前|\s*眠前)"
+        ]
+        
+        for pattern in additional_patterns:
+            additional_matches = re.finditer(pattern, t)
+            for match in additional_matches:
+                name = match.group(1).strip()
+                if name and len(name) >= 3 and name not in names:  # 重複を避ける
+                    # 数字で始まる場合は除去
+                    if name[0].isdigit():
+                        name = name[1:]
+                    if name and len(name) >= 3:
+                        names.append(name)
         
         # 重複除去（順序保持）
         unique_names = list(dict.fromkeys(names))
