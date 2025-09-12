@@ -495,9 +495,22 @@ def handle_image_message(event):
             # 分類サービスで薬剤分類を付与
             classified_drugs = classifier.classify_many(ai_drugs)
             
+            # 薬剤名リストを作成
+            drug_names = []
             for drug in classified_drugs:
                 generic_name = drug.get('generic', '')
                 if generic_name:
+                    drug_names.append(generic_name)
+            
+            # post_filterでジクロフェナクの誤混入を防止
+            # raw_textはOCR結果から取得
+            raw_text = ocr_result.get('raw_text', '') if isinstance(ocr_result, dict) else ''
+            filtered_drug_names = drug_service.post_filter(drug_names, raw_text)
+            
+            # フィルタリング後の薬剤のみを処理
+            for drug in classified_drugs:
+                generic_name = drug.get('generic', '')
+                if generic_name in filtered_drug_names:
                     # KEGG照合を実行
                     kegg_info = drug_service.safe_find_kegg_info(generic_name)
                     if kegg_info:

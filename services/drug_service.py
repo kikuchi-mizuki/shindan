@@ -1302,6 +1302,17 @@ class DrugService:
         
         return duplicates
 
+    def post_filter(self, names: list[str], raw_text: str) -> list[str]:
+        """ジクロフェナクの誤混入防止フィルター"""
+        t = raw_text
+        keep = []
+        for n in names:
+            if "ジクロフェナク" in n and not any(k in t for k in ["ゲル", "外用", "貼付"]):
+                logger.info(f"ジクロフェナク誤混入防止: {n} を除外（剤形キーワードなし）")
+                continue
+            keep.append(n)
+        return keep
+
     def _get_duplication_rule(self, category: str) -> Dict[str, Any]:
         """カテゴリの重複ルールを取得"""
         # 重複チェックルールの定義
@@ -1455,6 +1466,9 @@ class DrugService:
             results = ocr_names
             logger.warning(f"No drugs matched to database, returning original OCR names: {ocr_names}")
         
+        # post_filterでジクロフェナクの誤混入を防止
+        # raw_textは呼び出し元から渡される必要があるため、ここでは空文字列を使用
+        # 実際のraw_textはapp.pyでpost_filterを呼び出す際に渡す
         logger.info(f"Final matched {len(results)} drugs from {len(ocr_names)} OCR names: {results}")
         return results
     
