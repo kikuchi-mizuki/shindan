@@ -1486,6 +1486,10 @@ class DrugService:
             logger.warning(f"KEGG lookup error for {drug_name}: {e}")
             return None
     
+    def _pattern_based_correction(self, drug_name: str) -> str:
+        """パターンベースの薬剤名修正（パブリックメソッド）"""
+        return self.ai_matcher._pattern_based_correction(drug_name)
+    
     def _normalize_drug_name(self, raw_name: str) -> str:
         """薬剤名の正規化"""
         if not raw_name:
