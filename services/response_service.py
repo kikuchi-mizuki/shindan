@@ -31,15 +31,33 @@ class ResponseService:
                 response_parts.append("従来の相互作用チェック結果を表示します。")
                 response_parts.append("")
                 
-                # 従来の相互作用チェック結果を表示
-                if drug_info.get('interactions'):
+                # 相互作用チェック結果を表示（従来 + ルールエンジン両対応）
+                interactions = drug_info.get('interactions') or []
+                if interactions:
                     response_parts.append("💊 相互作用チェック")
-                    for interaction in drug_info['interactions']:
-                        risk_emoji = self._get_risk_emoji(interaction.get('risk', 'medium'))
-                        response_parts.append(f"{risk_emoji} {interaction['drug1']} + {interaction['drug2']}")
-                        response_parts.append(f"リスク: {interaction.get('description', '相互作用あり')}")
-                        if interaction.get('mechanism'):
-                            response_parts.append(f"機序: {interaction['mechanism']}")
+                    for interaction in interactions:
+                        # 形式A: 従来の {drug1, drug2, risk, description, mechanism}
+                        if 'drug1' in interaction and 'drug2' in interaction:
+                            risk_emoji = self._get_risk_emoji(interaction.get('risk', 'medium'))
+                            response_parts.append(f"{risk_emoji} {interaction.get('drug1')} + {interaction.get('drug2')}")
+                            response_parts.append(f"リスク: {interaction.get('description', '相互作用あり')}")
+                            if interaction.get('mechanism'):
+                                response_parts.append(f"機序: {interaction.get('mechanism')}")
+                            response_parts.append("")
+                            continue
+
+                        # 形式B: ルールエンジンの {id, name, severity, advice, matched_drugs}
+                        name = interaction.get('name') or interaction.get('id', '相互作用注意')
+                        severity = interaction.get('severity', 'moderate')
+                        risk_emoji = self._get_risk_emoji(severity)
+                        matched = interaction.get('matched_drugs') or []
+                        advice = interaction.get('advice') or interaction.get('description')
+
+                        response_parts.append(f"{risk_emoji} {name}")
+                        if matched:
+                            response_parts.append(f"関与薬剤: {', '.join(matched)}")
+                        if advice:
+                            response_parts.append(f"助言: {advice}")
                         response_parts.append("")
                 else:
                     # 相互作用がない場合
