@@ -535,7 +535,7 @@ def handle_image_message(event):
             confidence = ai_result.get('confidence', 'low')
             
             # AI抽出結果を重複統合
-            from services.deduper import dedupe, get_dedup_summary
+            from services.deduper import dedupe
             from services.classifier_kegg import KeggClassifier
             
             ai_drugs = ai_result.get('drugs', [])
@@ -675,13 +675,7 @@ def handle_image_message(event):
                         user_drug_buffer[user_id].append(matched_drug_name)
                 
                 # 検出結果の確認メッセージを表示
-                # 重複統合のサマリーを生成
-                count_msg = get_dedup_summary(len(ai_drugs) if 'ai_drugs' in locals() else len(matched_drugs), len(classified_drugs), removed_count if 'removed_count' in locals() else 0)
-                
                 response_text = response_service.generate_simple_response(classified_drugs)
-                
-                # 重複統合のサマリーを先頭に追加
-                response_text = f"【薬剤検出完了】\n{count_msg}\n\n" + response_text
                 
                 # 検出結果を送信
                 messaging_api.push_message(
