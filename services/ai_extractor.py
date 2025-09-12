@@ -135,7 +135,8 @@ class AIExtractorService:
       "strength": "用量（例：5mg、10錠）",
       "dose": "1回量（例：1錠、2錠）",
       "freq": "服用頻度（例：1日3回、就寝前）",
-      "days": 日数（数値）
+      "days": 日数（数値）,
+      "category": "薬効分類（例：消化管機能薬、高尿酸血症治療薬、NSAIDs、下剤、漢方など）"
     }}
   ]
 }}
@@ -149,6 +150,17 @@ class AIExtractorService:
 - 不明確な情報は推測せず、空文字列にしてください
 - 行頭に番号がない薬剤も必ず抽出してください（例：「センノシド錠12mg」「ラキソベロン錠2.5mg」など）
 - 剤形（錠、カプセル、顆粒、ゲル、液など）を含む行は薬剤として認識してください
+- 薬効分類は以下のカテゴリから適切なものを選択してください：
+  * 消化管機能薬（PPI、H2ブロッカー、P-CAB、消化管運動改善薬など）
+  * 高尿酸血症治療薬（尿酸生成阻害薬、尿酸排泄促進薬など）
+  * NSAIDs（非ステロイド性抗炎症薬）
+  * 下剤（刺激性下剤、浸透圧性下剤など）
+  * 漢方（漢方薬）
+  * 睡眠薬（ベンゾジアゼピン系、非ベンゾジアゼピン系、オレキシン受容体拮抗薬など）
+  * 抗うつ薬（SSRI、SNRI、三環系など）
+  * 抗アレルギー薬（抗ヒスタミン薬、ロイコトリエン受容体拮抗薬など）
+  * カルシウム拮抗薬
+  * その他（適切な分類がない場合）
 """
     
     def _parse_ai_response(self, ai_response: str) -> Dict[str, Any]:
@@ -214,7 +226,8 @@ class AIExtractorService:
                 'strength': str(drug.get('strength', '')).strip(),
                 'dose': str(drug.get('dose', '')).strip(),
                 'freq': str(drug.get('freq', '')).strip(),
-                'days': self._parse_days(drug.get('days'))
+                'days': self._parse_days(drug.get('days')),
+                'category': str(drug.get('category', '')).strip()
             }
             
             return validated_drug

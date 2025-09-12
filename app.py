@@ -421,6 +421,11 @@ def handle_image_message(event):
                         drug['kegg_id'] = kegg_info.get('kegg_id')
                         drug['kegg_category'] = kegg_info.get('category')
                     
+                    # AI抽出のカテゴリ情報も保持
+                    ai_category = drug.get('category', '')
+                    if ai_category:
+                        drug['ai_category'] = ai_category
+                    
                     matched_drugs.append(generic_name)
         
         if matched_drugs:
@@ -431,8 +436,28 @@ def handle_image_message(event):
             unique_input_count = len(set(matched_drugs))
             
             if matched_drugs:
-                for matched_drug_name in matched_drugs:
-                    user_drug_buffer[user_id].append(matched_drug_name)
+                # AI抽出結果の詳細情報を保存
+                if 'ai_drugs' in locals():
+                    for drug in ai_drugs:
+                        generic_name = drug.get('generic', '')
+                        if generic_name and generic_name in matched_drugs:
+                            # 薬剤の詳細情報を辞書として保存
+                            drug_info = {
+                                'name': generic_name,
+                                'raw': drug.get('raw', ''),
+                                'strength': drug.get('strength', ''),
+                                'dose': drug.get('dose', ''),
+                                'freq': drug.get('freq', ''),
+                                'days': drug.get('days'),
+                                'ai_category': drug.get('ai_category', ''),
+                                'kegg_category': drug.get('kegg_category', ''),
+                                'kegg_id': drug.get('kegg_id', '')
+                            }
+                            user_drug_buffer[user_id].append(drug_info)
+                else:
+                    # フォールバック: 従来の方法
+                    for matched_drug_name in matched_drugs:
+                        user_drug_buffer[user_id].append(matched_drug_name)
                 
                 # 検出結果の確認メッセージを表示
                 response_text = response_service.generate_simple_response(matched_drugs)

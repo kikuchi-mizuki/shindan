@@ -1915,7 +1915,105 @@ class DrugService:
                 if line.startswith('ATC') and len(line.split()) > 1:
                     category = line.split(' ', 1)[1].strip()
                     break
-        return category if category else 'Others'
+        
+        # KEGGカテゴリを日本語にマッピング
+        if category:
+            return self._map_kegg_category_to_japanese(category)
+        
+        return 'その他'
+    
+    def _map_kegg_category_to_japanese(self, kegg_category: str) -> str:
+        """KEGGカテゴリを日本語にマッピング"""
+        kegg_lower = kegg_category.lower()
+        
+        # KEGGカテゴリマッピング辞書
+        category_mapping = {
+            # 消化器系
+            'proton pump inhibitor': '消化管機能薬',
+            'ppi': '消化管機能薬',
+            'h2 blocker': '消化管機能薬',
+            'antacid': '消化管機能薬',
+            'prokinetic': '消化管機能薬',
+            'laxative': '下剤',
+            'antidiarrheal': '消化管機能薬',
+            
+            # 循環器系
+            'calcium channel blocker': 'カルシウム拮抗薬',
+            'ace inhibitor': 'ACE阻害薬',
+            'angiotensin receptor blocker': 'ARB',
+            'beta blocker': 'β遮断薬',
+            'diuretic': '利尿薬',
+            'antiarrhythmic': '抗不整脈薬',
+            'cardiac glycoside': '強心配糖体',
+            
+            # 神経系
+            'benzodiazepine': '睡眠薬',
+            'non-benzodiazepine': '睡眠薬',
+            'orexin receptor antagonist': '睡眠薬',
+            'melatonin receptor agonist': '睡眠薬',
+            'ssri': '抗うつ薬',
+            'snri': '抗うつ薬',
+            'tricyclic antidepressant': '抗うつ薬',
+            'antipsychotic': '抗精神病薬',
+            'antianxiety': '抗不安薬',
+            'anticonvulsant': '抗てんかん薬',
+            
+            # 抗炎症・鎮痛
+            'nsaid': 'NSAIDs',
+            'cox-2 inhibitor': 'NSAIDs',
+            'opioid': 'オピオイド',
+            'corticosteroid': '副腎皮質ホルモン',
+            
+            # 感染症
+            'antibiotic': '抗生物質',
+            'antiviral': '抗ウイルス薬',
+            'antifungal': '抗真菌薬',
+            'macrolide': '抗生物質',
+            'penicillin': '抗生物質',
+            'cephalosporin': '抗生物質',
+            'quinolone': '抗生物質',
+            
+            # 代謝系
+            'statin': '脂質異常症治療薬',
+            'fibrate': '脂質異常症治療薬',
+            'xanthine oxidase inhibitor': '高尿酸血症治療薬',
+            'uricosuric': '高尿酸血症治療薬',
+            'antidiabetic': '糖尿病治療薬',
+            'insulin': '糖尿病治療薬',
+            'sulfonylurea': '糖尿病治療薬',
+            'biguanide': '糖尿病治療薬',
+            'dpp-4 inhibitor': '糖尿病治療薬',
+            'sglt2 inhibitor': '糖尿病治療薬',
+            'glp-1 receptor agonist': '糖尿病治療薬',
+            
+            # 呼吸器系
+            'bronchodilator': '気管支拡張薬',
+            'inhaled corticosteroid': '吸入ステロイド薬',
+            'leukotriene receptor antagonist': '抗アレルギー薬',
+            'antihistamine': '抗アレルギー薬',
+            'mucolytic': '去痰薬',
+            'expectorant': '去痰薬',
+            
+            # その他
+            'vitamin': 'ビタミン剤',
+            'mineral': 'ミネラル剤',
+            'herbal': '漢方',
+            'traditional medicine': '漢方',
+            'chinese medicine': '漢方',
+            'kampo': '漢方',
+            'topical': '外用薬',
+            'dermatological': '皮膚科用薬',
+            'ophthalmic': '眼科用薬',
+            'otologic': '耳鼻科用薬'
+        }
+        
+        # 部分マッチングでカテゴリを検索
+        for english_key, japanese_category in category_mapping.items():
+            if english_key in kegg_lower:
+                return japanese_category
+        
+        # デフォルト
+        return 'その他'
 
     def _fetch_kegg_drug_info(self, drug_name: str) -> Optional[Dict[str, Any]]:
         """KEGG APIから薬剤情報を取得（改善版）"""

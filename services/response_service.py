@@ -235,9 +235,9 @@ class ResponseService:
         }
         return priority_emojis.get(priority, 'ℹ️')
     
-    def generate_simple_response(self, drug_names: List[str]) -> str:
+    def generate_simple_response(self, drug_data: List) -> str:
         """シンプルな応答メッセージを生成（改善版）"""
-        if not drug_names:
+        if not drug_data:
             return """🩺【薬剤名未検出】
 ━━━━━━━━━━━━━━
 ❌ 薬剤名を読み取ることができませんでした
@@ -247,31 +247,41 @@ class ResponseService:
 ・文字がはっきり見えるように撮影してください
 ━━━━━━━━━━━━━━"""
         
-        # DrugServiceを使用して薬剤分類を取得
-        from services.drug_service import DrugService
-        drug_service = DrugService()
-        drug_categories = {}
-        
-        corrected_drug_names = []
-        drug_categories = {}
-        
-        for drug_name in drug_names:
-            logger.info(f"薬剤分類処理開始: {drug_name}")
-            # 薬剤名補正機能を含む完全な分析を実行
-            analysis = drug_service.ai_matcher.analyze_drug_name(drug_name)
-            corrected_name = analysis.get('corrected', drug_name)  # 修正された薬剤名を取得
-            category = analysis.get('category', 'unknown')
+        # 薬剤データの形式を判定
+        if isinstance(drug_data[0], dict):
+            # AI抽出結果の詳細情報
+            drug_info_list = drug_data
+        else:
+            # 従来の薬剤名リスト
+            drug_names = drug_data
+            drug_info_list = []
             
-            # 元の薬剤名（mg付き）を保持
-            display_name = drug_name  # 表示用には元の薬剤名を使用
-            corrected_drug_names.append(display_name)
-            drug_categories[display_name] = category
-            logger.info(f"薬剤分類結果: {drug_name} -> {corrected_name} -> {category} (表示: {display_name})")
+            # DrugServiceを使用して薬剤分類を取得
+            from services.drug_service import DrugService
+            drug_service = DrugService()
+            
+            for drug_name in drug_names:
+                logger.info(f"薬剤分類処理開始: {drug_name}")
+                # 薬剤名補正機能を含む完全な分析を実行
+                analysis = drug_service.ai_matcher.analyze_drug_name(drug_name)
+                corrected_name = analysis.get('corrected', drug_name)  # 修正された薬剤名を取得
+                category = analysis.get('category', 'unknown')
+                
+                drug_info = {
+                    'name': drug_name,
+                    'ai_category': category,
+                    'kegg_category': '',
+                    'strength': '',
+                    'dose': '',
+                    'freq': ''
+                }
+                drug_info_list.append(drug_info)
+                logger.info(f"薬剤分類結果: {drug_name} -> {corrected_name} -> {category}")
         
         response_parts = []
         response_parts.append("🩺【薬剤検出完了】")
         response_parts.append("━━━━━━━━━━━━━━")
-        response_parts.append(f"✅ {len(corrected_drug_names)}件検出しました")
+        response_parts.append(f"✅ {len(drug_info_list)}件検出しました")
         response_parts.append("")
         response_parts.append("")
         response_parts.append("📋 検出された薬剤:")
@@ -327,26 +337,36 @@ class ResponseService:
         }
         
         # 修正された薬剤名を使用して表示
-        for i, drug_name in enumerate(corrected_drug_names, 1):
-            category = drug_categories.get(drug_name, 'unknown')
-            japanese_category = category_mapping.get(category, '分類不明')
+        for i, drug_info in enumerate(drug_info_list, 1):
+            drug_name = drug_info.get('name', '')
+            ai_category = drug_info.get('ai_category', '')
+            kegg_category = drug_info.get('kegg_category', '')
+            strength = drug_info.get('strength', '')
+            dose = drug_info.get('dose', '')
+            freq = drug_info.get('freq', '')
             
-            # 睡眠薬の詳細分類を表示
-            if category == 'sleep_medication':
-                if 'ベルソムラ' in drug_name or 'スボレキサント' in drug_name:
-                    japanese_category = 'オレキシン受容体拮抗薬（睡眠薬）'
-                elif 'デビゴ' in drug_name or 'レンボレキサント' in drug_name:
-                    japanese_category = 'オレキシン受容体拮抗薬（睡眠薬）'
-                elif 'ロゼレム' in drug_name or 'ラメルテオン' in drug_name:
-                    japanese_category = 'メラトニン受容体作動薬（睡眠薬）'
-                else:
-                    japanese_category = '睡眠薬'
+            # カテゴリの優先順位: KEGG > AI > デフォルト
+            if kegg_category:
+                japanese_category = kegg_category
+            elif ai_category:
+                japanese_category = ai_category
+            else:
+                japanese_category = '不明'
             
             # 番号記号の取得
             number_symbols = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
             number_symbol = number_symbols[i-1] if i <= len(number_symbols) else f"{i}."
             
-            response_parts.append(f"{number_symbol} {drug_name}")
+            # 薬剤名と用量の表示
+            display_name = drug_name
+            if strength:
+                display_name += f" {strength}"
+            if dose:
+                display_name += f" {dose}"
+            if freq:
+                display_name += f" {freq}"
+            
+            response_parts.append(f"{number_symbol} {display_name}")
             response_parts.append(f"分類: {japanese_category}")
             response_parts.append("")
         
