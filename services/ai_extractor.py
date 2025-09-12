@@ -122,6 +122,8 @@ class AIExtractorService:
 4. 日数（何日分）を抽出してください
 5. 不明な情報は空文字列またはnullにしてください
 6. 薬剤以外の情報（患者名、医師名など）は無視してください
+7. 行頭番号の有無に関わらず、剤形・用量パターン（錠|カプセル|顆粒|ゲル|液など）を含む行を薬剤として認識してください
+8. 番号なしで記載されている薬剤も必ず抽出してください
 
 【出力形式】
 ```json
@@ -140,11 +142,13 @@ class AIExtractorService:
 ```
 
 【注意事項】
-- 商品名は必ず一般名に変換してください（例：マイスリー→ゾルピデム酒石酸塩）
+- 商品名は必ず一般名に変換してください（例：マイスリー→ゾルピデム酒石酸塩、オルケディア→エボカルセト）
 - 用量は正確に抽出し、単位も含めてください
 - 複数の薬剤がある場合は配列に追加してください
 - 薬剤以外の情報は抽出しないでください
 - 不明確な情報は推測せず、空文字列にしてください
+- 行頭に番号がない薬剤も必ず抽出してください（例：「センノシド錠12mg」「ラキソベロン錠2.5mg」など）
+- 剤形（錠、カプセル、顆粒、ゲル、液など）を含む行は薬剤として認識してください
 """
     
     def _parse_ai_response(self, ai_response: str) -> Dict[str, Any]:
@@ -265,15 +269,19 @@ class AIExtractorService:
                     confidence_score += 1
                 total_checks += 1
             
-            # 信頼度の判定
+            # 信頼度の判定（閾値を緩和）
             if total_checks == 0:
                 return 'low'
             
             confidence_ratio = confidence_score / total_checks
             
-            if confidence_ratio >= 0.8:
+            # 薬剤数が多い場合は信頼度を上げる
+            drug_count_bonus = min(len(drugs) * 0.1, 0.3)  # 最大0.3のボーナス
+            adjusted_ratio = confidence_ratio + drug_count_bonus
+            
+            if adjusted_ratio >= 0.7:  # 閾値を0.8から0.7に緩和
                 return 'high'
-            elif confidence_ratio >= 0.6:
+            elif adjusted_ratio >= 0.5:  # 閾値を0.6から0.5に緩和
                 return 'medium'
             else:
                 return 'low'
