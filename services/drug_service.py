@@ -1095,24 +1095,29 @@ class DrugService:
             },
             # 便秘薬の多剤併用アラート
             'センノシド': {
-                'ピコスルファートナトリウム': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '刺激性下剤の重複投与', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'},
-                'リナクロチド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'},
-                'エロビキシバット': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'}
+                'ピコスルファートナトリウム': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '刺激性下剤の重複投与', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'},
+                'リナクロチド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'},
+                'エロビキシバット': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'}
             },
             'ピコスルファートナトリウム': {
-                'センノシド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '刺激性下剤の重複投与', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'},
-                'リナクロチド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'},
-                'エロビキシバット': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'}
+                'センノシド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '刺激性下剤の重複投与', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'},
+                'リナクロチド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'},
+                'エロビキシバット': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'}
             },
             'リナクロチド': {
-                'センノシド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'},
-                'ピコスルファートナトリウム': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'},
-                'エロビキシバット': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'}
+                'センノシド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'},
+                'ピコスルファートナトリウム': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'},
+                'エロビキシバット': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'}
             },
             'エロビキシバット': {
-                'センノシド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'},
-                'ピコスルファートナトリウム': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'},
-                'リナクロチド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・腹痛・脱水/電解質異常に注意。症状強い場合は減量/間欠投与を検討。'}
+                'センノシド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'},
+                'ピコスルファートナトリウム': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'},
+                'リナクロチド': {'risk': 'moderate', 'description': '便秘治療薬の複数併用', 'mechanism': '異なる作用機序の便秘薬併用', 'clinical_impact': '下痢・脱水・電解質異常に注意。症状が強い場合は減量や間欠投与を検討。'}
+            },
+            # 甘草含有漢方＋刺激性下剤の低K血症アラート
+            '芍薬甘草湯': {
+                'センノシド': {'risk': 'moderate', 'description': '甘草含有漢方＋刺激性下剤', 'mechanism': '甘草の低K血症作用と刺激性下剤の併用', 'clinical_impact': '低カリウム血症に注意。筋けいれん・動悸があれば受診。高齢/利尿薬併用では特に注意。'},
+                'ピコスルファートナトリウム': {'risk': 'moderate', 'description': '甘草含有漢方＋刺激性下剤', 'mechanism': '甘草の低K血症作用と刺激性下剤の併用', 'clinical_impact': '低カリウム血症に注意。筋けいれん・動悸があれば受診。高齢/利尿薬併用では特に注意。'}
             }
         }
         logger.info(f"Loaded interaction rules: {len(self.interaction_rules)} drug mappings")

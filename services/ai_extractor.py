@@ -230,9 +230,13 @@ class AIExtractorService:
                 return None
             
             # データの正規化
+            generic_name = str(drug.get('generic', '')).strip()
+            # 同義語辞書による正規化
+            generic_name = self._normalize_generic_name(generic_name)
+            
             validated_drug = {
                 'raw': str(drug.get('raw', '')).strip(),
-                'generic': str(drug.get('generic', '')).strip(),
+                'generic': generic_name,
                 'brand': str(drug.get('brand', '')).strip() if drug.get('brand') else None,
                 'strength': str(drug.get('strength', '')).strip(),
                 'dose': str(drug.get('dose', '')).strip(),
@@ -247,6 +251,25 @@ class AIExtractorService:
         except Exception as e:
             logger.warning(f"Drug data validation error: {e}")
             return None
+    
+    def _normalize_generic_name(self, name: str) -> str:
+        """商品名→一般名の正規化"""
+        synonyms = {
+            "オルケディア": "エボカルセト",
+            "リンゼス": "リナクロチド", 
+            "ラキソベロン": "ピコスルファートナトリウム",
+            "グーフィス": "エロビキシバット",
+            "芍薬甘草湯": "芍薬甘草湯",
+            "ツムラ芍薬甘草湯": "芍薬甘草湯",
+            "ツムラ芍薬甘草湯エキス顆粒": "芍薬甘草湯"
+        }
+        
+        # 同義語チェック
+        for brand, generic in synonyms.items():
+            if brand in name:
+                return generic
+        
+        return name
     
     def _parse_days(self, days_value: Any) -> Optional[int]:
         """日数の解析"""
