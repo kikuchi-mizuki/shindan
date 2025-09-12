@@ -596,22 +596,25 @@ def handle_image_message(event):
             stats = kegg_classifier.get_classification_stats(classified_drugs)
             logger.info(f"Classification stats: {stats}")
             
-            # 信頼度ゲートチェック
+            # 信頼度ゲートチェック（実務的にノイズを減らす）
             low_confidence_drugs = []
             missing_kegg_drugs = []
-            
+
             for drug in classified_drugs:
                 generic_name = drug.get('generic', '')
-                confidence = drug.get('confidence', 0.0)
-                kegg_id = drug.get('kegg_id', '')
-                
-                if confidence < 0.8:
+                confidence = float(drug.get('confidence', 1.0) or 1.0)
+                kegg_id = drug.get('kegg_id') or ''
+                final_cls = drug.get('final_classification') or ''
+
+                # 低信頼度は「未分類」のときのみ警告（分類が確定していれば許容）
+                if confidence < 0.6 and (not final_cls or final_cls == '分類未設定'):
                     low_confidence_drugs.append(generic_name)
-                
-                if not kegg_id:
+
+                # KEGG未取得は「未分類」のときのみ警告（ローカル辞書等で確定していれば許容）
+                if (not kegg_id) and (not final_cls or final_cls == '分類未設定'):
                     missing_kegg_drugs.append(generic_name)
-            
-            # 低信頼度またはKEGG IDなしの場合は人確認
+
+            # 低信頼度かつ未分類、またはKEGG未取得かつ未分類がある場合のみ人確認
             if low_confidence_drugs or missing_kegg_drugs:
                 confirmation_message = "⚠️ 一部の薬剤で信頼度が低い、または詳細情報が取得できませんでした。\n\n"
                 
