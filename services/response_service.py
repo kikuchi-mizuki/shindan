@@ -62,8 +62,6 @@ class ResponseService:
                             response_parts.append(f"✅ 考えられる症状: {advice}")
                             response_parts.append(f"✅ 推奨事項: 医師・薬剤師にご相談ください")
                         response_parts.append("")
-                        response_parts.append("━━━━━━━━━━━━━━")
-                        response_parts.append("")
                 else:
                     # 相互作用がない場合は簡潔に通知
                     response_parts.append("✅ 現在の薬剤組み合わせでは重大な相互作用は検出されませんでした。")
@@ -133,8 +131,6 @@ class ResponseService:
                             response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
                             response_parts.append(f"✅ 推奨事項: {risk.get('recommendation', '')}")
                             response_parts.append("")
-                            response_parts.append("━━━━━━━━━━━━━━")
-                            response_parts.append("")
                 
                 # 3. 併用注意の詳細表示（重複除去）
                 medium_risks = ai_analysis.get('risk_summary', {}).get('medium_risk', [])
@@ -156,8 +152,6 @@ class ResponseService:
                             response_parts.append(f"✅ 理由: {risk.get('description', '')}")
                             response_parts.append(f"✅ 考えられる症状: {risk.get('clinical_impact', '')}")
                             response_parts.append(f"✅ 推奨事項: {risk.get('recommendation', '')}")
-                            response_parts.append("")
-                            response_parts.append("━━━━━━━━━━━━━━")
                             response_parts.append("")
                 
                 # 4. 患者プロファイル分析
