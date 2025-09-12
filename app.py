@@ -161,8 +161,21 @@ def handle_text_message(event):
                 )
                 
                 # 診断処理
-                drug_info = drug_service.get_drug_interactions(user_drug_buffer[user_id])
-                response_text = response_service.generate_response(drug_info)
+                user_drugs = user_drug_buffer[user_id]
+                
+                # 薬剤データの形式を判定して処理
+                if user_drugs and isinstance(user_drugs[0], dict):
+                    # AI抽出結果の詳細情報の場合
+                    drug_names = [drug.get('name', '') for drug in user_drugs if drug.get('name')]
+                else:
+                    # 従来の薬剤名リストの場合
+                    drug_names = user_drugs
+                
+                if drug_names:
+                    drug_info = drug_service.get_drug_interactions(drug_names)
+                    response_text = response_service.generate_response(drug_info)
+                else:
+                    response_text = "薬剤情報が正しく取得できませんでした。"
                 
                 # 診断結果を送信
                 messaging_api.push_message(
@@ -181,7 +194,16 @@ def handle_text_message(event):
         
         elif user_message.lower() in ['リスト確認', 'りすとかくにん', 'list']:
             if user_id in user_drug_buffer and user_drug_buffer[user_id]:
-                drug_list = "\n".join([f"• {drug}" for drug in user_drug_buffer[user_id]])
+                user_drugs = user_drug_buffer[user_id]
+                
+                # 薬剤データの形式を判定して処理
+                if user_drugs and isinstance(user_drugs[0], dict):
+                    # AI抽出結果の詳細情報の場合
+                    drug_list = "\n".join([f"• {drug.get('name', '')} {drug.get('strength', '')} {drug.get('dose', '')} {drug.get('freq', '')}".strip() for drug in user_drugs if drug.get('name')])
+                else:
+                    # 従来の薬剤名リストの場合
+                    drug_list = "\n".join([f"• {drug}" for drug in user_drugs])
+                
                 response_text = f"📋 **現在の薬剤リスト**\n\n{drug_list}\n\n💡 「診断」で飲み合わせチェックを実行できます"
             else:
                 response_text = "薬剤が登録されていません。画像を送信して薬剤を登録してください。"
@@ -289,8 +311,21 @@ def handle_text_message(event):
                         user_drug_buffer[user_id].append(matched_drug)
                 
                 # 診断処理
-                drug_info = drug_service.get_drug_interactions(user_drug_buffer[user_id])
-                response_text = response_service.generate_response(drug_info)
+                user_drugs = user_drug_buffer[user_id]
+                
+                # 薬剤データの形式を判定して処理
+                if user_drugs and isinstance(user_drugs[0], dict):
+                    # AI抽出結果の詳細情報の場合
+                    drug_names = [drug.get('name', '') for drug in user_drugs if drug.get('name')]
+                else:
+                    # 従来の薬剤名リストの場合
+                    drug_names = user_drugs
+                
+                if drug_names:
+                    drug_info = drug_service.get_drug_interactions(drug_names)
+                    response_text = response_service.generate_response(drug_info)
+                else:
+                    response_text = "薬剤情報が正しく取得できませんでした。"
                 
                 # 診断結果を送信
                 messaging_api.push_message(
