@@ -531,19 +531,8 @@ def handle_image_message(event):
             ai_result = ai_extractor.extract_drugs(ocr_text)
             logger.info(f"AI extraction result: {ai_result}")
             
-            # 信頼度チェック
+            # 信頼度は後段のゲートで評価（未分類のみ確認）。ここでは処理を継続する。
             confidence = ai_result.get('confidence', 'low')
-            if confidence == 'low':
-                # 信頼度が低い場合は確認メッセージを送信
-                confirmation_message = ai_extractor.generate_confirmation_message(ai_result)
-                if confirmation_message:
-                    messaging_api.push_message(
-                        PushMessageRequest(
-                            to=user_id,
-                            messages=[TextMessage(text=confirmation_message)]
-                        )
-                    )
-                    return
             
             # AI抽出結果を重複統合
             from services.deduper import dedupe, get_dedup_summary
