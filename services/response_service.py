@@ -346,8 +346,7 @@ class ResponseService:
                 japanese_category = '不明'
             
             # 番号記号の取得
-            number_symbols = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
-            number_symbol = number_symbols[i-1] if i <= len(number_symbols) else f"{i}."
+            number_symbol = f"{i}."
             
             # 薬剤名と用量の表示
             display_name = drug_name
@@ -502,8 +501,8 @@ class ResponseService:
                 'unknown': '分類不明'
             }
             
-            # 数字記号のマッピング
-            number_symbols = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
+            # アラビア数字 + ドットで統一
+            number_symbols = []
             
             for i, drug in enumerate(detected_drugs):
                 # 薬剤情報の形式を判定
@@ -516,7 +515,7 @@ class ResponseService:
                     freq = drug.get('freq', '')
                     
                     # 薬剤情報を表示
-                    symbol = number_symbols[i] if i < len(number_symbols) else f"{i+1}."
+                    symbol = f"{i+1}."
                     response_parts.append(f"{symbol} {drug_name}")
                     def nz(v, fallback="不明"):
                         return fallback if v in (None, "", "None") else v
@@ -565,7 +564,7 @@ class ResponseService:
                         category = 'macrolide_antibiotic_cyp3a4_inhibitor'
                     
                     category_jp = category_mapping.get(category, '分類不明')
-                    symbol = number_symbols[i] if i < len(number_symbols) else f"{i+1}."
+                    symbol = f"{i+1}."
                     
                     # mgを含む薬剤名をそのまま表示
                     response_parts.append(f"{symbol} {drug}")
