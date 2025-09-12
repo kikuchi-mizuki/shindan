@@ -32,10 +32,11 @@ _services_initialized = False
 ocr_service = None
 drug_service = None
 response_service = None
+ai_extractor = None
 
 def initialize_services():
     """サービスの初期化（遅延実行）"""
-    global ocr_service, drug_service, response_service, _services_initialized
+    global ocr_service, drug_service, response_service, ai_extractor, _services_initialized
     
     if _services_initialized:
         return True
@@ -65,6 +66,14 @@ def initialize_services():
             logger.info("ResponseService initialized")
         except Exception as e:
             logger.error(f"ResponseService initialization failed: {e}")
+            return False
+        
+        try:
+            from services.ai_extractor import AIExtractorService
+            ai_extractor = AIExtractorService()
+            logger.info("AIExtractorService initialized")
+        except Exception as e:
+            logger.error(f"AIExtractorService initialization failed: {e}")
             return False
         
         _services_initialized = True
@@ -370,17 +379,56 @@ def handle_image_message(event):
             )
             return
         
-        # 薬剤名抽出（品質評価済み）
-        drug_names = ocr_result['drug_names']
+        # OCRテキストを取得
+        ocr_text = ocr_result.get('raw_text', '')
+        if not ocr_text:
+            # フォールバック: 従来の方法で薬剤名抽出
+            drug_names = ocr_result['drug_names']
+            if drug_names:
+                matched_drugs = drug_service.match_to_database(drug_names)
+            else:
+                matched_drugs = []
+        else:
+            # AI抽出サービスを使用
+            ai_result = ai_extractor.extract_drugs(ocr_text)
+            logger.info(f"AI extraction result: {ai_result}")
+            
+            # 信頼度チェック
+            confidence = ai_result.get('confidence', 'low')
+            if confidence == 'low':
+                # 信頼度が低い場合は確認メッセージを送信
+                confirmation_message = ai_extractor.generate_confirmation_message(ai_result)
+                if confirmation_message:
+                    messaging_api.push_message(
+                        PushMessageRequest(
+                            to=user_id,
+                            messages=[TextMessage(text=confirmation_message)]
+                        )
+                    )
+                    return
+            
+            # AI抽出結果から薬剤名を取得
+            ai_drugs = ai_result.get('drugs', [])
+            matched_drugs = []
+            
+            for drug in ai_drugs:
+                generic_name = drug.get('generic', '')
+                if generic_name:
+                    # KEGG照合を実行
+                    kegg_info = drug_service.safe_find_kegg_info(generic_name)
+                    if kegg_info:
+                        # KEGG IDを付与
+                        drug['kegg_id'] = kegg_info.get('kegg_id')
+                        drug['kegg_category'] = kegg_info.get('category')
+                    
+                    matched_drugs.append(generic_name)
         
-        if drug_names:
+        if matched_drugs:
             # ユーザーバッファに薬剤名を追加
             if user_id not in user_drug_buffer:
                 user_drug_buffer[user_id] = []
             
-            # マッチした薬剤名をバッファに追加
-            matched_drugs = drug_service.match_to_database(drug_names)
-            unique_input_count = len(set(drug_names))
+            unique_input_count = len(set(matched_drugs))
             
             if matched_drugs:
                 for matched_drug_name in matched_drugs:

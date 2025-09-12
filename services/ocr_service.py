@@ -936,6 +936,7 @@ OCRテキスト:
                     logger.info(f"High confidence extraction: {len(drug_names)} drugs detected")
                     return {
                         'drug_names': drug_names,
+                        'raw_text': ocr_text,
                         'quality_result': quality_result,
                         'should_process': True,
                         'guide': None
@@ -945,6 +946,7 @@ OCRテキスト:
                     # 信頼度が低い場合は品質ガイドを表示
                     return {
                         'drug_names': [],
+                        'raw_text': ocr_text,
                         'quality_result': quality_result,
                         'should_process': False,
                         'guide': self._generate_ocr_accuracy_guide()
@@ -959,6 +961,7 @@ OCRテキスト:
             logger.error(f"Drug name extraction error: {e}")
             return {
                 'drug_names': [],
+                'raw_text': '',
                 'quality_result': {'quality_level': 'low', 'should_process': False},
                 'should_process': False,
                 'guide': self._generate_ocr_accuracy_guide()

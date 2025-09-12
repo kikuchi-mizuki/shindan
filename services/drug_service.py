@@ -1452,6 +1452,14 @@ class DrugService:
         logger.info(f"Final matched {len(results)} drugs from {len(ocr_names)} OCR names: {results}")
         return results
     
+    def safe_find_kegg_info(self, drug_name: str) -> Optional[Dict[str, Any]]:
+        """KEGG情報を安全に取得（パブリックメソッド）"""
+        try:
+            return self._fetch_kegg_drug_info(drug_name)
+        except Exception as e:
+            logger.warning(f"KEGG lookup error for {drug_name}: {e}")
+            return None
+    
     def _normalize_drug_name(self, raw_name: str) -> str:
         """薬剤名の正規化"""
         if not raw_name:
