@@ -22,6 +22,7 @@ JA2EN = {
     "エロビキシバット": "elobixibat",
     "沈降炭酸カルシウム": "calcium carbonate",
     "エボカルセト": "evocalcet",
+    "ピコスルファートナトリウム": "sodium picosulfate",
     "ジクロフェナクナトリウム": "diclofenac",
     "ゾルピデム酒石酸塩": "zolpidem",
     "スボレキサント": "suvorexant",

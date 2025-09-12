@@ -526,7 +526,11 @@ class ResponseService:
                     if strength:
                         response_parts.append(f"   用量: {strength}")
                     if dose:
-                        response_parts.append(f"   用法: {dose}")
+                        # 漢方薬の単位を「包」に修正
+                        display_dose = dose
+                        if any(keyword in drug_name for keyword in ["芍薬甘草湯", "エキス顆粒", "ツムラ"]):
+                            display_dose = dose.replace("錠", "包")
+                        response_parts.append(f"   用法: {display_dose}")
                     if freq:
                         response_parts.append(f"   頻度: {freq}")
                     response_parts.append(f"   分類: {classification}")
