@@ -29,7 +29,6 @@ class ResponseService:
                 # 相互作用チェック結果のみ表示（余計な前置きは出さない）
                 interactions = drug_info.get('interactions') or []
                 if interactions:
-                    response_parts.append("💊 相互作用チェック")
                     for interaction in interactions:
                         # 形式A: 従来の {drug1, drug2, risk, description, mechanism}
                         if 'drug1' in interaction and 'drug2' in interaction:
