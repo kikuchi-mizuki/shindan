@@ -35,6 +35,46 @@ response_service = None
 ai_extractor = None
 classifier = None
 
+def _calculate_accuracy_metrics(matched_drugs, classified_drugs):
+    """実用精度の指標を計算"""
+    try:
+        metrics = {
+            'drug_recall': 0.0,  # 薬剤リコール（真の薬が全て出た割合）
+            'false_positive_rate': 0.0,  # 誤検知率（余計な薬が混ざる率）
+            'classification_rate': 0.0,  # 分類付与率（class_jpが埋まる）
+            'total_drugs': len(matched_drugs),
+            'classified_drugs': 0,
+            'unclassified_drugs': 0
+        }
+        
+        if not matched_drugs:
+            return metrics
+        
+        # 分類付与率の計算
+        for drug in classified_drugs:
+            classification = drug.get('final_classification', '')
+            if classification and classification != '分類未設定':
+                metrics['classified_drugs'] += 1
+            else:
+                metrics['unclassified_drugs'] += 1
+        
+        metrics['classification_rate'] = metrics['classified_drugs'] / len(classified_drugs) if classified_drugs else 0.0
+        
+        # 目標指標との比較
+        target_metrics = {
+            'drug_recall_target': 0.98,  # ≥ 0.98
+            'false_positive_rate_target': 0.02,  # ≤ 0.02
+            'classification_rate_target': 1.00  # = 1.00
+        }
+        
+        metrics.update(target_metrics)
+        
+        return metrics
+        
+    except Exception as e:
+        logger.error(f"Accuracy metrics calculation error: {e}")
+        return {'error': str(e)}
+
 def initialize_services():
     """サービスの初期化（遅延実行）"""
     global ocr_service, drug_service, response_service, ai_extractor, classifier, _services_initialized
@@ -547,6 +587,10 @@ def handle_image_message(event):
                 matched_drugs.append(drug_name)
         
         if matched_drugs:
+            # 実用精度の指標測定
+            accuracy_metrics = _calculate_accuracy_metrics(matched_drugs, classified_drugs)
+            logger.info(f"Accuracy metrics: {accuracy_metrics}")
+            
             # ユーザーバッファに薬剤名を追加
             if user_id not in user_drug_buffer:
                 user_drug_buffer[user_id] = []

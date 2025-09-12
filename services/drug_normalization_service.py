@@ -188,10 +188,10 @@ class DrugNormalizationService:
             }
         }
         
-        # 信頼度閾値
+        # 信頼度閾値（実用精度向上のため厳格化）
         self.confidence_thresholds = {
             'high': 0.85,    # 高信頼度（確定）
-            'medium': 0.7,   # 中信頼度（要確認）
+            'medium': 0.75,  # 中信頼度（要確認）
             'low': 0.5       # 低信頼度（不明）
         }
     
@@ -316,7 +316,7 @@ class DrugNormalizationService:
             max_alias_similarity = max(alias_similarities) if alias_similarities else 0.0
             best_similarity = max(name_similarity, max_alias_similarity)
             
-            if best_similarity > 0.3:  # 閾値以上の類似度
+            if best_similarity > 0.85:  # 実用精度向上のため閾値を0.85に厳格化
                 matches.append({
                     'name': dict_name,
                     'confidence': best_similarity,

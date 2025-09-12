@@ -72,7 +72,7 @@ class Classifier:
     
     def classify_one(self, drug: Dict[str, Any]) -> Optional[str]:
         """
-        単一薬剤の分類を取得
+        単一薬剤の分類を取得（実用精度向上版）
         
         Args:
             drug: ai_extractorが返した1件 {"raw","generic","class_hint",...}
@@ -89,7 +89,7 @@ class Classifier:
             # 剤形タグを追加
             generic_with_form = add_dosage_form_tag(generic, drug.get("raw", ""))
             
-            # 1) ローカル辞書で検索
+            # 1) ローカル辞書で検索（最優先）
             classification = CLASS_BY_GENERIC.get(generic_with_form)
             if classification:
                 logger.info(f"Found classification in local dict: {generic_with_form} -> {classification}")
@@ -101,30 +101,101 @@ class Classifier:
                 logger.info(f"Found classification in local dict (original): {generic} -> {classification}")
                 return classification
             
-            # 2) KEGG/ATC由来（実装済みの場合）
+            # 2) KEGG/ATC由来（厳格な裏取り）
             if self.kegg_service:
                 try:
                     kegg_info = self.kegg_service.safe_find_kegg_info(generic)
                     if kegg_info and kegg_info.get('category'):
+                        # ATCコードから薬効分類を取得
+                        atc_code = kegg_info.get('atc_code', '')
+                        if atc_code:
+                            # ATCコードから薬効分類を推定
+                            atc_classification = self._get_atc_classification(atc_code)
+                            if atc_classification:
+                                logger.info(f"Found ATC classification: {generic} -> {atc_classification}")
+                                return atc_classification
+                        
+                        # フォールバック: KEGGカテゴリを使用
                         classification = kegg_info['category']
                         logger.info(f"Found classification in KEGG: {generic} -> {classification}")
                         return classification
                 except Exception as e:
                     logger.warning(f"KEGG classification failed: {e}")
             
-            # 3) AIのclass_hint
+            # 3) AIのclass_hint（信頼度チェック付き）
             hint = drug.get("class_hint")
-            if hint:
+            if hint and self._is_reliable_ai_hint(hint):
                 classification = f"{hint}（AI推定）"
-                logger.info(f"Using AI hint: {generic} -> {classification}")
+                logger.info(f"Using reliable AI hint: {generic} -> {classification}")
                 return classification
             
-            logger.warning(f"No classification found for: {generic}")
+            logger.warning(f"No reliable classification found for: {generic}")
             return None
             
         except Exception as e:
             logger.error(f"Classification error for drug {drug}: {e}")
             return None
+    
+    def _get_atc_classification(self, atc_code: str) -> Optional[str]:
+        """ATCコードから薬効分類を取得"""
+        try:
+            # ATCコードの主要分類
+            atc_mappings = {
+                'A': '消化管・代謝系薬',
+                'B': '血液・造血器系薬',
+                'C': '循環器系薬',
+                'D': '皮膚科用薬',
+                'G': '泌尿生殖器系・性ホルモン薬',
+                'H': '全身ホルモン製剤（甲状腺製剤除く）',
+                'J': '全身感染症治療薬',
+                'L': '抗腫瘍薬・免疫抑制薬',
+                'M': '筋骨格系薬',
+                'N': '神経系薬',
+                'P': '駆虫薬・殺虫薬・忌避薬',
+                'R': '呼吸器系薬',
+                'S': '感覚器系薬',
+                'V': 'その他'
+            }
+            
+            if atc_code and len(atc_code) >= 1:
+                first_letter = atc_code[0]
+                return atc_mappings.get(first_letter)
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"ATC classification error: {e}")
+            return None
+    
+    def _is_reliable_ai_hint(self, hint: str) -> bool:
+        """AIヒントの信頼性をチェック"""
+        try:
+            # 信頼できる薬効分類のキーワード
+            reliable_keywords = [
+                'NSAIDs', '下剤', '抗アレルギー', '便秘薬', '高尿酸血症治療薬',
+                '睡眠薬', '抗うつ薬', '消化管機能薬', 'カルシウム拮抗薬',
+                'PPI', 'P-CAB', 'スタチン', '抗生物質', '漢方'
+            ]
+            
+            # 信頼できないキーワード
+            unreliable_keywords = [
+                '不明', 'その他', '分類不能', '未分類'
+            ]
+            
+            # 信頼できないキーワードが含まれている場合は除外
+            if any(keyword in hint for keyword in unreliable_keywords):
+                return False
+            
+            # 信頼できるキーワードが含まれている場合は採用
+            if any(keyword in hint for keyword in reliable_keywords):
+                return True
+            
+            # その他の場合は長さで判定（短すぎる場合は除外）
+            return len(hint) >= 3
+            
+        except Exception as e:
+            logger.error(f"AI hint reliability check error: {e}")
+            return False
     
     def classify_many(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """

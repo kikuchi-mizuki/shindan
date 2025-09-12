@@ -300,9 +300,9 @@ class AIExtractorService:
             drug_count_bonus = min(len(drugs) * 0.1, 0.3)  # 最大0.3のボーナス
             adjusted_ratio = confidence_ratio + drug_count_bonus
             
-            if adjusted_ratio >= 0.7:  # 閾値を0.8から0.7に緩和
+            if adjusted_ratio >= 0.8:  # 実用精度向上のため閾値を0.8に戻す
                 return 'high'
-            elif adjusted_ratio >= 0.5:  # 閾値を0.6から0.5に緩和
+            elif adjusted_ratio >= 0.6:  # 閾値を0.6に調整
                 return 'medium'
             else:
                 return 'low'
