@@ -550,7 +550,43 @@ def handle_image_message(event):
             from services.classifier_kegg import KeggClassifier
             
             ai_drugs = ai_result.get('drugs', [])
-            unique_drugs, removed_count = dedupe(ai_drugs)
+
+            # 補完: 番号ブロック抽出由来の薬剤名をAI結果にマージして取りこぼしを回収
+            try:
+                from services.ocr_utils import extract_drug_names_from_text
+                # OCRのraw_textを優先的に使用。なければAI抽出に含めたraw_textを利用
+                raw_text = ''
+                if isinstance(ocr_result, dict):
+                    raw_text = ocr_result.get('raw_text', '') or ''
+                if not raw_text and isinstance(ai_result, dict):
+                    raw_text = ai_result.get('raw_text', '') or ''
+
+                block_names = extract_drug_names_from_text(raw_text) if raw_text else []
+
+                # 同義語/表記ゆれ補正してdrug辞書に変換
+                block_drug_dicts = []
+                for name in block_names:
+                    normalized = drug_service._pattern_based_correction(name)
+                    block_drug_dicts.append({
+                        'raw': name,
+                        'generic': normalized,
+                        'brand': None,
+                        'strength': '',
+                        'dose': '',
+                        'freq': '',
+                        'days': None,
+                        'confidence': 0.7,  # 補完はやや低めの信頼度で扱う
+                        'class_hint': None
+                    })
+
+                # AI抽出とブロック抽出を結合
+                combined_drugs = list(ai_drugs) + block_drug_dicts
+            except Exception as merge_err:
+                logger.error(f"Block extraction merge failed: {merge_err}")
+                combined_drugs = ai_drugs
+
+            # 重複統合
+            unique_drugs, removed_count = dedupe(combined_drugs)
             
             # KEGG分類器で重複統合後の薬剤を分類
             kegg_classifier = KeggClassifier()
