@@ -53,11 +53,22 @@ class ResponseService:
                         matched = interaction.get('matched_drugs') or []
                         advice = interaction.get('advice') or interaction.get('description')
 
-                        response_parts.append(f"{risk_emoji} {name}")
-                        if matched:
-                            response_parts.append(f"関与薬剤: {', '.join(matched)}")
+                        # リスクレベルに応じた見出しを設定
+                        if severity == 'critical':
+                            response_parts.append("🚨 併用禁忌 (重大リスク)")
+                        elif severity == 'high':
+                            response_parts.append("⚠️ 同効薬の重複 (注意リスク)")
+                        else:
+                            response_parts.append("📋 併用注意 (軽微リスク)")
+                        response_parts.append("")
+                        
+                        response_parts.append(f"✅ 対象の薬: {', '.join(matched) if matched else '不明'}")
+                        response_parts.append(f"✅ 理由: {name}")
                         if advice:
-                            response_parts.append(f"助言: {advice}")
+                            response_parts.append(f"✅ 考えられる症状: {advice}")
+                            response_parts.append(f"✅ 推奨事項: 医師・薬剤師にご相談ください")
+                        response_parts.append("")
+                        response_parts.append("━━━━━━━━━━━━━━")
                         response_parts.append("")
                 else:
                     # 相互作用がない場合
@@ -121,7 +132,7 @@ class ResponseService:
                         unique_critical_risks.append(risk)
                 
                 if unique_critical_risks:
-                    response_parts.append("🚨 併用禁忌（重大リスク）")
+                    response_parts.append("🚨 併用禁忌 (重大リスク)")
                     response_parts.append("")
                     
                     for risk in unique_critical_risks:
@@ -146,7 +157,7 @@ class ResponseService:
                             unique_high_risks.append(risk)
                     
                     if unique_high_risks:
-                        response_parts.append("⚠️ 同効薬の重複（注意リスク）")
+                        response_parts.append("⚠️ 同効薬の重複 (注意リスク)")
                         response_parts.append("")
                         for risk in unique_high_risks:
                             response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
@@ -172,7 +183,7 @@ class ResponseService:
                             unique_medium_risks.append(risk)
                     
                     if unique_medium_risks:
-                        response_parts.append("📋 併用注意（軽微リスク）")
+                        response_parts.append("📋 併用注意 (軽微リスク)")
                         response_parts.append("")
                         for risk in unique_medium_risks:
                             response_parts.append(f"✅ 対象の薬: {', '.join(risk.get('involved_drugs', []))}")
