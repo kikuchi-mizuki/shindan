@@ -24,14 +24,9 @@ class ResponseService:
             ai_analysis = drug_info.get('ai_analysis', {})
             logger.info(f"AI analysis keys: {list(ai_analysis.keys()) if ai_analysis else 'None'}")
             
-            # AI分析結果が空の場合のフォールバック
+            # AI分析結果が空の場合のフォールバック（簡潔表示）
             if not ai_analysis or (not ai_analysis.get('patient_safety_alerts') and not ai_analysis.get('risk_summary')):
-                response_parts.append("⚠️ 診断結果")
-                response_parts.append("AI分析が完了しませんでした。")
-                response_parts.append("従来の相互作用チェック結果を表示します。")
-                response_parts.append("")
-                
-                # 相互作用チェック結果を表示（従来 + ルールエンジン両対応）
+                # 相互作用チェック結果のみ表示（余計な前置きは出さない）
                 interactions = drug_info.get('interactions') or []
                 if interactions:
                     response_parts.append("💊 相互作用チェック")
@@ -71,36 +66,8 @@ class ResponseService:
                         response_parts.append("━━━━━━━━━━━━━━")
                         response_parts.append("")
                 else:
-                    # 相互作用がない場合
-                    response_parts.append("✅ 相互作用チェック")
-                    response_parts.append("現在の薬剤組み合わせでは、")
-                    response_parts.append("重大な相互作用は検出されませんでした。")
-                    response_parts.append("")
-                
-                # 警告事項
-                if drug_info.get('warnings'):
-                    response_parts.append("⚠️ 警告事項")
-                    for warning in drug_info['warnings']:
-                        response_parts.append(f"・{warning}")
-                    response_parts.append("")
-                else:
-                    # 警告がない場合
-                    response_parts.append("✅ 警告事項")
-                    response_parts.append("現在の薬剤組み合わせでは、")
-                    response_parts.append("特別な警告事項はありません。")
-                    response_parts.append("")
-                
-                # 推奨事項
-                if drug_info.get('recommendations'):
-                    response_parts.append("💡 推奨事項")
-                    for recommendation in drug_info['recommendations']:
-                        response_parts.append(f"・{recommendation}")
-                    response_parts.append("")
-                else:
-                    # 推奨事項がない場合
-                    response_parts.append("💡 推奨事項")
-                    response_parts.append("・定期的な健康チェックを継続してください")
-                    response_parts.append("・体調に変化があれば医師に相談してください")
+                    # 相互作用がない場合は簡潔に通知
+                    response_parts.append("✅ 現在の薬剤組み合わせでは重大な相互作用は検出されませんでした。")
                     response_parts.append("")
             else:
                 # AI分析結果が正常な場合の詳細表示
