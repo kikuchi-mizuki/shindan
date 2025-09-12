@@ -577,6 +577,13 @@ def handle_image_message(event):
             # 重複統合
             unique_drugs, removed_count = dedupe(combined_drugs)
             
+            # 形態補正（ピコスルファートNaの錠/液を補正）
+            try:
+                from services.post_processors import fix_picosulfate_form
+                unique_drugs = [fix_picosulfate_form(d) for d in unique_drugs]
+            except Exception as _pp_err:
+                logger.warning(f"Post processing failed (picosulfate form): {_pp_err}")
+            
             # KEGG分類器で重複統合後の薬剤を分類
             kegg_classifier = KeggClassifier()
             classified_drugs = kegg_classifier.classify_many(unique_drugs)

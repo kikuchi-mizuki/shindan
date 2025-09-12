@@ -358,12 +358,14 @@ class ResponseService:
             
             # 薬剤名と用量の表示
             display_name = drug_name
+            def nz(v, fallback="不明"):
+                return fallback if v in (None, "", "None") else v
             if strength:
-                display_name += f" {strength}"
+                display_name += f" {nz(strength)}"
             if dose:
-                display_name += f" {dose}"
+                display_name += f" {nz(dose)}"
             if freq:
-                display_name += f" {freq}"
+                display_name += f" {nz(freq)}"
             
             response_parts.append(f"{number_symbol} {display_name}")
             response_parts.append(f"分類: {japanese_category}")
@@ -523,16 +525,18 @@ class ResponseService:
                     # 薬剤情報を表示
                     symbol = number_symbols[i] if i < len(number_symbols) else f"{i+1}."
                     response_parts.append(f"{symbol} {drug_name}")
+                    def nz(v, fallback="不明"):
+                        return fallback if v in (None, "", "None") else v
                     if strength:
-                        response_parts.append(f"   用量: {strength}")
+                        response_parts.append(f"   用量: {nz(strength)}")
                     if dose:
                         # 漢方薬の単位を「包」に修正
-                        display_dose = dose
+                        display_dose = nz(dose)
                         if any(keyword in drug_name for keyword in ["芍薬甘草湯", "エキス顆粒", "ツムラ"]):
-                            display_dose = dose.replace("錠", "包")
+                            display_dose = display_dose.replace("錠", "包")
                         response_parts.append(f"   用法: {display_dose}")
                     if freq:
-                        response_parts.append(f"   頻度: {freq}")
+                        response_parts.append(f"   頻度: {nz(freq)}")
                     response_parts.append(f"   分類: {classification}")
                     response_parts.append("")
                 else:

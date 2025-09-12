@@ -71,8 +71,14 @@ class KeggClassifier:
                 logger.info(f"Local dictionary match: {g} -> {classification}")
                 return classification, None
             
-            # 2) KEGG/ATCで分類
+            # 2) KEGG/ATCで分類（外用ジクロフェナクは強制的に外用ATCへ寄せる）
             info = self.kegg.best_kegg_and_atc(g)
+            # 外用判定トークン
+            raw_plus_brand = f"{drug.get('raw','')}{drug.get('brand','')}"
+            if "ジクロフェナク" in g and any(k in raw_plus_brand for k in ["ゲル","外用","塗布","貼付","軟膏","クリーム"]):
+                atc_codes = ["M02AA15"]
+                classification = atc_to_jp(atc_codes)
+                return classification, {"kegg_id": (info or {}).get("kegg_id"), "atc": atc_codes}
             if info:
                 atc_codes = info.get("atc", [])
                 if atc_codes:
