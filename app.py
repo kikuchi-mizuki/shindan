@@ -220,7 +220,24 @@ def handle_text_message(event):
                     drug_names = drug_list
                 
                 if drug_names:
-                    drug_info = drug_service.get_drug_interactions(drug_names)
+                    # ルールエンジンによる相互作用チェック
+                    from services.rule_engine import RuleEngine
+                    rule_engine = RuleEngine()
+                    rule_interactions = rule_engine.judge(drug_names)
+                    
+                    # 従来の相互作用チェックも併用
+                    traditional_interactions = drug_service.get_drug_interactions(drug_names)
+                    
+                    # 相互作用を統合
+                    all_interactions = traditional_interactions.get('interactions', []) + rule_interactions
+                    
+                    drug_info = {
+                        'drugs': drug_list,
+                        'interactions': all_interactions,
+                        'rule_interactions': rule_interactions,
+                        'ai_analysis': None
+                    }
+                    
                     response_text = response_service.generate_response(drug_info)
                 else:
                     response_text = "薬剤情報が正しく取得できませんでした。"
@@ -542,6 +559,42 @@ def handle_image_message(event):
             # 分類統計をログ出力
             stats = kegg_classifier.get_classification_stats(classified_drugs)
             logger.info(f"Classification stats: {stats}")
+            
+            # 信頼度ゲートチェック
+            low_confidence_drugs = []
+            missing_kegg_drugs = []
+            
+            for drug in classified_drugs:
+                generic_name = drug.get('generic', '')
+                confidence = drug.get('confidence', 0.0)
+                kegg_id = drug.get('kegg_id', '')
+                
+                if confidence < 0.8:
+                    low_confidence_drugs.append(generic_name)
+                
+                if not kegg_id:
+                    missing_kegg_drugs.append(generic_name)
+            
+            # 低信頼度またはKEGG IDなしの場合は人確認
+            if low_confidence_drugs or missing_kegg_drugs:
+                confirmation_message = "⚠️ 一部の薬剤で信頼度が低い、または詳細情報が取得できませんでした。\n\n"
+                
+                if low_confidence_drugs:
+                    confirmation_message += f"信頼度が低い薬剤: {', '.join(low_confidence_drugs)}\n"
+                
+                if missing_kegg_drugs:
+                    confirmation_message += f"詳細情報が取得できなかった薬剤: {', '.join(missing_kegg_drugs)}\n"
+                
+                confirmation_message += "\nこのまま診断を続行しますか？\n「はい」で続行、「いいえ」で再撮影をお願いします。"
+                
+                # 確認メッセージを送信
+                messaging_api.push_message(
+                    PushMessageRequest(
+                        to=user_id,
+                        messages=[TextMessage(text=confirmation_message)]
+                    )
+                )
+                return
             
             # 薬剤名リストを構築
             matched_drugs = []

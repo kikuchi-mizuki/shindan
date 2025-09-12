@@ -1,0 +1,89 @@
+# 薬剤相互作用ルール定義
+# 誤検知ほぼゼロ／取りこぼしほぼゼロで、根拠が示せる診断のためのルール
+
+# 重複/同効薬
+- id: sedative_dup
+  name: "中枢抑制薬の重複"
+  severity: moderate
+  match_any: ["ゾルピデム酒石酸塩", "スボレキサント", "レンボレキサント", "ラメルテオン", "ブロチゾラム", "エチゾラム", "フルニトラゼパム", "ニトラゼパム"]
+  threshold: 2
+  advice: "眠気・転倒リスク。運転回避、就寝前のみの使用を指導。"
+
+- id: laxative_multi
+  name: "便秘治療薬の複数併用"
+  severity: moderate
+  match_any: ["センノシド", "ピコスルファートナトリウム", "リナクロチド", "エロビキシバット", "ルビプロストン", "酸化マグネシウム", "ラキソベロン"]
+  threshold: 2
+  advice: "下痢・脱水・電解質異常に注意。症状強い場合は減量/間欠投与を検討。"
+
+- id: gastric_acid_suppression_dup
+  name: "胃酸分泌抑制薬の重複"
+  severity: high
+  match_any: ["タケキャブ", "ランソプラゾール", "オメプラゾール", "エソメプラゾール", "ラベプラゾール", "パントプラゾール", "ボノプラザン"]
+  threshold: 2
+  advice: "胃酸分泌抑制薬の重複投与。併用意義乏しく、腸内環境の乱れ、感染リスク、低Mg血症、ビタミンB12吸収障害、骨折リスクに注意。"
+
+# 機序×機序
+- id: ramelteon_fluvox
+  name: "ラメルテオン×フルボキサミン"
+  severity: major
+  requires: ["ラメルテオン", "フルボキサミンマレイン酸塩"]
+  advice: "CYP1A2強阻害でAUC↑。併用回避・医師へ照会。"
+
+- id: ssri_maoi
+  name: "SSRI/SNRI×MAOI"
+  severity: critical
+  match_any: ["エスシタロプラムシュウ酸塩", "フルボキサミンマレイン酸塩", "パロキセチン", "セルトラリン", "デュロキセチン", "ミルナシプラン"]
+  with_any: ["セレギリン", "ラサギリン", "モクロベミド"]
+  advice: "セロトニン症候群のリスク。併用禁忌。"
+
+- id: qt_prolongation
+  name: "QT延長薬の併用"
+  severity: high
+  match_any: ["アミオダロン", "ソタロール", "ドフェチライド", "イブチライド", "フレカイニド", "プロパフェノン", "ハロペリドール", "チオリダジン", "メソリダジン"]
+  threshold: 2
+  advice: "QT延長・不整脈リスク。心電図モニタリング推奨。"
+
+# 患者背景ベース
+- id: glycyrrhiza_hypoK
+  name: "甘草含有漢方＋刺激性下剤"
+  severity: moderate
+  requires_any: ["芍薬甘草湯", "ツムラ芍薬甘草湯", "ツムラ芍薬甘草湯エキス顆粒"]
+  with_any: ["センノシド", "ピコスルファートナトリウム", "ラキソベロン"]
+  advice: "低K血症に注意（筋けいれん・動悸）。高齢や利尿薬併用でリスク↑。"
+
+- id: nsaid_ckd_elderly
+  name: "NSAIDs（内服）＋CKD/高齢"
+  severity: moderate
+  match_any: ["ジクロフェナクナトリウム", "イブプロフェン", "ロキソプロフェン", "メロキシカム", "セレコキシブ", "エトドラク"]
+  advice: "腎機能悪化注意。高齢者では特に注意。定期的な腎機能チェック推奨。"
+
+# 剤形別ルール
+- id: external_nsaid_exclusion
+  name: "外用NSAIDs除外ルール"
+  severity: info
+  match_any: ["ジクロフェナクナトリウムゲル", "ジクロフェナクゲル", "イブプロフェンゲル", "ロキソプロフェンゲル"]
+  advice: "外用NSAIDsは全身相互作用には基本含めない。"
+
+# 禁忌併用
+- id: pde5_nitrate
+  name: "PDE5阻害薬×硝酸薬"
+  severity: critical
+  match_any: ["タダラフィル", "シルデナフィル", "バルデナフィル", "アバナフィル"]
+  with_any: ["ニコランジル", "ニトログリセリン", "イソソルビド"]
+  advice: "併用禁忌：重度の血圧低下リスク。一酸化窒素経路の重複刺激。"
+
+- id: ace_arb_arni
+  name: "ACE阻害薬×ARB/ARNI"
+  severity: critical
+  match_any: ["エナラプリル", "リシノプリル", "カプトプリル", "ペリンドプリル"]
+  with_any: ["テラムロ", "バルサルタン", "ロサルタン", "カンデサルタン", "オルメサルタン", "エンレスト"]
+  advice: "併用禁忌：レニン-アンジオテンシン系の重複阻害。腎機能障害、高K血症、低血圧、血管浮腫のリスク増加。"
+
+# 代謝阻害
+- id: cyp3a4_inhibition
+  name: "CYP3A4阻害薬の併用"
+  severity: high
+  match_any: ["クラリスロマイシン", "エリスロマイシン", "イトラコナゾール", "ボリコナゾール", "リトナビル", "アタザナビル"]
+  with_any: ["ベルソムラ", "デエビゴ", "スボレキサント", "レンボレキサント"]
+  advice: "CYP3A4阻害による血中濃度上昇。過度の眠気、転倒リスクに注意。"

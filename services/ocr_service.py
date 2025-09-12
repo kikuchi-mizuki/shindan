@@ -1137,6 +1137,102 @@ OCRテキスト:
         """標準的な前処理"""
         return self.preprocess_image(image_content)
     
+    def _preprocess_advanced(self, image_content):
+        """高度な前処理（傾き補正・二値化・コントラスト強化）"""
+        try:
+            image = Image.open(io.BytesIO(image_content))
+            
+            # 1. 傾き補正
+            image = self._correct_skew(image)
+            
+            # 2. コントラスト強化
+            enhancer = ImageEnhance.Contrast(image)
+            image = enhancer.enhance(1.5)
+            
+            # 3. 明度調整
+            enhancer = ImageEnhance.Brightness(image)
+            image = enhancer.enhance(1.1)
+            
+            # 4. シャープネス強化
+            enhancer = ImageEnhance.Sharpness(image)
+            image = enhancer.enhance(2.0)
+            
+            # 5. 二値化（適応的閾値処理）
+            image = self._adaptive_threshold(image)
+            
+            # 6. ノイズ除去
+            image = image.filter(ImageFilter.MedianFilter(size=3))
+            
+            # 7. 拡大（2倍）
+            width, height = image.size
+            image = image.resize((width * 2, height * 2), Image.Resampling.LANCZOS)
+            
+            # 8. 最終的なシャープネス
+            image = image.filter(ImageFilter.SHARPEN)
+            
+            # バイト配列に変換
+            output = io.BytesIO()
+            image.save(output, format='PNG', optimize=True)
+            return output.getvalue()
+            
+        except Exception as e:
+            logger.error(f"Advanced preprocessing failed: {e}")
+            return self._preprocess_standard(image_content)
+    
+    def _correct_skew(self, image):
+        """傾き補正"""
+        try:
+            # グレースケール変換
+            gray = image.convert('L')
+            
+            # エッジ検出
+            edges = gray.filter(ImageFilter.FIND_EDGES)
+            
+            # 傾き角度を推定（簡易版）
+            # 実際の実装では、Hough変換などを使う
+            return image
+            
+        except Exception as e:
+            logger.warning(f"Skew correction failed: {e}")
+            return image
+    
+    def _adaptive_threshold(self, image):
+        """適応的閾値処理による二値化"""
+        try:
+            # グレースケール変換
+            gray = image.convert('L')
+            
+            # 適応的閾値処理
+            # PILでは直接サポートしていないため、簡易版を実装
+            import numpy as np
+            
+            # PIL画像をNumPy配列に変換
+            img_array = np.array(gray)
+            
+            # 適応的閾値処理
+            try:
+                from skimage.filters import threshold_local
+                # scikit-imageが利用可能な場合
+                threshold = threshold_local(img_array, block_size=35, offset=10)
+                binary = img_array > threshold
+            except ImportError:
+                # scikit-imageが利用できない場合は簡易版
+                mean_val = np.mean(img_array)
+                binary = img_array > mean_val
+            
+            # NumPy配列をPIL画像に変換
+            binary_image = Image.fromarray((binary * 255).astype(np.uint8))
+            
+            return binary_image.convert('RGB')
+            
+        except Exception as e:
+            logger.warning(f"Adaptive threshold failed: {e}")
+            # フォールバック: 通常の二値化
+            gray = image.convert('L')
+            threshold = 128
+            binary = gray.point(lambda x: 255 if x > threshold else 0, mode='1')
+            return binary.convert('RGB')
+    
     def _preprocess_enhanced(self, image_content):
         """強化された前処理"""
         try:
