@@ -33,10 +33,11 @@ ocr_service = None
 drug_service = None
 response_service = None
 ai_extractor = None
+classifier = None
 
 def initialize_services():
     """サービスの初期化（遅延実行）"""
-    global ocr_service, drug_service, response_service, ai_extractor, _services_initialized
+    global ocr_service, drug_service, response_service, ai_extractor, classifier, _services_initialized
     
     if _services_initialized:
         return True
@@ -74,6 +75,14 @@ def initialize_services():
             logger.info("AIExtractorService initialized")
         except Exception as e:
             logger.error(f"AIExtractorService initialization failed: {e}")
+            return False
+        
+        try:
+            from services.classifier import Classifier
+            classifier = Classifier(kegg_service=drug_service)
+            logger.info("Classifier initialized")
+        except Exception as e:
+            logger.error(f"Classifier initialization failed: {e}")
             return False
         
         _services_initialized = True
@@ -201,7 +210,20 @@ def handle_text_message(event):
                     for drug in drug_list:
                         name = drug.get('name', '')
                         strength = drug.get('strength', '')
-                        category = drug.get('ai_category', drug.get('kegg_category', '不明'))
+                        final_classification = drug.get('final_classification', '')
+                        class_hint = drug.get('class_hint', '')
+                        kegg_category = drug.get('kegg_category', '')
+                        
+                        # カテゴリの優先順位
+                        if final_classification and final_classification != '分類未設定':
+                            category = final_classification
+                        elif kegg_category:
+                            category = kegg_category
+                        elif class_hint:
+                            category = f"{class_hint}（AI推定）"
+                        else:
+                            category = '不明'
+                        
                         display_text = f"• {name}"
                         if strength:
                             display_text += f" {strength}"
@@ -282,14 +304,22 @@ def handle_text_message(event):
                     # 辞書形式の場合、薬剤名の重複チェック
                     existing_names = [drug.get('name', '') for drug in user_drug_buffer[user_id]]
                     if drug_name not in existing_names:
+                        # 分類サービスで分類を取得
+                        temp_drug = {'generic': drug_name, 'raw': drug_name}
+                        classification = classifier.classify_one(temp_drug)
+                        
                         # 新しい薬剤を辞書形式で追加
                         new_drug = {
                             'name': drug_name,
-                            'ai_category': '',
-                            'kegg_category': '',
+                            'raw': drug_name,
                             'strength': '',
                             'dose': '',
-                            'freq': ''
+                            'freq': '',
+                            'days': None,
+                            'class_hint': '',
+                            'final_classification': classification or '分類未設定',
+                            'kegg_category': '',
+                            'kegg_id': ''
                         }
                         user_drug_buffer[user_id].append(new_drug)
                         response_text = f"✅ 薬剤「{drug_name}」を追加しました。"
@@ -462,7 +492,10 @@ def handle_image_message(event):
             ai_drugs = ai_result.get('drugs', [])
             matched_drugs = []
             
-            for drug in ai_drugs:
+            # 分類サービスで薬剤分類を付与
+            classified_drugs = classifier.classify_many(ai_drugs)
+            
+            for drug in classified_drugs:
                 generic_name = drug.get('generic', '')
                 if generic_name:
                     # KEGG照合を実行
@@ -472,10 +505,8 @@ def handle_image_message(event):
                         drug['kegg_id'] = kegg_info.get('kegg_id')
                         drug['kegg_category'] = kegg_info.get('category')
                     
-                    # AI抽出のカテゴリ情報も保持
-                    ai_category = drug.get('category', '')
-                    if ai_category:
-                        drug['ai_category'] = ai_category
+                    # 分類情報を保持
+                    drug['final_classification'] = drug.get('class_jp', '分類未設定')
                     
                     matched_drugs.append(generic_name)
         
@@ -488,8 +519,8 @@ def handle_image_message(event):
             
             if matched_drugs:
                 # AI抽出結果の詳細情報を保存
-                if 'ai_drugs' in locals():
-                    for drug in ai_drugs:
+                if 'classified_drugs' in locals():
+                    for drug in classified_drugs:
                         generic_name = drug.get('generic', '')
                         if generic_name and generic_name in matched_drugs:
                             # 薬剤の詳細情報を辞書として保存
@@ -500,7 +531,8 @@ def handle_image_message(event):
                                 'dose': drug.get('dose', ''),
                                 'freq': drug.get('freq', ''),
                                 'days': drug.get('days'),
-                                'ai_category': drug.get('ai_category', ''),
+                                'class_hint': drug.get('class_hint', ''),
+                                'final_classification': drug.get('final_classification', ''),
                                 'kegg_category': drug.get('kegg_category', ''),
                                 'kegg_id': drug.get('kegg_id', '')
                             }

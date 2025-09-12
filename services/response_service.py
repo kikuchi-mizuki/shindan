@@ -339,17 +339,20 @@ class ResponseService:
         # 修正された薬剤名を使用して表示
         for i, drug_info in enumerate(drug_info_list, 1):
             drug_name = drug_info.get('name', '')
-            ai_category = drug_info.get('ai_category', '')
+            final_classification = drug_info.get('final_classification', '')
+            class_hint = drug_info.get('class_hint', '')
             kegg_category = drug_info.get('kegg_category', '')
             strength = drug_info.get('strength', '')
             dose = drug_info.get('dose', '')
             freq = drug_info.get('freq', '')
             
-            # カテゴリの優先順位: KEGG > AI > デフォルト
-            if kegg_category:
+            # カテゴリの優先順位: 最終分類 > KEGG > AIヒント > デフォルト
+            if final_classification and final_classification != '分類未設定':
+                japanese_category = final_classification
+            elif kegg_category:
                 japanese_category = kegg_category
-            elif ai_category:
-                japanese_category = ai_category
+            elif class_hint:
+                japanese_category = f"{class_hint}（AI推定）"
             else:
                 japanese_category = '不明'
             

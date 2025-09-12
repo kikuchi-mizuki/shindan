@@ -63,7 +63,11 @@ class AIExtractorService:
                 messages=[
                     {
                         "role": "system",
-                        "content": "あなたは薬剤情報抽出の専門家です。処方箋や薬剤リストから正確な薬剤情報を抽出し、JSON形式で返してください。"
+                        "content": """あなたは日本の処方せんOCR後テキストから薬剤情報を抽出する専門家です。
+- 出力は必ず次のJSONスキーマに厳密準拠
+- 商品名は可能なら一般名に正規化（例: マイスリー→ゾルピデム酒石酸塩）
+- 不明な項目は null
+- 加えて 'class_hint' に簡潔な薬効分類（例: NSAIDs外用, 下剤, 抗アレルギー(LTRA), 便秘薬(GC-C作動薬), 高尿酸血症治療薬 等）を入れる"""
                     },
                     {
                         "role": "user",
@@ -132,11 +136,13 @@ class AIExtractorService:
     {{
       "raw": "元のテキスト",
       "generic": "一般名（正式名称）",
+      "brand": "商品名（null可）",
       "strength": "用量（例：5mg、10錠）",
       "dose": "1回量（例：1錠、2錠）",
       "freq": "服用頻度（例：1日3回、就寝前）",
       "days": 日数（数値）,
-      "category": "薬効分類（例：消化管機能薬、高尿酸血症治療薬、NSAIDs、下剤、漢方など）"
+      "confidence": 0.9,
+      "class_hint": "薬効分類ヒント（例：NSAIDs外用、下剤、抗アレルギー(LTRA)、便秘薬(GC-C作動薬)、高尿酸血症治療薬など）"
     }}
   ]
 }}
@@ -223,11 +229,13 @@ class AIExtractorService:
             validated_drug = {
                 'raw': str(drug.get('raw', '')).strip(),
                 'generic': str(drug.get('generic', '')).strip(),
+                'brand': str(drug.get('brand', '')).strip() if drug.get('brand') else None,
                 'strength': str(drug.get('strength', '')).strip(),
                 'dose': str(drug.get('dose', '')).strip(),
                 'freq': str(drug.get('freq', '')).strip(),
                 'days': self._parse_days(drug.get('days')),
-                'category': str(drug.get('category', '')).strip()
+                'confidence': float(drug.get('confidence', 0.0)) if drug.get('confidence') else 0.0,
+                'class_hint': str(drug.get('class_hint', '')).strip() if drug.get('class_hint') else None
             }
             
             return validated_drug
