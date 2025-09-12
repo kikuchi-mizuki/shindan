@@ -488,40 +488,63 @@ def handle_image_message(event):
                     )
                     return
             
-            # AI抽出結果から薬剤名を取得
-            ai_drugs = ai_result.get('drugs', [])
-            matched_drugs = []
+            # 番号ブロック分割方式で薬剤名を抽出
+            from services.ocr_utils import extract_drug_names_from_text, post_filter_drugs
             
-            # 分類サービスで薬剤分類を付与
-            classified_drugs = classifier.classify_many(ai_drugs)
+            # OCR結果からプレーンテキストを取得
+            raw_text = ocr_result.get('raw_text', '') if isinstance(ocr_result, dict) else ''
+            if not raw_text:
+                # フォールバック: AI抽出結果を使用
+                ai_drugs = ai_result.get('drugs', [])
+                raw_text = '\n'.join([drug.get('raw', '') for drug in ai_drugs])
             
-            # 薬剤名リストを作成
-            drug_names = []
-            for drug in classified_drugs:
-                generic_name = drug.get('generic', '')
-                if generic_name:
-                    drug_names.append(generic_name)
+            # 番号ブロック分割で薬剤名を抽出
+            extracted_names = extract_drug_names_from_text(raw_text)
+            
+            # 同義語辞書で一般名に変換
+            normalized_names = []
+            for name in extracted_names:
+                normalized = drug_service._pattern_based_correction(name)
+                normalized_names.append(normalized)
+            
+            # 重複除去
+            unique_names = list(dict.fromkeys(normalized_names))
             
             # post_filterでジクロフェナクの誤混入を防止
-            # raw_textはOCR結果から取得
-            raw_text = ocr_result.get('raw_text', '') if isinstance(ocr_result, dict) else ''
-            filtered_drug_names = drug_service.post_filter(drug_names, raw_text)
+            filtered_drug_names = post_filter_drugs(unique_names, raw_text)
             
-            # フィルタリング後の薬剤のみを処理
-            for drug in classified_drugs:
-                generic_name = drug.get('generic', '')
-                if generic_name in filtered_drug_names:
-                    # KEGG照合を実行
-                    kegg_info = drug_service.safe_find_kegg_info(generic_name)
-                    if kegg_info:
-                        # KEGG IDを付与
-                        drug['kegg_id'] = kegg_info.get('kegg_id')
-                        drug['kegg_category'] = kegg_info.get('category')
-                    
-                    # 分類情報を保持
-                    drug['final_classification'] = drug.get('class_jp', '分類未設定')
-                    
-                    matched_drugs.append(generic_name)
+            # 薬剤情報を構築
+            matched_drugs = []
+            classified_drugs = []
+            
+            for drug_name in filtered_drug_names:
+                # 分類サービスで分類を取得
+                temp_drug = {'generic': drug_name, 'raw': drug_name}
+                classification = classifier.classify_one(temp_drug)
+                
+                # 薬剤情報を構築
+                drug_info = {
+                    'name': drug_name,
+                    'raw': drug_name,
+                    'generic': drug_name,
+                    'strength': '',
+                    'dose': '',
+                    'freq': '',
+                    'days': None,
+                    'class_hint': '',
+                    'final_classification': classification or '分類未設定',
+                    'kegg_category': '',
+                    'kegg_id': ''
+                }
+                
+                # KEGG照合を実行
+                kegg_info = drug_service.safe_find_kegg_info(drug_name)
+                if kegg_info:
+                    drug_info['kegg_id'] = kegg_info.get('kegg_id')
+                    drug_info['kegg_category'] = kegg_info.get('category')
+                
+                classified_drugs.append(drug_info)
+                matched_drugs.append(drug_name)
         
         if matched_drugs:
             # ユーザーバッファに薬剤名を追加
