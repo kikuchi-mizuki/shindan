@@ -118,11 +118,11 @@ def initialize_services():
             return False
         
         try:
-            from services.classifier import Classifier
-            classifier = Classifier(kegg_service=drug_service)
-            logger.info("Classifier initialized")
+            from services.classifier_kegg import KeggClassifier
+            classifier = KeggClassifier()
+            logger.info("KeggClassifier initialized")
         except Exception as e:
-            logger.error(f"Classifier initialization failed: {e}")
+            logger.error(f"KeggClassifier initialization failed: {e}")
             return False
         
         _services_initialized = True
@@ -530,42 +530,24 @@ def handle_image_message(event):
             
             # AI抽出結果を重複統合
             from services.deduper import dedupe, get_dedup_summary
+            from services.classifier_kegg import KeggClassifier
             
             ai_drugs = ai_result.get('drugs', [])
             unique_drugs, removed_count = dedupe(ai_drugs)
             
-            # 重複統合後の薬剤情報を構築
-            matched_drugs = []
-            classified_drugs = []
+            # KEGG分類器で重複統合後の薬剤を分類
+            kegg_classifier = KeggClassifier()
+            classified_drugs = kegg_classifier.classify_many(unique_drugs)
             
-            for drug in unique_drugs:
+            # 分類統計をログ出力
+            stats = kegg_classifier.get_classification_stats(classified_drugs)
+            logger.info(f"Classification stats: {stats}")
+            
+            # 薬剤名リストを構築
+            matched_drugs = []
+            for drug in classified_drugs:
                 generic_name = drug.get('generic', '')
                 if generic_name:
-                    # 分類サービスで分類を取得
-                    classification = classifier.classify_one(drug)
-                    
-                    # 薬剤情報を構築
-                    drug_info = {
-                        'name': generic_name,
-                        'raw': drug.get('raw', ''),
-                        'generic': generic_name,
-                        'strength': drug.get('strength', ''),
-                        'dose': drug.get('dose', ''),
-                        'freq': drug.get('freq', ''),
-                        'days': drug.get('days'),
-                        'class_hint': drug.get('class_hint', ''),
-                        'final_classification': classification or '分類未設定',
-                        'kegg_category': '',
-                        'kegg_id': ''
-                    }
-                    
-                    # KEGG照合を実行
-                    kegg_info = drug_service.safe_find_kegg_info(generic_name)
-                    if kegg_info:
-                        drug_info['kegg_id'] = kegg_info.get('kegg_id')
-                        drug_info['kegg_category'] = kegg_info.get('category')
-                    
-                    classified_drugs.append(drug_info)
                     matched_drugs.append(generic_name)
         
         if matched_drugs:
