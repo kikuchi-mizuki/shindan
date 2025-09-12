@@ -404,6 +404,10 @@ class ResponseService:
         
         response_parts.append("🔍 「診断」で飲み合わせチェックを実行できます")
         response_parts.append("━━━━━━━━━━━━━━")
+        response_parts.append("⚠️ 重要なお知らせ")
+        response_parts.append("この診断結果はAIによる分析結果です。")
+        response_parts.append("最終的な判断は医師・薬剤師にご相談ください。")
+        response_parts.append("緊急時は直ちに医療機関を受診してください。")
         
         return "\n".join(response_parts)
     
@@ -606,7 +610,11 @@ class ResponseService:
             
             response_parts.append("")
             response_parts.append("🔍 「診断」で飲み合わせチェックを実行できます")
-            response_parts.append("━━━━━━━━━")
+            response_parts.append("━━━━━━━━━━━━━━")
+            response_parts.append("⚠️ 重要なお知らせ")
+            response_parts.append("この診断結果はAIによる分析結果です。")
+            response_parts.append("最終的な判断は医師・薬剤師にご相談ください。")
+            response_parts.append("緊急時は直ちに医療機関を受診してください。")
             
             return "\n".join(response_parts)
             
