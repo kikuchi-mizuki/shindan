@@ -29,10 +29,23 @@ JA2EN = {
     "ラメルテオン": "ramelteon",
     "エスシタロプラムシュウ酸塩": "escitalopram",
     "ミアンセリン塩酸塩": "mianserin",
+    # 追加の薬剤名
+    "エンレスト": "sacubitril valsartan",
+    "アスピリン": "aspirin",
+    "キックリン": "tramadol acetaminophen",
+    "トラマドール・アセトアミノフェン": "tramadol acetaminophen",
+    "テルミサルタン": "telmisartan",
+    "アムロジピン": "amlodipine",
+    "テルミサルタン・アムロジピン": "telmisartan amlodipine",
+    "ニフェジピン": "nifedipine",
+    "ファモチジン": "famotidine",
+    "センナ": "senna",
+    "センナ・センナ実": "senna",
+    "センナ・センナ実配合": "senna",
 }
 
-def _http_get(url, timeout=8, retries=2, backoff=0.6):
-    """HTTP GET with retry logic"""
+def _http_get(url, timeout=5, retries=1, backoff=0.3):
+    """HTTP GET with retry logic (reduced timeout/retries for performance)"""
     for i in range(retries + 1):
         try:
             r = requests.get(url, timeout=timeout)
@@ -96,23 +109,20 @@ class KEGGClient:
 
     def best_kegg_and_atc(self, generic_ja: str):
         """
-        1) 日本語 → 直接 find
-        2) だめなら 英語別名に変換して find
-        3) 上位ヒットの KEGG ID から ATC を /link で取得
+        1) 英語別名に変換して find（日本語直接検索はスキップ）
+        2) 上位ヒットの KEGG ID から ATC を /link で取得
         """
         logger.info(f"KEGG search for: {generic_ja}")
         
-        # 直接検索
-        cands = self.find_drug(generic_ja)
-        logger.info(f"Direct search results: {len(cands)}")
-        
-        # だめなら英語変換
-        if not cands:
-            en = JA2EN.get(generic_ja)
-            if en:
-                logger.info(f"Trying English translation: {en}")
-                cands = self.find_drug(en)
-                logger.info(f"English search results: {len(cands)}")
+        # 英語変換を優先（日本語直接検索は400エラーが多いためスキップ）
+        en = JA2EN.get(generic_ja)
+        if en:
+            logger.info(f"Using English translation: {en}")
+            cands = self.find_drug(en)
+            logger.info(f"English search results: {len(cands)}")
+        else:
+            logger.warning(f"No English translation for: {generic_ja}")
+            return None
         
         if not cands:
             logger.warning(f"No KEGG results for: {generic_ja}")
