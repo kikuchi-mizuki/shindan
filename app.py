@@ -610,16 +610,11 @@ def handle_image_message(event):
                 if (not kegg_id) and (not final_cls or final_cls == '分類未設定'):
                     missing_kegg_drugs.append(generic_name)
 
-            # 低信頼度かつ未分類、またはKEGG未取得かつ未分類がある場合のみ人確認
-            if low_confidence_drugs or missing_kegg_drugs:
-                confirmation_message = "⚠️ 一部の薬剤で信頼度が低い、または詳細情報が取得できませんでした。\n\n"
-                
-                if low_confidence_drugs:
-                    confirmation_message += f"信頼度が低い薬剤: {', '.join(low_confidence_drugs)}\n"
-                
-                if missing_kegg_drugs:
-                    confirmation_message += f"詳細情報が取得できなかった薬剤: {', '.join(missing_kegg_drugs)}\n"
-                
+            # 信頼度ゲートを緩和：分類が確定していればKEGG IDがなくても許容
+            # 低信頼度かつ未分類のみ警告（分類が確定していれば許容）
+            if low_confidence_drugs:
+                confirmation_message = "⚠️ 一部の薬剤で信頼度が低いため、分類が不明確です。\n\n"
+                confirmation_message += f"信頼度が低い薬剤: {', '.join(low_confidence_drugs)}\n"
                 confirmation_message += "\nこのまま診断を続行しますか？\n「はい」で続行、「いいえ」で再撮影をお願いします。"
                 
                 # 確認メッセージを送信
