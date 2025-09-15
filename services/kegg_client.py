@@ -141,3 +141,56 @@ class KEGGClient:
             "label": top["label"],
             "atc": atc
         }
+    
+    def get_drug_brite(self, drug_name: str) -> Dict[str, Any]:
+        """KEGG/get でBRITEパースしてATCコードを取得"""
+        try:
+            # 英語名に変換
+            english_name = JA2EN.get(drug_name, drug_name.lower())
+            
+            # KEGG/get で検索
+            url = f"{self.base_url}/get/{english_name}"
+            response = _http_get(url)
+            
+            if response and response.text:
+                # BRITEセクションからATCコードを抽出
+                atc_codes = []
+                kegg_id = None
+                
+                lines = response.text.split('\n')
+                in_brite_section = False
+                
+                for line in lines:
+                    line = line.strip()
+                    
+                    # KEGG IDを抽出
+                    if line.startswith('ENTRY'):
+                        kegg_id = line.split()[1] if len(line.split()) > 1 else None
+                    
+                    # BRITEセクションの開始
+                    if line.startswith('BRITE'):
+                        in_brite_section = True
+                        continue
+                    
+                    # セクション終了
+                    if in_brite_section and line.startswith('///'):
+                        break
+                    
+                    # ATCコードを抽出
+                    if in_brite_section and 'ATC' in line:
+                        # ATCコードのパターンを検索
+                        import re
+                        atc_matches = re.findall(r'[A-Z]\d{2}[A-Z]{2}\d{2}', line)
+                        atc_codes.extend(atc_matches)
+                
+                if atc_codes:
+                    return {
+                        'kegg_id': kegg_id,
+                        'atc': atc_codes
+                    }
+            
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Failed to get BRITE info for {drug_name}: {e}")
+            return {}

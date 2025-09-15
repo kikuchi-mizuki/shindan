@@ -92,7 +92,7 @@ class InteractionEngine:
         return total_count >= min_count
     
     def format_interactions(self, triggered_rules: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """相互作用結果をフォーマット"""
+        """相互作用結果をフォーマット（注意も必ず表示）"""
         if not triggered_rules:
             return {
                 "has_interactions": False,
@@ -103,7 +103,7 @@ class InteractionEngine:
         
         # 重大度別に分類
         major_interactions = [r for r in triggered_rules if r.get("severity") == "major"]
-        moderate_interactions = [r for r in triggered_rules if r.get("severity") == "moderate"]
+        moderate_interactions = [r for r in triggered_rules if r.get("severity") in ["moderate", "minor"]]
         
         # サマリー生成
         summary_parts = []
@@ -114,8 +114,11 @@ class InteractionEngine:
         
         summary = "、".join(summary_parts) + "が検出されました。"
         
+        # 注意のみでも相互作用ありとして扱う
+        has_interactions = len(major_interactions) > 0 or len(moderate_interactions) > 0
+        
         return {
-            "has_interactions": True,
+            "has_interactions": has_interactions,
             "major_interactions": major_interactions,
             "moderate_interactions": moderate_interactions,
             "summary": summary,

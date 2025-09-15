@@ -1,0 +1,101 @@
+# ゴールデンセット（回帰テスト用）
+# 運用に効く毎週1回の自動テスト
+
+- name: "RAAS+CCB+刺激性下剤"
+  description: "エンレスト、テルミサルタン配合、ニフェジピン、センノシド、センナを含む処方"
+  inputs:
+    ocr_text_file: "rx_001.txt"
+  expect:
+    unique_count: 10
+    must_include:
+      - "サクビトリル/バルサルタン"  # エンレスト
+      - "テルミサルタン・アムロジピン"
+      - "ニフェジピン"
+      - "アスピリン"
+      - "トラマドール・アセトアミノフェン"
+      - "ファモチジン"
+      - "沈降炭酸カルシウム"
+      - "キックリン"
+      - "センノシド"
+      - "センナ"
+    must_not_include:
+      - "ファモチジンロ腔内崩壊"  # OCR誤読は統合される
+    rule_hits:
+      - raas_double_block
+      - ccb_duplication
+      - stimulant_laxative_multi
+    quality_requirements:
+      coverage: 0.98
+      kegg_cover_rate: 0.90
+      max_low_confidence: 0
+
+- name: "外用NSAIDs+内服薬"
+  description: "外用ジクロフェナクと内服薬の混合処方"
+  inputs:
+    ocr_text_file: "rx_002.txt"
+  expect:
+    unique_count: 5
+    must_include:
+      - "ジクロフェナクナトリウム"  # 外用
+      - "アムロジピン"
+      - "ロサルタン"
+      - "メトホルミン"
+      - "アトルバスタチン"
+    rule_hits:
+      - ccb_duplication  # アムロジピン + ロサルタン（ARB）
+    quality_requirements:
+      coverage: 0.95
+      kegg_cover_rate: 0.85
+
+- name: "配合錠+単剤"
+  description: "配合錠と構成単剤が混在する処方"
+  inputs:
+    ocr_text_file: "rx_003.txt"
+  expect:
+    unique_count: 3
+    must_include:
+      - "テルミサルタン・アムロジピン"  # 配合錠
+      - "メトホルミン"
+      - "アトルバスタチン"
+    must_not_include:
+      - "テルミサルタン"  # 単剤は除外される
+      - "アムロジピン"    # 単剤は除外される
+    rule_hits: []
+    quality_requirements:
+      coverage: 0.90
+      kegg_cover_rate: 0.80
+
+- name: "漢方薬+西洋薬"
+  description: "漢方薬と西洋薬の混合処方"
+  inputs:
+    ocr_text_file: "rx_004.txt"
+  expect:
+    unique_count: 4
+    must_include:
+      - "芍薬甘草湯"
+      - "アムロジピン"
+      - "ロサルタン"
+      - "メトホルミン"
+    rule_hits:
+      - ccb_duplication
+    quality_requirements:
+      coverage: 0.90
+      kegg_cover_rate: 0.75
+
+- name: "抗血小板薬併用"
+  description: "複数の抗血小板薬を含む処方"
+  inputs:
+    ocr_text_file: "rx_005.txt"
+  expect:
+    unique_count: 4
+    must_include:
+      - "アスピリン"
+      - "クロピドグレル"
+      - "アムロジピン"
+      - "ロサルタン"
+    rule_hits:
+      - antiplatelet_combination
+      - ccb_duplication
+    quality_requirements:
+      coverage: 0.95
+      kegg_cover_rate: 0.85

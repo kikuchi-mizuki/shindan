@@ -1,236 +1,203 @@
 """
-監査ログ機能 - 根拠を保存・表示
-誤検知ほぼゼロ／取りこぼしほぼゼロで、根拠が示せる診断のための監査機能
+監査ログシステム
+kegg_id/atc/class_jp/tags/rule_hits を必ずログ出力・保存
 """
 import json
 import logging
+import time
 from datetime import datetime
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
+from typing import Dict, Any, List, Optional
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-@dataclass
-class AuditEntry:
-    """監査ログエントリ"""
-    timestamp: str
-    user_id: str
-    action: str
-    drug_names: List[str]
-    interactions: List[Dict[str, Any]]
-    classification_results: List[Dict[str, Any]]
-    confidence_scores: Dict[str, float]
-    kegg_ids: Dict[str, str]
-    atc_codes: Dict[str, List[str]]
-    rule_ids: List[str]
-    processing_time_ms: int
-    image_quality_score: Optional[float] = None
-    ocr_confidence: Optional[float] = None
-    ai_confidence: Optional[float] = None
-
 class AuditLogger:
-    """監査ログ管理"""
+    """監査ログシステム"""
     
-    def __init__(self):
-        """初期化"""
-        self.audit_logs = []
-        self.logger = logging.getLogger(f"{__name__}.audit")
-    
-    def log_drug_analysis(self, 
-                         user_id: str,
-                         drug_names: List[str],
-                         interactions: List[Dict[str, Any]],
-                         classification_results: List[Dict[str, Any]],
-                         confidence_scores: Dict[str, float],
-                         kegg_ids: Dict[str, str],
-                         atc_codes: Dict[str, List[str]],
-                         rule_ids: List[str],
-                         processing_time_ms: int,
-                         image_quality_score: Optional[float] = None,
-                         ocr_confidence: Optional[float] = None,
-                         ai_confidence: Optional[float] = None) -> str:
-        """
-        薬剤分析の監査ログを記録
+    def __init__(self, log_dir: str = "logs/audit"):
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
         
-        Returns:
-            audit_id: 監査ログのID
-        """
+        # 監査ログ用の専用ロガー
+        self.audit_logger = logging.getLogger('audit')
+        self.audit_logger.setLevel(logging.INFO)
+        
+        # ファイルハンドラーを設定
+        log_file = self.log_dir / f"audit_{datetime.now().strftime('%Y%m%d')}.log"
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler.setLevel(logging.INFO)
+        
+        # フォーマッターを設定
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s'
+        )
+        file_handler.setFormatter(formatter)
+        
+        # ハンドラーを追加
+        if not self.audit_logger.handlers:
+            self.audit_logger.addHandler(file_handler)
+    
+    def log_drug_processing(self, 
+                          session_id: str,
+                          drugs: List[Dict[str, Any]], 
+                          interaction_result: Dict[str, Any],
+                          quality_result: Dict[str, Any],
+                          processing_stats: Dict[str, Any]) -> None:
+        """薬剤処理の監査ログを記録"""
         try:
-            audit_entry = AuditEntry(
-                timestamp=datetime.now().isoformat(),
-                user_id=user_id,
-                action="drug_analysis",
-                drug_names=drug_names,
-                interactions=interactions,
-                classification_results=classification_results,
-                confidence_scores=confidence_scores,
-                kegg_ids=kegg_ids,
-                atc_codes=atc_codes,
-                rule_ids=rule_ids,
-                processing_time_ms=processing_time_ms,
-                image_quality_score=image_quality_score,
-                ocr_confidence=ocr_confidence,
-                ai_confidence=ai_confidence
-            )
+            audit_data = {
+                'timestamp': datetime.now().isoformat(),
+                'session_id': session_id,
+                'drugs': self._extract_drug_audit_data(drugs),
+                'interactions': self._extract_interaction_audit_data(interaction_result),
+                'quality': quality_result,
+                'stats': processing_stats
+            }
             
-            audit_id = f"audit_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{user_id}"
-            self.audit_logs.append((audit_id, audit_entry))
+            # 構造化ログとして記録
+            self.audit_logger.info(f"DRUG_PROCESSING: {json.dumps(audit_data, ensure_ascii=False)}")
             
-            # ログ出力
-            self.logger.info(f"Audit log created: {audit_id}")
-            self.logger.info(f"Drugs: {len(drug_names)}, Interactions: {len(interactions)}, Rules: {len(rule_ids)}")
-            
-            return audit_id
+            # 詳細ログファイルにも保存
+            self._save_detailed_log(session_id, audit_data)
             
         except Exception as e:
-            logger.error(f"Failed to create audit log: {e}")
-            return f"error_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            logger.error(f"Audit logging failed: {e}")
     
-    def get_audit_summary(self, audit_id: str) -> Optional[Dict[str, Any]]:
-        """監査ログのサマリーを取得"""
-        for id, entry in self.audit_logs:
-            if id == audit_id:
-                return {
-                    'audit_id': audit_id,
-                    'timestamp': entry.timestamp,
-                    'user_id': entry.user_id,
-                    'drug_count': len(entry.drug_names),
-                    'interaction_count': len(entry.interactions),
-                    'rule_count': len(entry.rule_ids),
-                    'processing_time_ms': entry.processing_time_ms,
-                    'confidence_avg': sum(entry.confidence_scores.values()) / len(entry.confidence_scores) if entry.confidence_scores else 0,
-                    'image_quality': entry.image_quality_score,
-                    'ocr_confidence': entry.ocr_confidence,
-                    'ai_confidence': entry.ai_confidence
-                }
-        return None
+    def _extract_drug_audit_data(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """薬剤データから監査用データを抽出"""
+        audit_drugs = []
+        
+        for drug in drugs:
+            audit_drug = {
+                'generic': drug.get('generic', ''),
+                'brand': drug.get('brand', ''),
+                'raw': drug.get('raw', ''),
+                'kegg_id': drug.get('kegg_id', ''),
+                'atc_codes': drug.get('atc', []),
+                'class_jp': drug.get('class_jp', ''),
+                'confidence': drug.get('confidence', 0.0),
+                'interaction_tags': drug.get('interaction_tags', []),
+                'route': drug.get('route', ''),
+                'strength': drug.get('strength', ''),
+                'dose': drug.get('dose', ''),
+                'frequency': drug.get('frequency', '')
+            }
+            audit_drugs.append(audit_drug)
+        
+        return audit_drugs
     
-    def get_audit_details(self, audit_id: str) -> Optional[Dict[str, Any]]:
-        """監査ログの詳細を取得"""
-        for id, entry in self.audit_logs:
-            if id == audit_id:
-                return asdict(entry)
-        return None
-    
-    def generate_audit_report(self, audit_id: str) -> str:
-        """監査レポートを生成"""
-        details = self.get_audit_details(audit_id)
-        if not details:
-            return f"監査ログが見つかりません: {audit_id}"
-        
-        report_parts = []
-        report_parts.append("🔍 【監査レポート】")
-        report_parts.append("━━━━━━━━━━━━━━")
-        report_parts.append(f"監査ID: {audit_id}")
-        report_parts.append(f"日時: {details['timestamp']}")
-        report_parts.append(f"ユーザー: {details['user_id']}")
-        report_parts.append("")
-        
-        # 薬剤情報
-        report_parts.append("📋 検出薬剤:")
-        for i, drug in enumerate(details['drug_names'], 1):
-            kegg_id = details['kegg_ids'].get(drug, 'N/A')
-            atc_codes = details['atc_codes'].get(drug, [])
-            confidence = details['confidence_scores'].get(drug, 0.0)
-            report_parts.append(f"{i:02d}) {drug}")
-            report_parts.append(f"    KEGG ID: {kegg_id}")
-            report_parts.append(f"    ATC: {', '.join(atc_codes) if atc_codes else 'N/A'}")
-            report_parts.append(f"    信頼度: {confidence:.2f}")
-            report_parts.append("")
-        
-        # 相互作用情報
-        if details['interactions']:
-            report_parts.append("⚠️ 相互作用:")
-            for interaction in details['interactions']:
-                report_parts.append(f"• {interaction.get('description', 'N/A')}")
-                report_parts.append(f"  リスク: {interaction.get('risk', 'N/A')}")
-                report_parts.append(f"  機序: {interaction.get('mechanism', 'N/A')}")
-                report_parts.append(f"  臨床的影響: {interaction.get('clinical_impact', 'N/A')}")
-                report_parts.append("")
-        
-        # 適用ルール
-        if details['rule_ids']:
-            report_parts.append("📜 適用ルール:")
-            for rule_id in details['rule_ids']:
-                report_parts.append(f"• {rule_id}")
-            report_parts.append("")
-        
-        # 処理統計
-        report_parts.append("📊 処理統計:")
-        report_parts.append(f"処理時間: {details['processing_time_ms']}ms")
-        report_parts.append(f"画像品質: {details['image_quality_score']:.2f}" if details['image_quality_score'] else "画像品質: N/A")
-        report_parts.append(f"OCR信頼度: {details['ocr_confidence']:.2f}" if details['ocr_confidence'] else "OCR信頼度: N/A")
-        report_parts.append(f"AI信頼度: {details['ai_confidence']:.2f}" if details['ai_confidence'] else "AI信頼度: N/A")
-        
-        return "\n".join(report_parts)
-    
-    def get_low_confidence_drugs(self, audit_id: str, threshold: float = 0.8) -> List[str]:
-        """低信頼度の薬剤を取得"""
-        details = self.get_audit_details(audit_id)
-        if not details:
-            return []
-        
-        low_confidence = []
-        for drug, confidence in details['confidence_scores'].items():
-            if confidence < threshold:
-                low_confidence.append(drug)
-        
-        return low_confidence
-    
-    def get_missing_kegg_drugs(self, audit_id: str) -> List[str]:
-        """KEGG IDが取得できなかった薬剤を取得"""
-        details = self.get_audit_details(audit_id)
-        if not details:
-            return []
-        
-        missing_kegg = []
-        for drug in details['drug_names']:
-            if drug not in details['kegg_ids'] or details['kegg_ids'][drug] == 'N/A':
-                missing_kegg.append(drug)
-        
-        return missing_kegg
-    
-    def export_audit_logs(self, format: str = 'json') -> str:
-        """監査ログをエクスポート"""
-        if format == 'json':
-            return json.dumps([asdict(entry) for _, entry in self.audit_logs], ensure_ascii=False, indent=2)
-        else:
-            return str(self.audit_logs)
-    
-    def clear_old_logs(self, days: int = 30):
-        """古いログをクリア"""
-        cutoff_date = datetime.now().timestamp() - (days * 24 * 60 * 60)
-        
-        original_count = len(self.audit_logs)
-        self.audit_logs = [
-            (audit_id, entry) for audit_id, entry in self.audit_logs
-            if datetime.fromisoformat(entry.timestamp).timestamp() > cutoff_date
-        ]
-        
-        removed_count = original_count - len(self.audit_logs)
-        logger.info(f"Cleared {removed_count} old audit logs (older than {days} days)")
-    
-    def get_statistics(self) -> Dict[str, Any]:
-        """監査ログ統計を取得"""
-        if not self.audit_logs:
-            return {'total_logs': 0}
-        
-        total_logs = len(self.audit_logs)
-        total_drugs = sum(len(entry.drug_names) for _, entry in self.audit_logs)
-        total_interactions = sum(len(entry.interactions) for _, entry in self.audit_logs)
-        
-        # 信頼度統計
-        all_confidences = []
-        for _, entry in self.audit_logs:
-            all_confidences.extend(entry.confidence_scores.values())
-        
-        avg_confidence = sum(all_confidences) / len(all_confidences) if all_confidences else 0
-        
+    def _extract_interaction_audit_data(self, interaction_result: Dict[str, Any]) -> Dict[str, Any]:
+        """相互作用結果から監査用データを抽出"""
         return {
-            'total_logs': total_logs,
-            'total_drugs': total_drugs,
-            'total_interactions': total_interactions,
-            'average_confidence': avg_confidence,
-            'average_drugs_per_analysis': total_drugs / total_logs if total_logs > 0 else 0,
-            'average_interactions_per_analysis': total_interactions / total_logs if total_logs > 0 else 0
+            'has_interactions': interaction_result.get('has_interactions', False),
+            'major_count': len(interaction_result.get('major_interactions', [])),
+            'moderate_count': len(interaction_result.get('moderate_interactions', [])),
+            'rule_hits': [
+                {
+                    'id': rule.get('id', ''),
+                    'name': rule.get('name', ''),
+                    'severity': rule.get('severity', ''),
+                    'matched_drugs': rule.get('matched_drugs', [])
+                }
+                for rule in (interaction_result.get('major_interactions', []) + 
+                           interaction_result.get('moderate_interactions', []))
+            ]
         }
+    
+    def _save_detailed_log(self, session_id: str, audit_data: Dict[str, Any]) -> None:
+        """詳細ログをファイルに保存"""
+        try:
+            log_file = self.log_dir / f"session_{session_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            
+            with open(log_file, 'w', encoding='utf-8') as f:
+                json.dump(audit_data, f, ensure_ascii=False, indent=2)
+                
+        except Exception as e:
+            logger.error(f"Failed to save detailed log: {e}")
+    
+    def log_quality_metrics(self, session_id: str, metrics: Dict[str, Any]) -> None:
+        """品質メトリクスをログ記録"""
+        try:
+            quality_log = {
+                'timestamp': datetime.now().isoformat(),
+                'session_id': session_id,
+                'metrics': metrics
+            }
+            
+            self.audit_logger.info(f"QUALITY_METRICS: {json.dumps(quality_log, ensure_ascii=False)}")
+            
+        except Exception as e:
+            logger.error(f"Quality metrics logging failed: {e}")
+    
+    def log_error(self, session_id: str, error_type: str, error_message: str, context: Dict[str, Any] = None) -> None:
+        """エラーログを記録"""
+        try:
+            error_log = {
+                'timestamp': datetime.now().isoformat(),
+                'session_id': session_id,
+                'error_type': error_type,
+                'error_message': error_message,
+                'context': context or {}
+            }
+            
+            self.audit_logger.error(f"ERROR: {json.dumps(error_log, ensure_ascii=False)}")
+            
+        except Exception as e:
+            logger.error(f"Error logging failed: {e}")
+    
+    def get_audit_summary(self, date: str = None) -> Dict[str, Any]:
+        """監査サマリーを取得"""
+        try:
+            if not date:
+                date = datetime.now().strftime('%Y%m%d')
+            
+            log_file = self.log_dir / f"audit_{date}.log"
+            
+            if not log_file.exists():
+                return {'error': 'Log file not found'}
+            
+            # ログファイルを解析してサマリーを生成
+            summary = {
+                'date': date,
+                'total_sessions': 0,
+                'total_drugs': 0,
+                'total_interactions': 0,
+                'quality_issues': 0,
+                'errors': 0
+            }
+            
+            with open(log_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if 'DRUG_PROCESSING:' in line:
+                        summary['total_sessions'] += 1
+                        # 簡単な解析（実際の実装ではより詳細な解析が必要）
+                        if '"drugs":' in line:
+                            summary['total_drugs'] += line.count('"generic":')
+                        if '"has_interactions": true' in line:
+                            summary['total_interactions'] += 1
+                    elif 'ERROR:' in line:
+                        summary['errors'] += 1
+            
+            return summary
+            
+        except Exception as e:
+            logger.error(f"Failed to get audit summary: {e}")
+            return {'error': str(e)}
+    
+    def cleanup_old_logs(self, days_to_keep: int = 30) -> None:
+        """古いログファイルをクリーンアップ"""
+        try:
+            cutoff_time = time.time() - (days_to_keep * 24 * 60 * 60)
+            
+            for log_file in self.log_dir.glob("*.log"):
+                if log_file.stat().st_mtime < cutoff_time:
+                    log_file.unlink()
+                    logger.info(f"Deleted old log file: {log_file}")
+            
+            for log_file in self.log_dir.glob("*.json"):
+                if log_file.stat().st_mtime < cutoff_time:
+                    log_file.unlink()
+                    logger.info(f"Deleted old log file: {log_file}")
+                    
+        except Exception as e:
+            logger.error(f"Log cleanup failed: {e}")

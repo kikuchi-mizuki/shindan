@@ -57,20 +57,31 @@ def normalize_generic(name: str) -> str:
 
 def canonical_key(drug: Dict[str, Any]) -> str:
     """
-    同一薬かどうかを判定するためのキー
+    同一薬かどうかを判定するためのキー（改善版）
     例: 「センノシド」「センノシド錠」→ 同じキー
         「ジクロフェナク（内服）」と「ジクロフェナクゲル（外用）」→ 別キー
+        配合錠と構成単剤は別キー
     """
     name = drug.get("generic") or drug.get("brand") or drug.get("raw", "")
     route = drug.get("route") or _route_tag(drug.get("raw", "") + name)
 
-    base = name
-    for tok in FORM_TOKENS:
-        base = base.replace(tok, "")
+    # 剤形を除去して一般名を取得
+    base = _form_agnostic_name(name)
     base = _zenhan(base)
     base = normalize_generic(base)  # 商品名→一般名の辞書正規化
 
     return f"{base}::{route}"
+
+def _form_agnostic_name(name: str) -> str:
+    """剤形を除去した薬剤名を取得"""
+    # 剤形キーワードを除去
+    form_tokens = ["錠", "OD錠", "口腔内崩壊", "腸溶", "徐放", "CR", "カプセル", "cap", "包", "顆粒", "散", "液", "ゲル", "軟膏", "クリーム", "貼付", "テープ"]
+    
+    base = name
+    for token in form_tokens:
+        base = base.replace(token, "")
+    
+    return base.strip()
 
 def dedupe(drugs: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
     """
@@ -123,7 +134,7 @@ def is_combo(name: str) -> bool:
     return COMBO_SEP in name
 
 def collapse_combos(drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """配合錠がある場合、構成単剤を除外"""
+    """配合錠がある場合、構成単剤を除外（改善版）"""
     if not drugs:
         return drugs
     
@@ -134,14 +145,18 @@ def collapse_combos(drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for n in names:
         if is_combo(n):
             for p in n.split(COMBO_SEP):
-                combo_parts.add(p.strip())
+                # 剤形を除去して一般名のみで比較
+                normalized_part = _form_agnostic_name(p.strip())
+                combo_parts.add(normalized_part)
     
     # 配合錠がある場合、構成単剤を除外
     out = []
     for d in drugs:
         n = (d.get("generic") or d.get("brand") or d.get("raw", ""))
+        normalized_name = _form_agnostic_name(n)
+        
         # 配合錠があるブロックで、構成単剤を別件として拾っていたら除外
-        if n in combo_parts and any(is_combo(x) for x in names):
+        if normalized_name in combo_parts and any(is_combo(x) for x in names):
             logger.info(f"Excluding single component '{n}' due to combo drug presence")
             continue
         out.append(d)
