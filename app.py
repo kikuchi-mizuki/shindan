@@ -574,8 +574,14 @@ def handle_image_message(event):
                 logger.error(f"Block extraction merge failed: {merge_err}")
                 combined_drugs = ai_drugs
 
-            # 重複統合
-            unique_drugs, removed_count = dedupe(combined_drugs)
+            # ノイズ除去
+            from services.deduper import remove_noise
+            clean_drugs = remove_noise(combined_drugs)
+            
+            # 重複統合（配合錠と単剤の二重取りを防ぐ）
+            from services.deduper import collapse_combos, dedupe_with_form_agnostic
+            unique_drugs = collapse_combos(clean_drugs)
+            unique_drugs, removed_count = dedupe_with_form_agnostic(unique_drugs)
             
             # 形態補正（ピコスルファートNaの錠/液を補正）
             try:

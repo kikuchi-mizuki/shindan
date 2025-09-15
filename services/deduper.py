@@ -110,6 +110,122 @@ def dedupe(drugs: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
         logger.error(f"Deduplication error: {e}")
         return drugs, 0
 
+# 配合錠と単剤の二重取りを防ぐ
+COMBO_SEP = "・"
+
+def is_combo(name: str) -> bool:
+    """配合錠かどうかを判定"""
+    return COMBO_SEP in name
+
+def collapse_combos(drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """配合錠がある場合、構成単剤を除外"""
+    if not drugs:
+        return drugs
+    
+    names = [d.get("generic") or d.get("brand") or d.get("raw", "") for d in drugs]
+    combo_parts = set()
+    
+    # 配合錠の構成成分を抽出
+    for n in names:
+        if is_combo(n):
+            for p in n.split(COMBO_SEP):
+                combo_parts.add(p.strip())
+    
+    # 配合錠がある場合、構成単剤を除外
+    out = []
+    for d in drugs:
+        n = (d.get("generic") or d.get("brand") or d.get("raw", ""))
+        # 配合錠があるブロックで、構成単剤を別件として拾っていたら除外
+        if n in combo_parts and any(is_combo(x) for x in names):
+            logger.info(f"Excluding single component '{n}' due to combo drug presence")
+            continue
+        out.append(d)
+    
+    logger.info(f"Combo collapse: {len(drugs)} -> {len(out)} drugs")
+    return out
+
+# 剤形違いの同一薬を統合
+FORM_NOISE = ["錠", "OD錠", "口腔内崩壊", "腸溶", "徐放", "CR", "カプセル", "cap", "包"]
+
+def strip_form(s: str) -> str:
+    """剤形キーワードを除去"""
+    for t in FORM_NOISE:
+        s = s.replace(t, "")
+    return s
+
+def canonical_key_form_agnostic(name: str) -> str:
+    """剤形を無視した正規化キー"""
+    return strip_form(name).replace(" ", "")
+
+def dedupe_with_form_agnostic(drugs: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
+    """剤形無視の重複統合も併用"""
+    if not drugs:
+        return [], 0
+    
+    # 通常の重複統合
+    merged, removed1 = dedupe(drugs)
+    
+    # 剤形無視の重複統合
+    form_agnostic_groups = {}
+    for d in merged:
+        name = d.get("generic") or d.get("brand") or d.get("raw", "")
+        key = canonical_key_form_agnostic(name)
+        if key not in form_agnostic_groups:
+            form_agnostic_groups[key] = []
+        form_agnostic_groups[key].append(d)
+    
+    # 各グループから最良のものを選択
+    final_drugs = []
+    for group in form_agnostic_groups.values():
+        if len(group) > 1:
+            # 複数ある場合は最良のものを選択
+            best = max(group, key=lambda d: (
+                bool(d.get("generic")),
+                bool(d.get("strength")),
+                float(d.get("confidence", 0))
+            ))
+            final_drugs.append(best)
+            logger.info(f"Form-agnostic dedup: selected '{best.get('generic', '')}' from {len(group)} variants")
+        else:
+            final_drugs.append(group[0])
+    
+    removed2 = len(merged) - len(final_drugs)
+    total_removed = removed1 + removed2
+    
+    logger.info(f"Enhanced deduplication: {len(drugs)} -> {len(final_drugs)} drugs (removed {total_removed} duplicates)")
+    return final_drugs, total_removed
+
+# ノイズ削除
+NOISE_PATTERNS = [
+    r"^[ン・\s]*配合$",
+    r"^ロ腔内崩壊$",
+    r"^[ン・\s]*$",
+    r"^配合$"
+]
+
+def remove_noise(drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """OCRノイズを除去"""
+    if not drugs:
+        return drugs
+    
+    filtered = []
+    for d in drugs:
+        name = d.get("generic") or d.get("brand") or d.get("raw", "")
+        
+        # ノイズパターンにマッチするかチェック
+        is_noise = False
+        for pattern in NOISE_PATTERNS:
+            if re.match(pattern, name.strip()):
+                is_noise = True
+                logger.info(f"Removing noise: '{name}' (matched pattern: {pattern})")
+                break
+        
+        if not is_noise:
+            filtered.append(d)
+    
+    logger.info(f"Noise removal: {len(drugs)} -> {len(filtered)} drugs")
+    return filtered
+
 def get_dedup_summary(original_count: int, deduped_count: int, removed_count: int) -> str:
     """重複統合のサマリーメッセージを生成"""
     if removed_count > 0:
