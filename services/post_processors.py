@@ -1,7 +1,7 @@
 from typing import List, Any, Tuple, Optional
 
 
-def fix_picosulfate_form(drug: Dict) -> Dict:
+def fix_picosulfate_form(drug: dict) -> dict:
     """ピコスルファートNa（ラキソベロン）の剤形・用量をOCRの表記揺れから補正する。
     - raw/brandに「液」を含む → 0.75mg/mL, 剤形=液
     - raw/brandに「錠」を含む → 2.5mg（既存があれば優先）, 剤形=錠

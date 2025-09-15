@@ -1721,7 +1721,7 @@ class DrugService:
                 'diagnosis_details': []
             }
     
-    def _generate_ai_warnings(self, ai_analysis: Dict) -> List[str]:
+    def _generate_ai_warnings(self, ai_analysis: dict) -> List[str]:
         """AI分析に基づく警告の生成"""
         warnings = []
         
@@ -1767,7 +1767,7 @@ class DrugService:
         
         return warnings
     
-    def _generate_ai_diagnosis_details(self, ai_analysis: Dict) -> List[Dict]:
+    def _generate_ai_diagnosis_details(self, ai_analysis: dict) -> List[dict]:
         """AI分析に基づく診断詳細の生成"""
         diagnosis_details = []
         
@@ -3063,7 +3063,7 @@ class DrugService:
         else:
             return 'high'  # デフォルトは高リスク
     
-    def _generate_advanced_clinical_recommendations(self, risk_summary: Dict, drug_categories: Dict, detailed_analysis: Dict) -> List[str]:
+    def _generate_advanced_clinical_recommendations(self, risk_summary: dict, drug_categories: dict, detailed_analysis: dict) -> List[str]:
         """高度な臨床推奨事項の生成"""
         recommendations = []
         
@@ -3571,7 +3571,7 @@ class DrugService:
         
         return normalized.strip()
 
-    def _perform_detailed_clinical_analysis(self, drug_names: List[str], drug_categories: dict[str, str], detected_risks: List[Dict]) -> dict[str, Any]:
+    def _perform_detailed_clinical_analysis(self, drug_names: List[str], drug_categories: dict[str, str], detected_risks: List[dict]) -> dict[str, Any]:
         """詳細な臨床分析の実行"""
         analysis = {
             'patient_profile': self._analyze_patient_profile(drug_names, drug_categories),
@@ -3689,7 +3689,7 @@ class DrugService:
         
         return scenarios
     
-    def _determine_monitoring_requirements(self, detected_risks: List[Dict]) -> dict[str, List[str]]:
+    def _determine_monitoring_requirements(self, detected_risks: List[dict]) -> dict[str, List[str]]:
         """モニタリング要件の決定"""
         monitoring = {
             'vital_signs': [],
@@ -3742,7 +3742,7 @@ class DrugService:
         
         return alternatives
     
-    def _assess_emergency_considerations(self, detected_risks: List[Dict]) -> dict[str, Any]:
+    def _assess_emergency_considerations(self, detected_risks: List[dict]) -> dict[str, Any]:
         """緊急時の考慮事項の評価"""
         emergency = {
             'requires_immediate_attention': False,
@@ -3766,7 +3766,7 @@ class DrugService:
         
         return emergency
     
-    def _calculate_overall_risk_assessment(self, risk_summary: Dict) -> dict[str, Any]:
+    def _calculate_overall_risk_assessment(self, risk_summary: dict) -> dict[str, Any]:
         """全体的なリスク評価の計算"""
         assessment = {
             'overall_risk_level': 'low',
@@ -3800,7 +3800,7 @@ class DrugService:
         
         return assessment
     
-    def _generate_patient_safety_alerts(self, risk_summary: Dict, detailed_analysis: Dict) -> List[dict[str, Any]]:
+    def _generate_patient_safety_alerts(self, risk_summary: dict, detailed_analysis: dict) -> List[dict[str, Any]]:
         """患者安全性アラートの生成"""
         alerts = []
         
