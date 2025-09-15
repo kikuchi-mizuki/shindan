@@ -6,7 +6,7 @@ import json
 import logging
 import time
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import List, Any, Tuple, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -39,10 +39,10 @@ class AuditLogger:
     
     def log_drug_processing(self, 
                           session_id: str,
-                          drugs: List[Dict[str, Any]], 
-                          interaction_result: Dict[str, Any],
-                          quality_result: Dict[str, Any],
-                          processing_stats: Dict[str, Any]) -> None:
+                          drugs: List[dict[str, Any]], 
+                          interaction_result: dict[str, Any],
+                          quality_result: dict[str, Any],
+                          processing_stats: dict[str, Any]) -> None:
         """薬剤処理の監査ログを記録"""
         try:
             audit_data = {
@@ -63,7 +63,7 @@ class AuditLogger:
         except Exception as e:
             logger.error(f"Audit logging failed: {e}")
     
-    def _extract_drug_audit_data(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _extract_drug_audit_data(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """薬剤データから監査用データを抽出"""
         audit_drugs = []
         
@@ -86,7 +86,7 @@ class AuditLogger:
         
         return audit_drugs
     
-    def _extract_interaction_audit_data(self, interaction_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_interaction_audit_data(self, interaction_result: dict[str, Any]) -> dict[str, Any]:
         """相互作用結果から監査用データを抽出"""
         return {
             'has_interactions': interaction_result.get('has_interactions', False),
@@ -104,7 +104,7 @@ class AuditLogger:
             ]
         }
     
-    def _save_detailed_log(self, session_id: str, audit_data: Dict[str, Any]) -> None:
+    def _save_detailed_log(self, session_id: str, audit_data: dict[str, Any]) -> None:
         """詳細ログをファイルに保存"""
         try:
             log_file = self.log_dir / f"session_{session_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -115,7 +115,7 @@ class AuditLogger:
         except Exception as e:
             logger.error(f"Failed to save detailed log: {e}")
     
-    def log_quality_metrics(self, session_id: str, metrics: Dict[str, Any]) -> None:
+    def log_quality_metrics(self, session_id: str, metrics: dict[str, Any]) -> None:
         """品質メトリクスをログ記録"""
         try:
             quality_log = {
@@ -129,7 +129,7 @@ class AuditLogger:
         except Exception as e:
             logger.error(f"Quality metrics logging failed: {e}")
     
-    def log_error(self, session_id: str, error_type: str, error_message: str, context: Dict[str, Any] = None) -> None:
+    def log_error(self, session_id: str, error_type: str, error_message: str, context: dict[str, Any] = None) -> None:
         """エラーログを記録"""
         try:
             error_log = {
@@ -145,7 +145,7 @@ class AuditLogger:
         except Exception as e:
             logger.error(f"Error logging failed: {e}")
     
-    def get_audit_summary(self, date: str = None) -> Dict[str, Any]:
+    def get_audit_summary(self, date: str = None) -> dict[str, Any]:
         """監査サマリーを取得"""
         try:
             if not date:

@@ -3,7 +3,7 @@
 自動やり直し＆人確認フォールバック
 """
 import logging
-from typing import Dict, Any, List, Callable, Optional, Tuple
+from typing import List, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class QualityGate:
             'max_drug_count': 20,         # 最大薬剤数（異常値検出）
         }
     
-    def check_quality(self, stats: Dict[str, Any], drugs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def check_quality(self, stats: dict[str, Any], drugs: List[dict[str, Any]]) -> dict[str, Any]:
         """品質チェックを実行"""
         try:
             quality_result = {
@@ -108,15 +108,15 @@ class QualityGate:
                 'stats': stats
             }
     
-    def should_retry(self, quality_result: Dict[str, Any]) -> bool:
+    def should_retry(self, quality_result: dict[str, Any]) -> bool:
         """再試行が必要かどうかを判定"""
         return quality_result.get('retry_needed', False)
     
-    def needs_human_review(self, quality_result: Dict[str, Any]) -> bool:
+    def needs_human_review(self, quality_result: dict[str, Any]) -> bool:
         """人による確認が必要かどうかを判定"""
         return quality_result.get('human_review_needed', False)
     
-    def get_retry_strategy(self, quality_result: Dict[str, Any]) -> Dict[str, Any]:
+    def get_retry_strategy(self, quality_result: dict[str, Any]) -> dict[str, Any]:
         """再試行戦略を取得"""
         retry_strategy = {
             'retry_extraction': False,
@@ -142,7 +142,7 @@ class QualityGate:
         
         return retry_strategy
     
-    def generate_quality_report(self, quality_result: Dict[str, Any]) -> str:
+    def generate_quality_report(self, quality_result: dict[str, Any]) -> str:
         """品質レポートを生成"""
         if quality_result.get('passed'):
             return "✅ 品質チェック: 合格"
@@ -164,7 +164,7 @@ class QualityGate:
         
         return "\n".join(report_parts)
     
-    def create_human_review_message(self, quality_result: Dict[str, Any], drugs: List[Dict[str, Any]]) -> str:
+    def create_human_review_message(self, quality_result: dict[str, Any], drugs: List[dict[str, Any]]) -> str:
         """人による確認用メッセージを生成"""
         message_parts = [
             "🔍 薬剤検出結果の確認をお願いします",

@@ -4,7 +4,7 @@
 """
 import logging
 import yaml
-from typing import List, Dict, Any, Tuple
+from typing import List, Any, Tuple, Optional
 from collections import Counter
 from pathlib import Path
 
@@ -18,7 +18,7 @@ class InteractionEngine:
         self.rules = self._load_rules()
         logger.info(f"InteractionEngine initialized with {len(self.rules)} rules")
     
-    def _load_rules(self) -> List[Dict[str, Any]]:
+    def _load_rules(self) -> List[dict[str, Any]]:
         """相互作用ルールを読み込み"""
         try:
             rules_path = Path(self.rules_file)
@@ -36,7 +36,7 @@ class InteractionEngine:
             logger.error(f"Failed to load interaction rules: {e}")
             return []
     
-    def collect_tags(self, drugs: List[Dict[str, Any]]) -> Counter:
+    def collect_tags(self, drugs: List[dict[str, Any]]) -> Counter:
         """薬剤リストから相互作用タグを収集"""
         from services.drug_normalization_service import DrugNormalizationService
         
@@ -57,7 +57,7 @@ class InteractionEngine:
         logger.info(f"Collected tags: {dict(tag_counter)}")
         return tag_counter
     
-    def evaluate_rules(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def evaluate_rules(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """相互作用ルールを評価"""
         if not drugs or not self.rules:
             return []
@@ -72,7 +72,7 @@ class InteractionEngine:
         
         return triggered_rules
     
-    def _check_rule(self, rule: Dict[str, Any], tag_counter: Counter) -> bool:
+    def _check_rule(self, rule: dict[str, Any], tag_counter: Counter) -> bool:
         """個別ルールの条件をチェック"""
         need_tags = rule.get("need_tags")
         if not need_tags:
@@ -91,7 +91,7 @@ class InteractionEngine:
         
         return total_count >= min_count
     
-    def format_interactions(self, triggered_rules: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def format_interactions(self, triggered_rules: List[dict[str, Any]]) -> dict[str, Any]:
         """相互作用結果をフォーマット（注意も必ず表示）"""
         if not triggered_rules:
             return {
@@ -125,7 +125,7 @@ class InteractionEngine:
             "total_count": len(triggered_rules)
         }
     
-    def check_drug_interactions(self, drugs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def check_drug_interactions(self, drugs: List[dict[str, Any]]) -> dict[str, Any]:
         """薬剤相互作用の総合チェック"""
         try:
             if not drugs:

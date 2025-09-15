@@ -4,7 +4,7 @@ Regex×LLM×辞書の3系統候補から2票以上で採用
 """
 import re
 import logging
-from typing import List, Dict, Set, Any, Tuple
+from typing import List, Any, Tuple, Optional
 from collections import Counter
 from difflib import SequenceMatcher
 
@@ -63,7 +63,7 @@ class ConsensusExtractor:
             r'^[食前|食後|食間|就寝前|眠前|朝|昼|夕]+$',
         ]
     
-    def extract_drugs_consensus(self, text: str, llm_drugs: List[str] = None) -> List[Dict[str, Any]]:
+    def extract_drugs_consensus(self, text: str, llm_drugs: List[str] = None) -> List[dict[str, Any]]:
         """合議制で薬剤を抽出"""
         try:
             # 3系統の候補を取得
@@ -71,7 +71,7 @@ class ConsensusExtractor:
             dictionary_candidates = self._extract_by_dictionary(text)
             llm_candidates = llm_drugs or []
             
-            logger.info(f"Extraction candidates - Regex: {len(regex_candidates)}, Dictionary: {len(dictionary_candidates)}, LLM: {len(llm_candidates)}")
+            logger.info(f"Extraction candidates - Regex: {len(regex_candidates)}ionary: {len(dictionary_candidates)}, LLM: {len(llm_candidates)}")
             
             # 合議制で最終候補を決定
             consensus_drugs = self._consensus_voting(
@@ -118,7 +118,7 @@ class ConsensusExtractor:
     
     def _consensus_voting(self, regex_candidates: List[str], 
                          dictionary_candidates: List[str], 
-                         llm_candidates: List[str]) -> List[Dict[str, Any]]:
+                         llm_candidates: List[str]) -> List[dict[str, Any]]:
         """合議制投票で最終候補を決定"""
         # 候補を正規化
         normalized_regex = [self._normalize_drug_name(d) for d in regex_candidates]
@@ -215,7 +215,7 @@ class ConsensusExtractor:
         
         return sources
     
-    def _verify_with_kegg(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _verify_with_kegg(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """KEGGで裏取り"""
         try:
             from services.kegg_client import KeggClient
@@ -247,7 +247,7 @@ class ConsensusExtractor:
             logger.warning(f"KEGG verification failed: {e}")
             return drugs
     
-    def get_extraction_stats(self, drugs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def get_extraction_stats(self, drugs: List[dict[str, Any]]) -> dict[str, Any]:
         """抽出統計を取得"""
         if not drugs:
             return {

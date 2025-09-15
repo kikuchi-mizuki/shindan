@@ -3,7 +3,7 @@ import logging
 import os
 import requests
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Any, Tuple, Optional
 import difflib
 import re
 from collections import defaultdict
@@ -200,7 +200,7 @@ class AIDrugMatcher:
             'クロキ', 'ハロキ', 'メキ', 'オキサ', 'プラ', 'エチ', 'フルニ', 'ブロチ'
         ]
         
-    def analyze_drug_name(self, drug_name: str) -> Dict[str, Any]:
+    def analyze_drug_name(self, drug_name: str) -> dict[str, Any]:
         """薬剤名をAI的に分析（パターンベース優先版）"""
         # 1. まずパターンベース修正を実行（確実な修正）
         pattern_corrected_name = self._pattern_based_correction(drug_name)
@@ -286,7 +286,7 @@ class AIDrugMatcher:
         
         return analysis
     
-    def _cache_analysis(self, drug_name: str, analysis: Dict[str, Any]):
+    def _cache_analysis(self, drug_name: str, analysis: dict[str, Any]):
         """分析結果をキャッシュに保存"""
         # キャッシュサイズ制限
         if len(self.analysis_cache) >= self.cache_max_size:
@@ -296,7 +296,7 @@ class AIDrugMatcher:
         
         self.analysis_cache[drug_name] = analysis
     
-    def _calculate_confidence(self, drug_name: str, analysis: Dict[str, Any]) -> float:
+    def _calculate_confidence(self, drug_name: str, analysis: dict[str, Any]) -> float:
         """マッチング信頼度の計算"""
         confidence = 0.0
         
@@ -654,7 +654,7 @@ class AIDrugMatcher:
         
         return list(set(variants))  # 重複除去
     
-    def _determine_search_priority(self, drug_name: str, analysis: Dict[str, Any]) -> List[str]:
+    def _determine_search_priority(self, drug_name: str, analysis: dict[str, Any]) -> List[str]:
         """検索優先度の決定（AI最適化版）"""
         priority = []
         
@@ -1122,7 +1122,7 @@ class DrugService:
         }
         logger.info(f"Loaded interaction rules: {len(self.interaction_rules)} drug mappings")
     
-    def _deduplicate_drugs(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _deduplicate_drugs(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """薬剤リストの重複除去（共通関数）"""
         unique_drugs = []
         seen_names = set()
@@ -1138,7 +1138,7 @@ class DrugService:
         logger.info(f"After deduplication: {len(unique_drugs)} unique drugs found")
         return unique_drugs
 
-    def _create_drug_info_from_row(self, row: pd.Series, drug_name: str) -> Dict[str, Any]:
+    def _create_drug_info_from_row(self, row: pd.Series, drug_name: str) -> dict[str, Any]:
         """行データから薬剤情報を作成（共通関数）"""
         drug_name_str = str(row['drug_name']).strip()
         generic_name_str = str(row['generic_name']).strip()
@@ -1159,7 +1159,7 @@ class DrugService:
             'interactions': interactions_str.split(',') if interactions_str else []
         }
 
-    def _find_drug_info(self, drug_name: str) -> Dict[str, Any]:
+    def _find_drug_info(self, drug_name: str) -> dict[str, Any]:
         # --- ローカルDBキャッシュ ---
         if drug_name in self.local_db_cache:
             return self.local_db_cache[drug_name]
@@ -1252,7 +1252,7 @@ class DrugService:
         }
         return category_mapping.get(ai_category, ai_category)
 
-    def _find_partial_match(self, drug_name: str) -> Optional[Dict[str, Any]]:
+    def _find_partial_match(self, drug_name: str) -> Optional[dict[str, Any]]:
         """部分一致による薬剤検索"""
         if self.drug_database is None:
             return None
@@ -1275,7 +1275,7 @@ class DrugService:
         
         return best_match
 
-    def _check_interactions(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _check_interactions(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """薬剤間の相互作用をチェック（itertools.combinationsで最適化）"""
         interactions = []
         
@@ -1292,7 +1292,7 @@ class DrugService:
         
         return interactions
 
-    def _check_same_effect_drugs(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _check_same_effect_drugs(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """同効薬の重複チェック（itertools.combinationsで最適化）"""
         warnings = []
         
@@ -1310,7 +1310,7 @@ class DrugService:
         
         return warnings
 
-    def _check_category_duplicates(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _check_category_duplicates(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """薬剤分類による重複チェック（defaultdictで最適化）"""
         duplicates = []
         category_groups = defaultdict(list)
@@ -1348,7 +1348,7 @@ class DrugService:
             keep.append(n)
         return keep
 
-    def _get_duplication_rule(self, category: str) -> Dict[str, Any]:
+    def _get_duplication_rule(self, category: str) -> dict[str, Any]:
         """カテゴリの重複ルールを取得"""
         # 重複チェックルールの定義
         duplication_rules = {
@@ -1363,7 +1363,7 @@ class DrugService:
         
         return duplication_rules.get(category, {'check_duplication': True, 'min_drugs': 2})
 
-    def _remove_duplicate_risks(self, risks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _remove_duplicate_risks(self, risks: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """重複するリスクを除去（強化版）"""
         unique_risks = []
         seen_combinations = set()
@@ -1507,7 +1507,7 @@ class DrugService:
         logger.info(f"Final matched {len(results)} drugs from {len(ocr_names)} OCR names: {results}")
         return results
     
-    def safe_find_kegg_info(self, drug_name: str) -> Optional[Dict[str, Any]]:
+    def safe_find_kegg_info(self, drug_name: str) -> Optional[dict[str, Any]]:
         """KEGG情報を安全に取得（パブリックメソッド）"""
         try:
             return self._fetch_kegg_drug_info(drug_name)
@@ -1627,7 +1627,7 @@ class DrugService:
         logger.info(f"KEGG search disabled for '{drug_name}' to prevent timeout")
         return None
 
-    def get_drug_interactions(self, drug_names: List[str]) -> Dict[str, Any]:
+    def get_drug_interactions(self, drug_names: List[str]) -> dict[str, Any]:
         """薬剤名リストから飲み合わせ情報を取得（AI強化版）"""
         try:
             logger.info(f"Starting drug interaction analysis for {len(drug_names)} drugs: {drug_names}")
@@ -1808,7 +1808,7 @@ class DrugService:
         
         return diagnosis_details
     
-    def _check_interaction_rule(self, drug1: str, drug2: str) -> Optional[Dict[str, str]]:
+    def _check_interaction_rule(self, drug1: str, drug2: str) -> Optional[dict[str, str]]:
         """2つの薬剤間の相互作用ルールをチェック"""
         # 相互作用ルールをチェック
         for drug, interactions in self.interaction_rules.items():
@@ -1845,7 +1845,7 @@ class DrugService:
     
 
     
-    def _check_same_effect(self, drug1: str, drug2: str) -> Optional[Dict[str, str]]:
+    def _check_same_effect(self, drug1: str, drug2: str) -> Optional[dict[str, str]]:
         """2つの薬剤が同効薬かチェック"""
         for drug, info in self.same_effect_drugs.items():
             if drug1 == drug and drug2 in info['same_effect']:
@@ -1854,7 +1854,7 @@ class DrugService:
                 return info
         return None
     
-    def _get_kegg_info(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _get_kegg_info(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """KEGGデータベースから薬剤情報を取得（無効化版）"""
         # KEGG情報取得を無効化してタイムアウトを回避
         logger.info(f"KEGG info retrieval disabled for {len(drugs)} drugs to prevent timeout")
@@ -2068,7 +2068,7 @@ class DrugService:
         # デフォルト
         return 'その他'
 
-    def _fetch_kegg_drug_info(self, drug_name: str) -> Optional[Dict[str, Any]]:
+    def _fetch_kegg_drug_info(self, drug_name: str) -> Optional[dict[str, Any]]:
         """KEGG APIから薬剤情報を取得（改善版）"""
         try:
             # 複数の検索パターンを試行
@@ -2121,7 +2121,7 @@ class DrugService:
             logger.warning(f"KEGG API エラー ({drug_name}): {e}")
             return None
     
-    def _select_best_kegg_match(self, kegg_lines: List[str], original_name: str) -> Optional[Dict[str, str]]:
+    def _select_best_kegg_match(self, kegg_lines: List[str], original_name: str) -> Optional[dict[str, str]]:
         """KEGG検索結果から最適なマッチを選択"""
         try:
             candidates = []
@@ -2270,7 +2270,7 @@ class DrugService:
         
         return targets[:3]  # 最大3個まで
     
-    def _generate_warnings(self, results: Dict[str, Any]) -> List[str]:
+    def _generate_warnings(self, results: dict[str, Any]) -> List[str]:
         """警告メッセージを生成"""
         warnings = []
         
@@ -2291,7 +2291,7 @@ class DrugService:
         
         return warnings
     
-    def _generate_recommendations(self, results: Dict[str, Any]) -> List[str]:
+    def _generate_recommendations(self, results: dict[str, Any]) -> List[str]:
         """推奨事項を生成"""
         recommendations = []
         
@@ -2512,7 +2512,7 @@ class DrugService:
             # 必要に応じて追加
         }
 
-    def analyze_drug_interactions_ai(self, drug_names: List[str]) -> Dict[str, Any]:
+    def analyze_drug_interactions_ai(self, drug_names: List[str]) -> dict[str, Any]:
         """AIを活用した薬剤相互作用分析（臨床的に重要なリスクを特定）"""
         
         # 薬剤カテゴリの取得
@@ -2906,7 +2906,7 @@ class DrugService:
             'patient_safety_alerts': self._generate_patient_safety_alerts(risk_summary, detailed_analysis)
         }
 
-    def _analyze_interactions_with_ai(self, drug_names: List[str], drug_categories: Dict[str, str]) -> List[Dict[str, Any]]:
+    def _analyze_interactions_with_ai(self, drug_names: List[str], drug_categories: dict[str, str]) -> List[dict[str, Any]]:
         """AI駆動の相互作用分析（動的学習）"""
         try:
             import openai
@@ -2979,7 +2979,7 @@ class DrugService:
             logger.warning(f"AI相互作用分析エラー: {e}")
             return []
 
-    def _parse_ai_interaction_response(self, ai_response: str, drug_names: List[str]) -> List[Dict[str, Any]]:
+    def _parse_ai_interaction_response(self, ai_response: str, drug_names: List[str]) -> List[dict[str, Any]]:
         """AIの回答を解析して相互作用リストに変換"""
         interactions = []
         
@@ -3571,7 +3571,7 @@ class DrugService:
         
         return normalized.strip()
 
-    def _perform_detailed_clinical_analysis(self, drug_names: List[str], drug_categories: Dict[str, str], detected_risks: List[Dict]) -> Dict[str, Any]:
+    def _perform_detailed_clinical_analysis(self, drug_names: List[str], drug_categories: dict[str, str], detected_risks: List[Dict]) -> dict[str, Any]:
         """詳細な臨床分析の実行"""
         analysis = {
             'patient_profile': self._analyze_patient_profile(drug_names, drug_categories),
@@ -3583,7 +3583,7 @@ class DrugService:
         }
         return analysis
     
-    def _analyze_patient_profile(self, drug_names: List[str], drug_categories: Dict[str, str]) -> Dict[str, Any]:
+    def _analyze_patient_profile(self, drug_names: List[str], drug_categories: dict[str, str]) -> dict[str, Any]:
         """患者プロファイルの分析"""
         profile = {
             'likely_conditions': [],
@@ -3614,7 +3614,7 @@ class DrugService:
         
         return profile
     
-    def _analyze_drug_interaction_network(self, drug_names: List[str], drug_categories: Dict[str, str]) -> Dict[str, Any]:
+    def _analyze_drug_interaction_network(self, drug_names: List[str], drug_categories: dict[str, str]) -> dict[str, Any]:
         """薬剤相互作用ネットワークの分析"""
         network = {
             'interaction_clusters': [],
@@ -3652,7 +3652,7 @@ class DrugService:
         
         return network
     
-    def _identify_clinical_scenarios(self, drug_names: List[str], drug_categories: Dict[str, str]) -> List[Dict[str, Any]]:
+    def _identify_clinical_scenarios(self, drug_names: List[str], drug_categories: dict[str, str]) -> List[dict[str, Any]]:
         """臨床シナリオの特定"""
         scenarios = []
         
@@ -3689,7 +3689,7 @@ class DrugService:
         
         return scenarios
     
-    def _determine_monitoring_requirements(self, detected_risks: List[Dict]) -> Dict[str, List[str]]:
+    def _determine_monitoring_requirements(self, detected_risks: List[Dict]) -> dict[str, List[str]]:
         """モニタリング要件の決定"""
         monitoring = {
             'vital_signs': [],
@@ -3712,7 +3712,7 @@ class DrugService:
         
         return monitoring
     
-    def _suggest_alternative_therapies(self, drug_names: List[str], drug_categories: Dict[str, str]) -> List[Dict[str, Any]]:
+    def _suggest_alternative_therapies(self, drug_names: List[str], drug_categories: dict[str, str]) -> List[dict[str, Any]]:
         """代替療法の提案"""
         alternatives = []
         
@@ -3742,7 +3742,7 @@ class DrugService:
         
         return alternatives
     
-    def _assess_emergency_considerations(self, detected_risks: List[Dict]) -> Dict[str, Any]:
+    def _assess_emergency_considerations(self, detected_risks: List[Dict]) -> dict[str, Any]:
         """緊急時の考慮事項の評価"""
         emergency = {
             'requires_immediate_attention': False,
@@ -3766,7 +3766,7 @@ class DrugService:
         
         return emergency
     
-    def _calculate_overall_risk_assessment(self, risk_summary: Dict) -> Dict[str, Any]:
+    def _calculate_overall_risk_assessment(self, risk_summary: Dict) -> dict[str, Any]:
         """全体的なリスク評価の計算"""
         assessment = {
             'overall_risk_level': 'low',
@@ -3800,7 +3800,7 @@ class DrugService:
         
         return assessment
     
-    def _generate_patient_safety_alerts(self, risk_summary: Dict, detailed_analysis: Dict) -> List[Dict[str, Any]]:
+    def _generate_patient_safety_alerts(self, risk_summary: Dict, detailed_analysis: Dict) -> List[dict[str, Any]]:
         """患者安全性アラートの生成"""
         alerts = []
         
@@ -3837,7 +3837,7 @@ class DrugService:
         
         return alerts
 
-    def _assess_cluster_risk(self, drugs: List[str], drug_categories: Dict[str, str]) -> str:
+    def _assess_cluster_risk(self, drugs: List[str], drug_categories: dict[str, str]) -> str:
         """クラスターのリスクレベルを評価"""
         if len(drugs) >= 3:
             return 'high'

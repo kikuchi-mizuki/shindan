@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from PIL import Image
 import logging
-from typing import Dict, Any, Tuple
+from typing import List, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class ImageQualityService:
             'min_text_ratio': 0.005  # 最小文字占有率（さらに緩和）
         }
     
-    def evaluate_image_quality(self, image_path: str) -> Dict[str, Any]:
+    def evaluate_image_quality(self, image_path: str) -> dict[str, Any]:
         """画像品質を評価"""
         try:
             # 画像読み込み
@@ -76,7 +76,7 @@ class ImageQualityService:
             logger.error(f"Error evaluating image quality: {e}")
             return self._get_low_quality_result(f"品質評価エラー: {e}")
     
-    def _check_strict_quality_gate(self, image: np.ndarray, sharpness_score: float, contrast_score: float, noise_score: float) -> Dict[str, Any]:
+    def _check_strict_quality_gate(self, image: np.ndarray, sharpness_score: float, contrast_score: float, noise_score: float) -> dict[str, Any]:
         """厳格な品質ゲートチェック"""
         try:
             issues = []
@@ -298,7 +298,7 @@ class ImageQualityService:
         else:
             return 'low'
     
-    def _get_recommendation(self, quality_level: str, gate_check: Dict[str, Any] = None) -> str:
+    def _get_recommendation(self, quality_level: str, gate_check: dict[str, Any] = None) -> str:
         """品質レベルに応じた推奨事項"""
         if gate_check and not gate_check.get('passed', True):
             issues = gate_check.get('issues', [])
@@ -321,7 +321,7 @@ class ImageQualityService:
         }
         return recommendations.get(quality_level, "画像品質を評価できませんでした。")
     
-    def _get_low_quality_result(self, error_message: str) -> Dict[str, Any]:
+    def _get_low_quality_result(self, error_message: str) -> dict[str, Any]:
         """低品質結果を返す"""
         return {
             'quality_level': 'low',

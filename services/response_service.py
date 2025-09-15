@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List
+from typing import List, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -7,7 +7,7 @@ class ResponseService:
     def __init__(self):
         pass
     
-    def generate_response(self, drug_info: Dict[str, Any]) -> str:
+    def generate_response(self, drug_info: dict[str, Any]) -> str:
         """薬剤情報からLINE Bot用の応答メッセージを生成（詳細版）"""
         try:
             logger.info(f"Generating response for drug_info keys: {list(drug_info.keys())}")
@@ -372,7 +372,7 @@ class ResponseService:
         
         return "\n".join(response_parts)
     
-    def generate_detailed_analysis(self, drug_info: Dict[str, Any]) -> str:
+    def generate_detailed_analysis(self, drug_info: dict[str, Any]) -> str:
         """詳細な分析結果を生成（HTMLアプリ用）"""
         try:
             analysis_parts = []

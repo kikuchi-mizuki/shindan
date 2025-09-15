@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Any, Tuple, Optional
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ class RedisService:
             logger.error(f"Error retrieving user drugs: {e}")
             return []
     
-    def save_diagnosis_history(self, user_id: str, diagnosis_result: Dict[str, Any]) -> bool:
+    def save_diagnosis_history(self, user_id: str, diagnosis_result: dict[str, Any]) -> bool:
         """診断履歴を保存"""
         try:
             if not self.redis_available:
@@ -137,7 +137,7 @@ class RedisService:
             logger.error(f"Error saving diagnosis history: {e}")
             return False
     
-    def get_diagnosis_history(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_diagnosis_history(self, user_id: str) -> List[dict[str, Any]]:
         """診断履歴を取得"""
         try:
             if not self.redis_available:
@@ -200,7 +200,7 @@ class RedisService:
             logger.error(f"Error clearing user drugs: {e}")
             return False
     
-    def get_user_stats(self, user_id: str) -> Dict[str, Any]:
+    def get_user_stats(self, user_id: str) -> dict[str, Any]:
         """ユーザーの統計情報を取得"""
         try:
             drugs = self.get_user_drugs(user_id)

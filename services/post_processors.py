@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import List, Any, Tuple, Optional
 
 
 def fix_picosulfate_form(drug: Dict) -> Dict:

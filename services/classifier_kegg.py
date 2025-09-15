@@ -3,7 +3,7 @@ KEGG/ATCベースの薬剤分類器
 重複統合後の薬剤リストに対して分類を実行
 """
 import logging
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Any, Tuple, Optional
 
 from .kegg_client import KEGGClient
 from .atc_mapper import atc_to_jp
@@ -67,7 +67,7 @@ class KeggClassifier:
         self.kegg = KEGGClient()
         logger.info("KeggClassifier initialized")
 
-    def classify_one(self, drug: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    def classify_one(self, drug: dict[str, Any]) -> Tuple[Optional[str], Optional[dict[str, Any]]]:
         """
         単一薬剤の分類を実行
         
@@ -157,7 +157,7 @@ class KeggClassifier:
         
         return any(keyword in hint for keyword in reliable_keywords)
 
-    def classify_many(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def classify_many(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """
         複数薬剤の分類を実行
         
@@ -201,7 +201,7 @@ class KeggClassifier:
         
         return classified_drugs
 
-    def get_classification_stats(self, drugs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def get_classification_stats(self, drugs: List[dict[str, Any]]) -> dict[str, Any]:
         """分類結果の統計情報を取得"""
         total = len(drugs)
         classified = sum(1 for d in drugs if d.get("final_classification") != "分類未設定")

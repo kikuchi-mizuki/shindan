@@ -4,7 +4,7 @@
 """
 import logging
 import re
-from typing import Dict, Any, List
+from typing import List, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class DisplayFormatter:
             "センナ": self._format_senna,
         }
     
-    def format_drug_display(self, drug: Dict[str, Any]) -> str:
+    def format_drug_display(self, drug: dict[str, Any]) -> str:
         """薬剤の表示形式を統一"""
         try:
             generic_name = drug.get("generic", "")
@@ -57,7 +57,7 @@ class DisplayFormatter:
             logger.error(f"Display formatting error: {e}")
             return drug.get("generic", drug.get("brand", drug.get("raw", "不明")))
     
-    def _format_aspirin(self, drug: Dict[str, Any], display_name: str) -> str:
+    def _format_aspirin(self, drug: dict[str, Any], display_name: str) -> str:
         """アスピリンの表示形式"""
         raw_name = drug.get("raw", "")
         
@@ -69,7 +69,7 @@ class DisplayFormatter:
         
         return display_name
     
-    def _format_famotidine(self, drug: Dict[str, Any], display_name: str) -> str:
+    def _format_famotidine(self, drug: dict[str, Any], display_name: str) -> str:
         """ファモチジンの表示形式"""
         raw_name = drug.get("raw", "")
         
@@ -81,7 +81,7 @@ class DisplayFormatter:
         
         return display_name
     
-    def _format_senna(self, drug: Dict[str, Any], display_name: str) -> str:
+    def _format_senna(self, drug: dict[str, Any], display_name: str) -> str:
         """センナの表示形式"""
         raw_name = drug.get("raw", "")
         
@@ -93,12 +93,12 @@ class DisplayFormatter:
         
         return display_name
     
-    def _default_format(self, drug: Dict[str, Any], display_name: str) -> str:
+    def _default_format(self, drug: dict[str, Any], display_name: str) -> str:
         """デフォルトの表示形式"""
         # 基本的には一般名をそのまま使用
         return display_name
     
-    def format_drug_list(self, drugs: List[Dict[str, Any]]) -> List[str]:
+    def format_drug_list(self, drugs: List[dict[str, Any]]) -> List[str]:
         """薬剤リストの表示形式を統一"""
         formatted_drugs = []
         
@@ -108,7 +108,7 @@ class DisplayFormatter:
         
         return formatted_drugs
     
-    def get_display_summary(self, drugs: List[Dict[str, Any]]) -> str:
+    def get_display_summary(self, drugs: List[dict[str, Any]]) -> str:
         """薬剤リストの表示サマリーを生成"""
         if not drugs:
             return "薬剤が検出されませんでした。"

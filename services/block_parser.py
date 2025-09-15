@@ -4,7 +4,7 @@
 """
 import re
 import logging
-from typing import List, Dict, Tuple, Any
+from typing import List, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class BlockParser:
             "点鼻": "点鼻"
         }
     
-    def parse_prescription_blocks(self, text: str) -> List[Dict[str, Any]]:
+    def parse_prescription_blocks(self, text: str) -> List[dict[str, Any]]:
         """処方箋テキストをブロックに分割"""
         try:
             blocks = []
@@ -77,7 +77,7 @@ class BlockParser:
             logger.error(f"Block parsing error: {e}")
             return []
     
-    def _extract_drugs_from_block(self, block_content: str) -> List[Dict[str, Any]]:
+    def _extract_drugs_from_block(self, block_content: str) -> List[dict[str, Any]]:
         """ブロック内から薬剤を抽出（剤形語で分割）"""
         try:
             drugs = []
@@ -150,7 +150,7 @@ class BlockParser:
         
         return has_form and has_drug_chars
     
-    def _parse_drug_info(self, drug_text: str) -> Dict[str, Any]:
+    def _parse_drug_info(self, drug_text: str) -> dict[str, Any]:
         """薬剤テキストから情報を抽出"""
         try:
             # 剤形を抽出
@@ -250,7 +250,7 @@ class BlockParser:
         
         return ""
     
-    def get_parsing_stats(self, blocks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def get_parsing_stats(self, blocks: List[dict[str, Any]]) -> dict[str, Any]:
         """パース統計を取得"""
         if not blocks:
             return {

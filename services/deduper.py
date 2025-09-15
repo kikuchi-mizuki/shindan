@@ -4,7 +4,7 @@
 """
 import re
 import logging
-from typing import List, Dict, Tuple, Any
+from typing import List, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ def normalize_generic(name: str) -> str:
     
     return base_name
 
-def canonical_key(drug: Dict[str, Any]) -> str:
+def canonical_key(drug: dict[str, Any]) -> str:
     """
     同一薬かどうかを判定するためのキー（改善版）
     例: 「センノシド」「センノシド錠」→ 同じキー
@@ -83,7 +83,7 @@ def _form_agnostic_name(name: str) -> str:
     
     return base.strip()
 
-def dedupe(drugs: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
+def dedupe(drugs: List[dict[str, Any]]) -> Tuple[List[dict[str, Any]], int]:
     """
     薬剤リストの重複統合
     
@@ -99,7 +99,7 @@ def dedupe(drugs: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
         
         best = {}
         
-        def score(d: Dict[str, Any]) -> float:
+        def score(d: dict[str, Any]) -> float:
             """薬剤の品質スコア（一般名あり>用量情報あり>信頼度）"""
             score_val = 0.0
             if d.get("generic"):
@@ -133,7 +133,7 @@ def is_combo(name: str) -> bool:
     """配合錠かどうかを判定"""
     return COMBO_SEP in name
 
-def collapse_combos(drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def collapse_combos(drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
     """配合錠がある場合、構成単剤を除外（改善版）"""
     if not drugs:
         return drugs
@@ -183,7 +183,7 @@ def canonical_key_form_agnostic(name: str) -> str:
     normalized = normalize_generic(stripped)
     return normalized.replace(" ", "")
 
-def dedupe_with_form_agnostic(drugs: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
+def dedupe_with_form_agnostic(drugs: List[dict[str, Any]]) -> Tuple[List[dict[str, Any]], int]:
     """剤形無視の重複統合も併用"""
     if not drugs:
         return [], 0
@@ -229,7 +229,7 @@ NOISE_PATTERNS = [
     r"^配合$"
 ]
 
-def remove_noise(drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def remove_noise(drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
     """OCRノイズを除去"""
     if not drugs:
         return drugs

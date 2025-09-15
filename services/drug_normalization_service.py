@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Dict, List, Tuple, Optional, Any
+from typing import List, Any, Tuple, Optional
 from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
@@ -247,7 +247,7 @@ class DrugNormalizationService:
             'low': 0.5       # 低信頼度（不明）
         }
     
-    def normalize_drug_name(self, drug_name: str) -> Dict[str, Any]:
+    def normalize_drug_name(self, drug_name: str) -> dict[str, Any]:
         """薬剤名の正規化（辞書＋あいまい一致＋信頼度）"""
         try:
             # 前処理
@@ -381,7 +381,7 @@ class DrugNormalizationService:
         
         return cleaned.strip()
     
-    def _fuzzy_match(self, drug_name: str) -> List[Dict[str, Any]]:
+    def _fuzzy_match(self, drug_name: str) -> List[dict[str, Any]]:
         """あいまい一致による薬剤名検索"""
         matches = []
         
@@ -461,7 +461,7 @@ class DrugNormalizationService:
         else:
             return 'low'
     
-    def validate_drug_list(self, drug_names: List[str]) -> Dict[str, Any]:
+    def validate_drug_list(self, drug_names: List[str]) -> dict[str, Any]:
         """薬剤リストの検証"""
         results = {
             'valid_drugs': [],

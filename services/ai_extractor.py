@@ -4,7 +4,7 @@ AI抽出サービス - OpenAI APIを使用した薬剤名抽出・正規化
 import json
 import logging
 import os
-from typing import Dict, List, Any, Optional
+from typing import List, Any, Tuple, Optional
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class AIExtractorService:
             logger.error(f"Failed to initialize OpenAI API: {e}")
             self.openai_client = None
     
-    def extract_drugs(self, ocr_text: str) -> Dict[str, Any]:
+    def extract_drugs(self, ocr_text: str) -> dict[str, Any]:
         """
         OCRテキストから薬剤情報を抽出・正規化
         
@@ -173,7 +173,7 @@ class AIExtractorService:
   * その他（適切な分類がない場合）
 """
     
-    def _parse_ai_response(self, ai_response: str) -> Dict[str, Any]:
+    def _parse_ai_response(self, ai_response: str) -> dict[str, Any]:
         """AIレスポンスをJSONとして解析"""
         try:
             # JSONブロックを抽出
@@ -222,7 +222,7 @@ class AIExtractorService:
             logger.error(f"Response parsing error: {e}")
             return {'drugs': []}
     
-    def _validate_drug_data(self, drug: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _validate_drug_data(self, drug: dict[str, Any]) -> Optional[dict[str, Any]]:
         """薬剤データの検証と正規化"""
         try:
             # 必須フィールドのチェック
@@ -289,7 +289,7 @@ class AIExtractorService:
         except (ValueError, TypeError):
             return None
     
-    def _evaluate_confidence(self, extracted_data: Dict[str, Any], ocr_text: str) -> str:
+    def _evaluate_confidence(self, extracted_data: dict[str, Any], ocr_text: str) -> str:
         """抽出結果の信頼度を評価"""
         try:
             drugs = extracted_data.get('drugs', [])
@@ -338,7 +338,7 @@ class AIExtractorService:
             logger.warning(f"Confidence evaluation error: {e}")
             return 'low'
     
-    def generate_confirmation_message(self, extraction_result: Dict[str, Any]) -> str:
+    def generate_confirmation_message(self, extraction_result: dict[str, Any]) -> str:
         """信頼度が低い場合の確認メッセージを生成"""
         try:
             drugs = extraction_result.get('drugs', [])

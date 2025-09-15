@@ -3,7 +3,7 @@
 辞書 → KEGG/ATC → AIヒントの順でフォールバック
 """
 import logging
-from typing import Dict, List, Optional, Any
+from typing import List, Any, Tuple, Optional
 from .drug_classes import CLASS_BY_GENERIC
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ class Classifier:
         self.kegg_service = kegg_service  # Noneでも動く
         logger.info("Classifier initialized")
     
-    def classify_one(self, drug: Dict[str, Any]) -> Optional[str]:
+    def classify_one(self, drug: dict[str, Any]) -> Optional[str]:
         """
         単一薬剤の分類を取得（実用精度向上版）
         
@@ -197,7 +197,7 @@ class Classifier:
             logger.error(f"AI hint reliability check error: {e}")
             return False
     
-    def classify_many(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def classify_many(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
         """
         複数薬剤の分類を一括処理
         
@@ -224,7 +224,7 @@ class Classifier:
                 drug["class_jp"] = "分類エラー"
             return drugs
     
-    def get_classification_stats(self, drugs: List[Dict[str, Any]]) -> Dict[str, int]:
+    def get_classification_stats(self, drugs: List[dict[str, Any]]) -> dict[str, int]:
         """分類統計を取得"""
         stats = {
             "total": len(drugs),

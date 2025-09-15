@@ -5,7 +5,7 @@ import re
 import os
 import numpy as np
 import unicodedata
-from typing import List, Optional, Dict, Any
+from typing import List, Any, Tuple, Optional
 import base64
 import tempfile
 from .image_quality_service import ImageQualityService

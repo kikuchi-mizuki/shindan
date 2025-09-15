@@ -4,7 +4,7 @@
 """
 import logging
 import uuid
-from typing import Dict, Any, List, Optional
+from typing import List, Any, Tuple, Optional
 
 from .block_parser import BlockParser
 from .consensus_extractor import ConsensusExtractor
@@ -30,7 +30,7 @@ class EnhancedPipeline:
     def process_prescription(self, 
                            text: str, 
                            llm_drugs: List[str] = None,
-                           session_id: str = None) -> Dict[str, Any]:
+                           session_id: str = None) -> dict[str, Any]:
         """処方箋テキストを処理して薬剤情報を抽出・分析"""
         try:
             if not session_id:
@@ -127,8 +127,8 @@ class EnhancedPipeline:
     
     def retry_processing(self, 
                         text: str, 
-                        retry_strategy: Dict[str, Any],
-                        session_id: str = None) -> Dict[str, Any]:
+                        retry_strategy: dict[str, Any],
+                        session_id: str = None) -> dict[str, Any]:
         """品質ゲートで再試行が必要な場合の処理"""
         try:
             logger.info(f"Retrying processing for session: {session_id}")
@@ -165,11 +165,11 @@ class EnhancedPipeline:
                 'human_review_needed': True
             }
     
-    def get_quality_report(self, result: Dict[str, Any]) -> str:
+    def get_quality_report(self, result: dict[str, Any]) -> str:
         """品質レポートを生成"""
         return self.quality_gate.generate_quality_report(result.get('quality', {}))
     
-    def get_human_review_message(self, result: Dict[str, Any]) -> str:
+    def get_human_review_message(self, result: dict[str, Any]) -> str:
         """人による確認用メッセージを生成"""
         return self.quality_gate.create_human_review_message(
             result.get('quality', {}), 

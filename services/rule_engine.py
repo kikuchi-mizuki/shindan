@@ -4,7 +4,7 @@
 """
 import yaml
 import logging
-from typing import List, Dict, Any, Set, Optional
+from typing import List, Any, Tuple, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class RuleEngine:
             logger.error(f"Failed to load rules: {e}")
             self.rules = []
     
-    def judge(self, drugs: List[str]) -> List[Dict[str, Any]]:
+    def judge(self, drugs: List[str]) -> List[dict[str, Any]]:
         """
         薬剤リストに対してルールベースの相互作用判定を実行
         
@@ -68,7 +68,7 @@ class RuleEngine:
         logger.info(f"Rule engine found {len(hits)} interactions for {len(drugs)} drugs")
         return hits
     
-    def _evaluate_rule(self, rule: Dict[str, Any], drug_set: Set[str]) -> bool:
+    def _evaluate_rule(self, rule: dict[str, Any], drug_set: Set[str]) -> bool:
         """個別ルールの評価"""
         rule_id = rule.get('id', 'unknown')
         
@@ -99,7 +99,7 @@ class RuleEngine:
         
         return False
     
-    def _get_matched_drugs(self, rule: Dict[str, Any], drug_set: Set[str]) -> List[str]:
+    def _get_matched_drugs(self, rule: dict[str, Any], drug_set: Set[str]) -> List[str]:
         """マッチした薬剤名を取得"""
         matched = []
         
@@ -117,18 +117,18 @@ class RuleEngine:
         
         return list(set(matched))  # 重複除去
     
-    def get_rule_by_id(self, rule_id: str) -> Optional[Dict[str, Any]]:
+    def get_rule_by_id(self, rule_id: str) -> Optional[dict[str, Any]]:
         """ルールIDでルールを取得"""
         for rule in self.rules:
             if rule.get('id') == rule_id:
                 return rule
         return None
     
-    def get_rules_by_severity(self, severity: str) -> List[Dict[str, Any]]:
+    def get_rules_by_severity(self, severity: str) -> List[dict[str, Any]]:
         """重要度でルールをフィルタ"""
         return [rule for rule in self.rules if rule.get('severity') == severity]
     
-    def validate_rule(self, rule: Dict[str, Any]) -> bool:
+    def validate_rule(self, rule: dict[str, Any]) -> bool:
         """ルールの妥当性を検証"""
         required_fields = ['id', 'name', 'severity', 'advice']
         
@@ -146,7 +146,7 @@ class RuleEngine:
         
         return True
     
-    def add_rule(self, rule: Dict[str, Any]) -> bool:
+    def add_rule(self, rule: dict[str, Any]) -> bool:
         """新しいルールを追加"""
         if not self.validate_rule(rule):
             return False
@@ -169,7 +169,7 @@ class RuleEngine:
         except Exception as e:
             logger.error(f"Failed to save rules: {e}")
     
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """ルール統計情報を取得"""
         severity_counts = {}
         for rule in self.rules:

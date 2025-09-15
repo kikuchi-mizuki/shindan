@@ -142,7 +142,7 @@ class KEGGClient:
             "atc": atc
         }
     
-    def get_drug_brite(self, drug_name: str) -> Dict[str, Any]:
+    def get_drug_brite(self, drug_name: str) -> dict[str, Any]:
         """KEGG/get でBRITEパースしてATCコードを取得"""
         try:
             # 英語名に変換
