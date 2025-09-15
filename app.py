@@ -598,6 +598,21 @@ def handle_image_message(event):
             stats = kegg_classifier.get_classification_stats(classified_drugs)
             logger.info(f"Classification stats: {stats}")
             
+            # 相互作用チェック（新しいエンジン）
+            try:
+                from services.interaction_engine import InteractionEngine
+                interaction_engine = InteractionEngine()
+                interaction_result = interaction_engine.check_drug_interactions(classified_drugs)
+                logger.info(f"Interaction check result: {interaction_result['summary']}")
+            except Exception as e:
+                logger.warning(f"Interaction check failed: {e}")
+                interaction_result = {
+                    "has_interactions": False,
+                    "major_interactions": [],
+                    "moderate_interactions": [],
+                    "summary": "相互作用チェック中にエラーが発生しました。"
+                }
+            
             # 信頼度ゲートチェック（実務的にノイズを減らす）
             low_confidence_drugs = []
             missing_kegg_drugs = []
@@ -675,8 +690,8 @@ def handle_image_message(event):
                     for matched_drug_name in matched_drugs:
                         user_drug_buffer[user_id].append(matched_drug_name)
                 
-                # 検出結果の確認メッセージを表示
-                response_text = response_service.generate_simple_response(classified_drugs)
+                # 検出結果の確認メッセージを表示（相互作用結果を含む）
+                response_text = response_service.generate_simple_response(classified_drugs, interaction_result)
                 
                 # 検出結果を送信
                 messaging_api.push_message(

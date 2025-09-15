@@ -35,7 +35,12 @@ def normalize_generic(name: str) -> str:
         "グーフィス": "エロビキシバット",
         "芍薬甘草湯": "芍薬甘草湯",
         "ツムラ芍薬甘草湯": "芍薬甘草湯",
-        "ツムラ芍薬甘草湯エキス顆粒": "芍薬甘草湯"
+        "ツムラ芍薬甘草湯エキス顆粒": "芍薬甘草湯",
+        "ファモチジン": "ファモチジン",
+        "ファモチジンロ腔内崩壊": "ファモチジン",  # OCR誤読対応
+        "ファモチジン口腔内崩壊": "ファモチジン",
+        "アスピリン腸溶": "アスピリン",
+        "アスピリン": "アスピリン"
     }
     
     # 剤形を除去
@@ -145,7 +150,7 @@ def collapse_combos(drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 # 剤形違いの同一薬を統合
-FORM_NOISE = ["錠", "OD錠", "口腔内崩壊", "腸溶", "徐放", "CR", "カプセル", "cap", "包"]
+FORM_NOISE = ["錠", "OD錠", "口腔内崩壊", "腸溶", "徐放", "CR", "カプセル", "cap", "包", "顆粒", "散", "液", "ゲル", "軟膏", "クリーム", "貼付", "テープ"]
 
 def strip_form(s: str) -> str:
     """剤形キーワードを除去"""
@@ -155,7 +160,13 @@ def strip_form(s: str) -> str:
 
 def canonical_key_form_agnostic(name: str) -> str:
     """剤形を無視した正規化キー"""
-    return strip_form(name).replace(" ", "")
+    # OCR誤読の修正
+    fixed_name = name.replace("ロ腔", "口腔")
+    # 剤形除去
+    stripped = strip_form(fixed_name)
+    # 正規化
+    normalized = normalize_generic(stripped)
+    return normalized.replace(" ", "")
 
 def dedupe_with_form_agnostic(drugs: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
     """剤形無視の重複統合も併用"""

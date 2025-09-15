@@ -9,6 +9,58 @@ class DrugNormalizationService:
     """薬剤名正規化サービス（辞書＋あいまい一致＋信頼度）"""
     
     def __init__(self):
+        # OCR誤読の正規化辞書
+        self.ocr_aliases = {
+            "ロ腔": "口腔",
+            "口腔内崩壊錠": "口腔内崩壊",  # 揺れ吸収
+            "OD錠": "口腔内崩壊",
+            "cap": "カプセル",
+            "錠剤": "錠",
+            "カプセル剤": "カプセル",
+            "顆粒剤": "顆粒",
+            "散剤": "散",
+            "液剤": "液",
+            "ゲル剤": "ゲル",
+            "軟膏剤": "軟膏",
+            "クリーム剤": "クリーム",
+            "貼付剤": "貼付",
+            "テープ剤": "テープ",
+        }
+        
+        # 相互作用判定用のタグ辞書
+        self.interaction_tags = {
+            # RAAS系
+            "バルサルタン": ["ARB", "RAAS"],
+            "テルミサルタン": ["ARB", "RAAS"],
+            "カンデサルタン": ["ARB", "RAAS"],
+            "オルメサルタン": ["ARB", "RAAS"],
+            "イルベサルタン": ["ARB", "RAAS"],
+            "ロサルタン": ["ARB", "RAAS"],
+            "アジルサルタン": ["ARB", "RAAS"],
+            "サクビトリル/バルサルタン": ["ARNI", "RAAS"],  # エンレスト
+            "エンレスト": ["ARNI", "RAAS"],
+            
+            # CCB系
+            "アムロジピン": ["CCB"],
+            "ニフェジピン": ["CCB"],
+            "ジルチアゼム": ["CCB"],
+            "ベラパミル": ["CCB"],
+            
+            # 刺激性下剤
+            "センノシド": ["STIM_LAX"],
+            "センナ": ["STIM_LAX"],
+            "ピコスルファートナトリウム": ["STIM_LAX"],
+            "ラキソベロン": ["STIM_LAX"],
+            
+            # 抗血小板薬
+            "アスピリン": ["ANTI_PLATELET"],
+            "クロピドグレル": ["ANTI_PLATELET"],
+            "プラスグレル": ["ANTI_PLATELET"],
+            
+            # 鎮痛薬
+            "トラマドール": ["OPIOID"],
+            "アセトアミノフェン": ["ANALGESIC"],
+        }
         # 国内向け薬剤辞書（一般名・商品名・別名・剤形）
         self.drug_dictionary = {
             # マクロライド系抗生物質
@@ -272,13 +324,44 @@ class DrugNormalizationService:
                 'aliases': []
             }
     
+    def fix_ocr_aliases(self, drug_name: str) -> str:
+        """OCR誤読の正規化"""
+        if not drug_name:
+            return ""
+        
+        cleaned = drug_name
+        for ocr_error, correct in self.ocr_aliases.items():
+            cleaned = cleaned.replace(ocr_error, correct)
+        
+        return cleaned
+    
+    def get_interaction_tags(self, generic_name: str) -> set:
+        """相互作用判定用のタグを取得"""
+        if not generic_name:
+            return set()
+        
+        # 直接マッチ
+        if generic_name in self.interaction_tags:
+            return set(self.interaction_tags[generic_name])
+        
+        # 部分マッチ（配合剤など）
+        tags = set()
+        for drug, drug_tags in self.interaction_tags.items():
+            if drug in generic_name:
+                tags.update(drug_tags)
+        
+        return tags
+    
     def _preprocess_drug_name(self, drug_name: str) -> str:
         """薬剤名の前処理"""
         if not drug_name:
             return ""
         
+        # OCR誤読の修正
+        cleaned = self.fix_ocr_aliases(drug_name)
+        
         # 空白除去
-        cleaned = drug_name.strip()
+        cleaned = cleaned.strip()
         
         # 剤形表記の正規化
         cleaned = re.sub(r'錠$', '', cleaned)
