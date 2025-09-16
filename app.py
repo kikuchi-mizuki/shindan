@@ -238,6 +238,7 @@ def handle_text_message(event):
                         'ai_analysis': None
                     }
                     
+                    # 診断（ボタン押下時）は相互作用を含む詳細レスポンスを返す
                     response_text = response_service.generate_response(drug_info)
                 else:
                     response_text = "薬剤情報が正しく取得できませんでした。"
@@ -690,8 +691,8 @@ def handle_image_message(event):
                     for matched_drug_name in matched_drugs:
                         user_drug_buffer[user_id].append(matched_drug_name)
                 
-                # 検出結果の確認メッセージを表示（相互作用結果を含む）
-                response_text = response_service.generate_simple_response(classified_drugs, interaction_result)
+                # 検出結果の確認メッセージを表示（相互作用は後段の「診断」で表示）
+                response_text = response_service.generate_simple_response(classified_drugs, interaction_result=None, show_interactions=False)
                 
                 # 検出結果を送信
                 messaging_api.push_message(

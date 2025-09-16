@@ -468,8 +468,10 @@ class ResponseService:
         
         return error_messages.get(error_type, error_messages["general"]) 
 
-    def generate_simple_response(self, detected_drugs, interaction_result=None):
-        """薬剤検出結果のシンプルな表示を生成（分類付き・相互作用含む）"""
+    def generate_simple_response(self, detected_drugs, interaction_result=None, show_interactions: bool = True):
+        """薬剤検出結果のシンプルな表示を生成（分類付き）。
+        show_interactions=True のときのみ相互作用セクションを表示。
+        """
         try:
             if not detected_drugs:
                 return "薬剤名が検出されませんでした。より鮮明な画像で撮影してください。"
@@ -573,33 +575,34 @@ class ResponseService:
             
             response_parts.append("")
             
-            # 相互作用結果を表示
-            if interaction_result and interaction_result.get("has_interactions"):
-                response_parts.append("⚠️ 【相互作用チェック結果】")
-                response_parts.append("━━━━━━━━━━━━━━")
-                
-                # 重大な相互作用
-                major_interactions = interaction_result.get("major_interactions", [])
-                if major_interactions:
-                    response_parts.append("🚨 重大な相互作用:")
-                    for interaction in major_interactions:
-                        response_parts.append(f"• {interaction.get('name', '相互作用')}")
-                        response_parts.append(f"  {interaction.get('advice', '')}")
-                        response_parts.append("")
-                
-                # 注意すべき相互作用
-                moderate_interactions = interaction_result.get("moderate_interactions", [])
-                if moderate_interactions:
-                    response_parts.append("⚠️ 注意すべき相互作用:")
-                    for interaction in moderate_interactions:
-                        response_parts.append(f"• {interaction.get('name', '相互作用')}")
-                        response_parts.append(f"  {interaction.get('advice', '')}")
-                        response_parts.append("")
-                
-                response_parts.append("━━━━━━━━━━━━━━")
-            else:
-                response_parts.append("✅ 相互作用は検出されませんでした")
-                response_parts.append("")
+            # 相互作用の表示はフラグで制御
+            if show_interactions:
+                if interaction_result and interaction_result.get("has_interactions"):
+                    response_parts.append("⚠️ 【相互作用チェック結果】")
+                    response_parts.append("━━━━━━━━━━━━━━")
+                    
+                    # 重大な相互作用
+                    major_interactions = interaction_result.get("major_interactions", [])
+                    if major_interactions:
+                        response_parts.append("🚨 重大な相互作用:")
+                        for interaction in major_interactions:
+                            response_parts.append(f"• {interaction.get('name', '相互作用')}")
+                            response_parts.append(f"  {interaction.get('advice', '')}")
+                            response_parts.append("")
+                    
+                    # 注意すべき相互作用
+                    moderate_interactions = interaction_result.get("moderate_interactions", [])
+                    if moderate_interactions:
+                        response_parts.append("⚠️ 注意すべき相互作用:")
+                        for interaction in moderate_interactions:
+                            response_parts.append(f"• {interaction.get('name', '相互作用')}")
+                            response_parts.append(f"  {interaction.get('advice', '')}")
+                            response_parts.append("")
+                    
+                    response_parts.append("━━━━━━━━━━━━━━")
+                else:
+                    response_parts.append("✅ 相互作用は検出されませんでした")
+                    response_parts.append("")
             
             response_parts.append("🔍 「診断」で詳細な飲み合わせチェックを実行できます")
             response_parts.append("━━━━━━━━━━━━━━")
