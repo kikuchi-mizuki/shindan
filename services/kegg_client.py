@@ -4,6 +4,7 @@ KEGG REST API クライアント
 ATCコードを/link/atc/で取得
 """
 import functools
+from typing import Any
 import time
 import urllib.parse
 import requests
@@ -149,7 +150,7 @@ class KEGGClient:
             english_name = JA2EN.get(drug_name, drug_name.lower())
             
             # KEGG/get で検索
-            url = f"{self.base_url}/get/{english_name}"
+            url = f"{self.BASE}/get/{english_name}"
             response = _http_get(url)
             
             if response and response.text:
