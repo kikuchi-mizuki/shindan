@@ -39,6 +39,14 @@ class DrugNormalizationService:
             "アジルサルタン": ["ARB", "RAAS"],
             "サクビトリル/バルサルタン": ["ARNI", "RAAS"],  # エンレスト
             "エンレスト": ["ARNI", "RAAS"],
+            # ACE阻害薬
+            "エナラプリル": ["ACEI", "RAAS"],
+            "リシノプリル": ["ACEI", "RAAS"],
+            "ペリンドプリル": ["ACEI", "RAAS"],
+            "カプトプリル": ["ACEI", "RAAS"],
+            "イミダプリル": ["ACEI", "RAAS"],
+            "テモカプリル": ["ACEI", "RAAS"],
+            "シラザプリル": ["ACEI", "RAAS"],
             
             # CCB系
             "アムロジピン": ["CCB"],
@@ -56,6 +64,14 @@ class DrugNormalizationService:
             "アスピリン": ["ANTI_PLATELET"],
             "クロピドグレル": ["ANTI_PLATELET"],
             "プラスグレル": ["ANTI_PLATELET"],
+
+            # リン吸着薬（同効チェック用）
+            "沈降炭酸カルシウム": ["PHOS_BINDER"],
+            "セベラマー": ["PHOS_BINDER"],
+            "ビキサロマー": ["PHOS_BINDER"],
+            "炭酸ランタン": ["PHOS_BINDER"],
+            # ブランド名の一部（マッピングが未整備でもタグ付けのため）
+            "キックリン": ["PHOS_BINDER"],  # セベラマー
             
             # 鎮痛薬
             "トラマドール": ["OPIOID"],

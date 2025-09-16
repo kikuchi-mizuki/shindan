@@ -1,17 +1,21 @@
 # 薬剤相互作用ルール定義
 # タグベースの相互作用判定システム
 
-- id: raas_double_block
-  name: "RAAS二重遮断（ARB/ARNIの重複）"
+- id: raas_contraindicated
+  name: "RAAS禁忌（ARNI＋ACEIの同時併用）"
   severity: major
-  description: "ARB/ARNIの重複使用による低血圧・高K血症・腎機能悪化のリスク"
+  description: "ARNIとACE阻害薬の同時併用は禁忌（36時間ルール）"
+  requires_tags_all: ["ARNI", "ACEI"]
+  advice: "禁忌（36時間ルール）。ARNIとACE阻害薬は切替時に36時間空ける。"
+
+- id: raas_double_block_avoid
+  name: "RAAS重複（原則併用回避：ACEI/ARB/ARNI）"
+  severity: major
+  description: "RAAS二重遮断は低血圧・高K・腎機能悪化リスク"
   need_tags:
     any_of: ["RAAS"]
     min_count: 2
-  advice: "ARB/ARNIの重複。低血圧・高K血症・腎機能悪化の恐れ。併用回避を検討し医師へ照会。"
-  examples:
-    - "エンレスト + テルミサルタン"
-    - "バルサルタン + カンデサルタン"
+  advice: "RAAS二重遮断は低血圧・高K・腎機能悪化のリスク。原則併用回避を検討。"
 
 - id: ccb_duplication
   name: "カルシウム拮抗薬の重複"
@@ -36,6 +40,14 @@
   examples:
     - "センノシド + センナ"
     - "ピコスルファートナトリウム + センノシド"
+
+- id: phosphate_binders_multi
+  name: "リン吸着薬の多剤併用"
+  severity: moderate
+  description: "リン吸着薬の多剤併用によるCa過量・便秘/低リンリスク"
+  match_any: ["沈降炭酸カルシウム", "セベラマー", "ビキサロマー", "炭酸ランタン"]
+  threshold: 2
+  advice: "Ca過量/便秘や低リンに注意。目的が同じなら簡素化も検討。採血でCa/リンをモニタ。"
 
 - id: antiplatelet_combination
   name: "抗血小板薬の併用"

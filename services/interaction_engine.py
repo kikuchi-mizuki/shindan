@@ -66,30 +66,54 @@ class InteractionEngine:
         triggered_rules = []
         
         for rule in self.rules:
-            if self._check_rule(rule, tag_counter):
+            if self._check_rule(rule, tag_counter, drugs):
                 triggered_rules.append(rule)
                 logger.info(f"Rule triggered: {rule['name']}")
         
         return triggered_rules
     
-    def _check_rule(self, rule: dict[str, Any], tag_counter: Counter) -> bool:
-        """個別ルールの条件をチェック"""
+    def _check_rule(self, rule: dict[str, Any], tag_counter: Counter, drugs: List[dict[str, Any]] = None) -> bool:
+        """個別ルールの条件をチェック
+        サポート:
+          - need_tags: { any_of: [...], min_count: N }
+          - requires_tags_all: [ ... ]
+          - match_any + threshold: 名前に含まれる候補の一致数で評価
+        """
+        # requires_tags_all（全部のタグが1回以上）
+        requires_all = rule.get("requires_tags_all")
+        if requires_all:
+            if not all(tag_counter.get(tag, 0) > 0 for tag in requires_all):
+                return False
+            return True
+
+        # need_tags（任意集合の合算 >= min_count）
         need_tags = rule.get("need_tags")
-        if not need_tags:
-            return False
-        
-        # タグの種類
-        required_tags = need_tags.get("any_of", [])
-        if not required_tags:
-            return False
-        
-        # 最小カウント
-        min_count = need_tags.get("min_count", 2)
-        
-        # 該当タグの合計数を計算
-        total_count = sum(tag_counter.get(tag, 0) for tag in required_tags)
-        
-        return total_count >= min_count
+        if need_tags:
+            required_tags = need_tags.get("any_of", [])
+            if not required_tags:
+                return False
+            min_count = need_tags.get("min_count", 2)
+            total_count = sum(tag_counter.get(tag, 0) for tag in required_tags)
+            if total_count < min_count:
+                return False
+            # 条件を満たしたが、追加条件がある場合は続行
+
+        # match_any + threshold
+        match_any = rule.get("match_any")
+        if match_any:
+            threshold = int(rule.get("threshold", 2))
+            names = []
+            if drugs:
+                for d in drugs:
+                    names.append((d.get("generic") or d.get("brand") or d.get("raw") or ""))
+            cnt = 0
+            for target in match_any:
+                if any(target in name for name in names):
+                    cnt += 1
+            return cnt >= threshold
+
+        # どれにも該当しないがneed_tagsは満たしているケース
+        return bool(need_tags)
     
     def format_interactions(self, triggered_rules: List[dict[str, Any]]) -> dict[str, Any]:
         """相互作用結果をフォーマット（注意も必ず表示）"""
