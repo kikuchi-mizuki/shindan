@@ -68,7 +68,7 @@ class RuleEngine:
         logger.info(f"Rule engine found {len(hits)} interactions for {len(drugs)} drugs")
         return hits
     
-    def _evaluate_rule(self, rule: dict[str, Any], drug_set: Set[str]) -> bool:
+    def _evaluate_rule(self, rule: dict[str, Any], drug_set: set[str]) -> bool:
         """個別ルールの評価"""
         rule_id = rule.get('id', 'unknown')
         
@@ -99,7 +99,7 @@ class RuleEngine:
         
         return False
     
-    def _get_matched_drugs(self, rule: dict[str, Any], drug_set: Set[str]) -> List[str]:
+    def _get_matched_drugs(self, rule: dict[str, Any], drug_set: set[str]) -> List[str]:
         """マッチした薬剤名を取得"""
         matched = []
         
