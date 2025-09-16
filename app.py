@@ -441,7 +441,7 @@ def handle_text_message(event):
                 else:
                     # 従来の文字列リストの場合
                     if drug_name not in user_drug_buffer[user_id]:
-                user_drug_buffer[user_id].append(drug_name)
+                        user_drug_buffer[user_id].append(drug_name)
                         response_text = f"✅ 薬剤「{drug_name}」を追加しました。"
                     else:
                         response_text = f"薬剤「{drug_name}」は既に登録されています。"
@@ -476,7 +476,7 @@ def handle_text_message(event):
             if matched_drugs:
                 # ユーザーバッファに追加（文字列形式で保存）
                 if user_id not in user_drug_buffer:
-            user_drug_buffer[user_id] = []
+                    user_drug_buffer[user_id] = []
                 
                 for matched_drug in matched_drugs:
                     if matched_drug not in user_drug_buffer[user_id]:
@@ -505,7 +505,7 @@ def handle_text_message(event):
                 )
         
             else:
-            response_text = "薬局サポートBotへようこそ！\n\n画像を送信して薬剤を登録するか、以下のコマンドを使用してください：\n• 診断 - 飲み合わせチェック\n• 薬剤追加：〇〇 - 薬剤を手動追加\n• リスト確認 - 現在の薬剤リスト\n• ヘルプ - 使い方表示"
+                response_text = "薬局サポートBotへようこそ！\n\n画像を送信して薬剤を登録するか、以下のコマンドを使用してください：\n• 診断 - 飲み合わせチェック\n• 薬剤追加：〇〇 - 薬剤を手動追加\n• リスト確認 - 現在の薬剤リスト\n• ヘルプ - 使い方表示"
             
             messaging_api.reply_message(
                 ReplyMessageRequest(
@@ -868,7 +868,7 @@ def handle_image_message(event):
 
 if __name__ == "__main__":
     try:
-    port = int(os.getenv('PORT', 5000))
+        port = int(os.getenv('PORT', 5000))
         debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
         
         logger.info(f"Starting complete drug interaction diagnosis system on port {port}, debug mode: {debug_mode}")
