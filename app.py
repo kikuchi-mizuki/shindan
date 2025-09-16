@@ -220,24 +220,29 @@ def handle_text_message(event):
                     drug_names = drug_list
                 
                 if drug_names:
-                    # ルールエンジンによる相互作用チェック
-                    from services.rule_engine import RuleEngine
-                    rule_engine = RuleEngine()
-                    rule_interactions = rule_engine.judge(drug_names)
-                    
-                    # 従来の相互作用チェックも併用
-                    traditional_interactions = drug_service.get_drug_interactions(drug_names)
-                    
-                    # 相互作用を統合
-                    all_interactions = traditional_interactions.get('interactions', []) + rule_interactions
-                    
+                    # InteractionEngine（タグ×YAMLルール）で相互作用チェック
+                    from services.interaction_engine import InteractionEngine
+                    engine = InteractionEngine()
+                    # drug_list は辞書形式を想定（generic/brand/raw を使用）
+                    ie_result = engine.check_drug_interactions(drug_list if isinstance(drug_list[0], dict) else [{'raw': n} for n in drug_names])
+                    # 表示用にフラットなリストへ変換（generate_responseの形式Bに合わせる）
+                    interactions_flat = []
+                    for r in ie_result.get('major_interactions', []) + ie_result.get('moderate_interactions', []):
+                        interactions_flat.append({
+                            'id': r.get('id'),
+                            'name': r.get('name'),
+                            'severity': r.get('severity'),
+                            'advice': r.get('advice'),
+                            'matched_drugs': []
+                        })
+
                     drug_info = {
                         'drugs': drug_list,
-                        'interactions': all_interactions,
-                        'rule_interactions': rule_interactions,
+                        'interactions': interactions_flat,
+                        'rule_interactions': interactions_flat,
                         'ai_analysis': None
                     }
-                    
+
                     # 診断（ボタン押下時）は相互作用を含む詳細レスポンスを返す
                     response_text = response_service.generate_response(drug_info)
                 else:
