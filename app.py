@@ -17,12 +17,14 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# LINE Bot設定
-configuration = Configuration(access_token=os.getenv('LINE_CHANNEL_ACCESS_TOKEN'))
+# LINE Bot設定（環境変数が未設定でも起動できるようデフォルトを設定）
+_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN') or ""
+_channel_secret = os.getenv('LINE_CHANNEL_SECRET') or ""
+configuration = Configuration(access_token=_access_token)
 api_client = ApiClient(configuration)
 messaging_api = MessagingApi(api_client)
 messaging_blob_api = MessagingApiBlob(api_client)
-handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
+handler = WebhookHandler(_channel_secret)
 
 # ユーザーごとの薬剤名バッファ
 user_drug_buffer = {}
@@ -170,11 +172,13 @@ def test():
 @app.route("/callback", methods=['POST'])
 def callback():
     """LINE Webhook コールバック"""
-    signature = request.headers['X-Line-Signature']
+    signature = request.headers.get('X-Line-Signature', '')
     body = request.get_data(as_text=True)
     
+    # LINEの資格情報が未設定の場合でも起動可能に（本番では必須）
     try:
-        handler.handle(body, signature)
+        if _channel_secret and _access_token:
+            handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
     
