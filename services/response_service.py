@@ -40,27 +40,18 @@ class ResponseService:
                             response_parts.append("")
                             continue
 
-                        # 形式B: ルールエンジンの {id, name, severity, advice, matched_drugs}
+                        # 形式B: ルールエンジンの {id, name, severity, advice, targets}
                         name = interaction.get('name') or interaction.get('id', '相互作用注意')
                         severity = interaction.get('severity', 'moderate')
-                        risk_emoji = self._get_risk_emoji(severity)
-                        matched = interaction.get('matched_drugs') or []
+                        risk_emoji = self._get_severity_label(severity)
+                        targets = interaction.get('targets') or interaction.get('matched_drugs') or []
                         advice = interaction.get('advice') or interaction.get('description')
 
-                        # リスクレベルに応じた見出しを設定
-                        if severity == 'critical':
-                            response_parts.append("🚨 併用禁忌 (重大リスク)")
-                        elif severity == 'high':
-                            response_parts.append("⚠️ 同効薬の重複 (注意リスク)")
-                        else:
-                            response_parts.append("📋 併用注意 (軽微リスク)")
-                        response_parts.append("")
-                        
-                        response_parts.append(f"✅ 対象の薬: {', '.join(matched) if matched else '不明'}")
-                        response_parts.append(f"✅ 理由: {name}")
+                        # 相互作用の表示
+                        response_parts.append(f"{risk_emoji}：{name}")
+                        response_parts.append(f"・対象：{self._format_targets(targets)}")
                         if advice:
-                            response_parts.append(f"✅ 考えられる症状: {advice}")
-                            response_parts.append(f"✅ 推奨事項: 医師・薬剤師にご相談ください")
+                            response_parts.append(f"・対応：{advice}")
                         response_parts.append("")
                 else:
                     # 相互作用がない場合は簡潔に通知
@@ -627,6 +618,20 @@ class ResponseService:
         except Exception as e:
             logger.error(f"Error generating simple response: {e}")
             return "薬剤検出結果の生成中にエラーが発生しました。"
+    
+    def _get_severity_label(self, severity: str) -> str:
+        """severityを表示用ラベルに変換"""
+        return {
+            "major": "🚨 重大",
+            "moderate": "⚠️ 併用注意", 
+            "minor": "ℹ️ 参考"
+        }.get(severity, "⚠️ 併用注意")
+    
+    def _format_targets(self, targets: List[str]) -> str:
+        """対象薬剤リストを表示用にフォーマット"""
+        if not targets:
+            return "（対象薬の特定に失敗）"
+        return "、".join(targets)
 
     def generate_manual_addition_guide(self):
         """手動追加ガイドを生成"""

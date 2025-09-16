@@ -15,16 +15,16 @@
   need_tags:
     any_of: ["RAAS"]
     min_count: 2
-  advice: "RAAS二重遮断は低血圧・高K・腎機能悪化のリスク。原則併用回避を検討。"
+  advice: "低血圧・高K・腎機能悪化のリスク。原則併用回避を検討。"
 
-- id: ccb_duplication
+- id: ccb_dup
   name: "カルシウム拮抗薬の重複"
   severity: moderate
   description: "CCBの重複使用による過度の降圧・浮腫・めまいのリスク"
   need_tags:
     any_of: ["CCB"]
     min_count: 2
-  advice: "過度の降圧・浮腫・めまいに注意。投与目的の重複がないか確認。"
+  advice: "過度の降圧・浮腫・めまいに注意。目的重複を確認。"
   examples:
     - "アムロジピン + ニフェジピン"
     - "ジルチアゼム + ベラパミル"
@@ -36,7 +36,7 @@
   need_tags:
     any_of: ["STIM_LAX"]
     min_count: 2
-  advice: "下痢・脱水・低K血症に注意。症状強い場合は減量/間欠投与を検討。"
+  advice: "下痢・脱水・低Kに注意。症状強ければ減量/間欠投与。"
   examples:
     - "センノシド + センナ"
     - "ピコスルファートナトリウム + センノシド"

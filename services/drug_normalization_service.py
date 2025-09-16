@@ -37,16 +37,19 @@ class DrugNormalizationService:
             "テープ剤": "テープ",
         }
         
-        # 相互作用判定用のタグ辞書
+        # 相互作用判定用のタグ辞書（強化版）
         self.interaction_tags = {
             # RAAS系
-            "バルサルタン": ["ARB", "RAAS"],
-            "テルミサルタン": ["ARB", "RAAS"],
-            "カンデサルタン": ["ARB", "RAAS"],
-            "オルメサルタン": ["ARB", "RAAS"],
-            "イルベサルタン": ["ARB", "RAAS"],
-            "ロサルタン": ["ARB", "RAAS"],
-            "アジルサルタン": ["ARB", "RAAS"],
+            "サクビトリル": ["RAAS", "ARNI"],
+            "バルサルタン": ["RAAS", "ARB"],
+            "テルミサルタン": ["RAAS", "ARB"],
+            "カンデサルタン": ["RAAS", "ARB"],
+            "オルメサルタン": ["RAAS", "ARB"],
+            "イルベサルタン": ["RAAS", "ARB"],
+            "ロサルタン": ["RAAS", "ARB"],
+            "アジルサルタン": ["RAAS", "ARB"],
+            "エナラプリル": ["RAAS", "ACEI"],
+            "リシノプリル": ["RAAS", "ACEI"],
             "サクビトリル/バルサルタン": ["ARNI", "RAAS"],  # エンレスト
             "エンレスト": ["ARNI", "RAAS"],
             # ACE阻害薬
@@ -67,6 +70,7 @@ class DrugNormalizationService:
             # 刺激性下剤
             "センノシド": ["STIM_LAX"],
             "センナ": ["STIM_LAX"],
+            "センナ実": ["STIM_LAX"],
             "ピコスルファートナトリウム": ["STIM_LAX"],
             "ラキソベロン": ["STIM_LAX"],
             
@@ -529,3 +533,58 @@ class DrugNormalizationService:
             results['overall_confidence'] = total_confidence / valid_count
         
         return results
+    
+    def get_interaction_tags(self, generic_name: str) -> set:
+        """相互作用判定用のタグを取得"""
+        if not generic_name:
+            return set()
+        
+        # 直接マッチ
+        if generic_name in self.interaction_tags:
+            return set(self.interaction_tags[generic_name])
+        
+        # 部分マッチ（配合剤など）
+        tags = set()
+        for drug, drug_tags in self.interaction_tags.items():
+            if drug in generic_name:
+                tags.update(drug_tags)
+        
+        return tags
+    
+    def _aliases(self, name: str) -> List[str]:
+        """同義語展開してから配合名を分解"""
+        # 同義語辞書から展開
+        expanded_name = self._dynamic_syn.get(name, name)
+        
+        # 配合名を分解（・/＋\+\sで分割）
+        parts = re.split(r"[・/＋\+\s]", expanded_name)
+        parts = [p.strip() for p in parts if p.strip()]
+        
+        # 各パーツを同義語辞書で展開
+        result = []
+        for part in (parts if parts else [expanded_name]):
+            result.append(self._dynamic_syn.get(part, part))
+        
+        return result
+    
+    def tags_for_drug(self, drug: dict) -> set[str]:
+        """薬剤情報から相互作用タグを取得（配合名分解対応）"""
+        names = [
+            drug.get("generic") or "",
+            drug.get("brand") or "",
+            drug.get("raw") or ""
+        ]
+        
+        tags = set()
+        for name in names:
+            if not name:
+                continue
+                
+            # 同義語展開・配合名分解
+            aliases = self._aliases(name)
+            
+            # 各エイリアスからタグを取得
+            for alias in aliases:
+                tags.update(self.get_interaction_tags(alias))
+        
+        return tags
