@@ -9,6 +9,16 @@ class DrugNormalizationService:
     """薬剤名正規化サービス（辞書＋あいまい一致＋信頼度）"""
     
     def __init__(self):
+        # 永続学習ストア（誤読・同義語・タグなど）
+        try:
+            from .normalize_store import fix_misread, SYN, TAGS
+            self._fix_misread = fix_misread
+            self._dynamic_syn = SYN
+            self._dynamic_tags = TAGS
+        except Exception:
+            self._fix_misread = lambda s: s
+            self._dynamic_syn = {}
+            self._dynamic_tags = {}
         # OCR誤読の正規化辞書
         self.ocr_aliases = {
             "ロ腔": "口腔",
@@ -77,6 +87,12 @@ class DrugNormalizationService:
             "トラマドール": ["OPIOID"],
             "アセトアミノフェン": ["ANALGESIC"],
         }
+
+        # 動的タグを上書き反映（学習内容を優先）
+        for g, tags in self._dynamic_tags.items():
+            if isinstance(tags, list) and tags:
+                self.interaction_tags[g] = list(dict.fromkeys(tags))
+
         # 国内向け薬剤辞書（一般名・商品名・別名・剤形）
         self.drug_dictionary = {
             # マクロライド系抗生物質
@@ -345,7 +361,13 @@ class DrugNormalizationService:
         if not drug_name:
             return ""
         
-        cleaned = drug_name
+        # まず学習済みの誤読修正を適用
+        try:
+            name = self._fix_misread(drug_name)
+        except Exception:
+            name = drug_name
+        
+        cleaned = name
         for ocr_error, correct in self.ocr_aliases.items():
             cleaned = cleaned.replace(ocr_error, correct)
         

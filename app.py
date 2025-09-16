@@ -199,6 +199,56 @@ def handle_text_message(event):
                 return
         
         # 基本的なテキストメッセージ処理
+        # 学習系コマンド（誤読修正／同義語／タグ追加／分類修正）
+        if user_message.startswith('誤読修正：') or user_message.startswith('誤読修正:'):
+            from services.normalize_store import learn_misread
+            try:
+                payload = user_message.split('：',1)[1] if '：' in user_message else user_message.split(':',1)[1]
+                sep = '->' if '->' in payload else '→'
+                bad, good = [x.strip() for x in payload.split(sep)]
+                learn_misread(bad, good)
+                messaging_api.reply_message(ReplyMessageRequest(replyToken=event.reply_token, messages=[TextMessage(text=f"誤読辞書を更新しました：{bad} → {good}\nこのまま『診断』で再チェックできます。")]))
+            except Exception:
+                messaging_api.reply_message(ReplyMessageRequest(replyToken=event.reply_token, messages=[TextMessage(text="形式: 誤読修正：誤→正")] ))
+            return
+
+        if user_message.startswith('同義語：') or user_message.startswith('同義語:'):
+            from services.normalize_store import learn_synonym
+            try:
+                payload = user_message.split('：',1)[1] if '：' in user_message else user_message.split(':',1)[1]
+                sep = '->' if '->' in payload else '→'
+                alias, generic = [x.strip() for x in payload.split(sep)]
+                learn_synonym(alias, generic)
+                messaging_api.reply_message(ReplyMessageRequest(replyToken=event.reply_token, messages=[TextMessage(text=f"同義語を学習しました：{alias} → {generic}\nこのまま『診断』で再チェックできます。")]))
+            except Exception:
+                messaging_api.reply_message(ReplyMessageRequest(replyToken=event.reply_token, messages=[TextMessage(text="形式: 同義語：別名→一般名")] ))
+            return
+
+        if user_message.startswith('タグ追加：') or user_message.startswith('タグ追加:'):
+            from services.normalize_store import learn_tag
+            try:
+                payload = user_message.split('：',1)[1] if '：' in user_message else user_message.split(':',1)[1]
+                sep = '->' if '->' in payload else '→'
+                generic, tags_str = [x.strip() for x in payload.split(sep)]
+                tags = [t.strip() for t in tags_str.replace('、', ',').split(',') if t.strip()]
+                learn_tag(generic, *tags)
+                messaging_api.reply_message(ReplyMessageRequest(replyToken=event.reply_token, messages=[TextMessage(text=f"タグを学習しました：{generic} → {', '.join(tags)}\nこのまま『診断』で再チェックできます。")]))
+            except Exception:
+                messaging_api.reply_message(ReplyMessageRequest(replyToken=event.reply_token, messages=[TextMessage(text="形式: タグ追加：一般名→TAG1,TAG2")] ))
+            return
+
+        if user_message.startswith('分類修正：') or user_message.startswith('分類修正:'):
+            from services.normalize_store import cache_atc
+            try:
+                payload = user_message.split('：',1)[1] if '：' in user_message else user_message.split(':',1)[1]
+                sep = '->' if '->' in payload else '→'
+                generic, atc = [x.strip() for x in payload.split(sep)]
+                atc_list = [x.strip() for x in atc.replace('、', ',').split(',') if x.strip()]
+                cache_atc(generic, atc_list)
+                messaging_api.reply_message(ReplyMessageRequest(replyToken=event.reply_token, messages=[TextMessage(text=f"ATCをキャッシュしました：{generic} → {', '.join(atc_list)}\nこのまま『診断』で再チェックできます。")]))
+            except Exception:
+                messaging_api.reply_message(ReplyMessageRequest(replyToken=event.reply_token, messages=[TextMessage(text="形式: 分類修正：一般名→ATC1,ATC2")] ))
+            return
         if user_message.lower() in ['診断', 'しんだん', 'diagnosis']:
             if user_id in user_drug_buffer and user_drug_buffer[user_id]:
                 # 診断中のメッセージを送信
@@ -391,7 +441,7 @@ def handle_text_message(event):
                 else:
                     # 従来の文字列リストの場合
                     if drug_name not in user_drug_buffer[user_id]:
-                        user_drug_buffer[user_id].append(drug_name)
+                user_drug_buffer[user_id].append(drug_name)
                         response_text = f"✅ 薬剤「{drug_name}」を追加しました。"
                     else:
                         response_text = f"薬剤「{drug_name}」は既に登録されています。"
@@ -426,7 +476,7 @@ def handle_text_message(event):
             if matched_drugs:
                 # ユーザーバッファに追加（文字列形式で保存）
                 if user_id not in user_drug_buffer:
-                    user_drug_buffer[user_id] = []
+            user_drug_buffer[user_id] = []
                 
                 for matched_drug in matched_drugs:
                     if matched_drug not in user_drug_buffer[user_id]:
@@ -454,7 +504,7 @@ def handle_text_message(event):
                     )
                 )
         
-        else:
+            else:
             response_text = "薬局サポートBotへようこそ！\n\n画像を送信して薬剤を登録するか、以下のコマンドを使用してください：\n• 診断 - 飲み合わせチェック\n• 薬剤追加：〇〇 - 薬剤を手動追加\n• リスト確認 - 現在の薬剤リスト\n• ヘルプ - 使い方表示"
             
             messaging_api.reply_message(
@@ -528,7 +578,7 @@ def handle_image_message(event):
         if not ocr_text:
             # フォールバック: 従来の方法で薬剤名抽出
             drug_names = ocr_result['drug_names']
-            if drug_names:
+        if drug_names:
                 matched_drugs = drug_service.match_to_database(drug_names)
             else:
                 matched_drugs = []
@@ -818,7 +868,7 @@ def handle_image_message(event):
 
 if __name__ == "__main__":
     try:
-        port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 5000))
         debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
         
         logger.info(f"Starting complete drug interaction diagnosis system on port {port}, debug mode: {debug_mode}")
