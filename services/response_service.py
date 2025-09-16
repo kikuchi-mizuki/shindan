@@ -511,6 +511,11 @@ class ResponseService:
                 if isinstance(drug, dict):
                     # 新しい分類システム（辞書形式）
                     drug_name = drug.get('name', drug.get('generic', drug.get('raw', 'Unknown')))
+                    # 名称の装飾（表示のみ）
+                    if 'アスピリン' in drug_name and '腸溶' not in drug_name:
+                        drug_name = drug_name.replace('アスピリン', 'アスピリン腸溶')
+                    if 'ニフェジピン' in drug_name and '徐放' not in drug_name:
+                        drug_name = drug_name.replace('ニフェジピン', 'ニフェジピン徐放')
                     classification = drug.get('final_classification', '分類未設定')
                     strength = drug.get('strength', '')
                     dose = drug.get('dose', '')
@@ -520,12 +525,12 @@ class ResponseService:
                     symbol = f"{i+1}."
                     response_parts.append(f"{symbol} {drug_name}")
                     def nz(v, fallback="不明"):
-                        return fallback if v in (None, "", "None") else v
+                        return fallback if v in (None, "", "None", "null") else v
                     if strength:
                         response_parts.append(f"   用量: {nz(strength)}")
                     if dose:
                         # 漢方薬の単位を「包」に修正
-                        display_dose = nz(dose)
+                        display_dose = nz(dose).replace('cap', 'カプセル')
                         if any(keyword in drug_name for keyword in ["芍薬甘草湯", "エキス顆粒", "ツムラ"]):
                             display_dose = display_dose.replace("錠", "包")
                         response_parts.append(f"   用法: {display_dose}")
@@ -568,8 +573,14 @@ class ResponseService:
                     category_jp = category_mapping.get(category, '分類不明')
                     symbol = f"{i+1}."
                     
-                    # mgを含む薬剤名をそのまま表示
-                    response_parts.append(f"{symbol} {drug}")
+                    # 名称の装飾（表示のみ）
+                    display_name = drug
+                    if 'アスピリン' in display_name and '腸溶' not in display_name:
+                        display_name = display_name.replace('アスピリン', 'アスピリン腸溶')
+                    if 'ニフェジピン' in display_name and '徐放' not in display_name:
+                        display_name = display_name.replace('ニフェジピン', 'ニフェジピン徐放')
+
+                    response_parts.append(f"{symbol} {display_name}")
                     response_parts.append(f"   分類: {category_jp}")
                     response_parts.append("")
             
