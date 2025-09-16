@@ -20,11 +20,30 @@ app = Flask(__name__)
 # LINE Bot設定（環境変数が未設定でも起動できるようデフォルトを設定）
 _access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN') or ""
 _channel_secret = os.getenv('LINE_CHANNEL_SECRET') or ""
-configuration = Configuration(access_token=_access_token)
-api_client = ApiClient(configuration)
-messaging_api = MessagingApi(api_client)
-messaging_blob_api = MessagingApiBlob(api_client)
-handler = WebhookHandler(_channel_secret)
+
+# 資格情報が揃っている時のみクライアントを初期化
+if _access_token:
+    configuration = Configuration(access_token=_access_token)
+    api_client = ApiClient(configuration)
+    messaging_api = MessagingApi(api_client)
+    messaging_blob_api = MessagingApiBlob(api_client)
+else:
+    configuration = None
+    api_client = None
+    messaging_api = None
+    messaging_blob_api = None
+
+if _channel_secret:
+    handler = WebhookHandler(_channel_secret)
+else:
+    class _DummyHandler:
+        def handle(self, *_args, **_kwargs):
+            return None
+        def add(self, *args, **kwargs):
+            def _decorator(func):
+                return func
+            return _decorator
+    handler = _DummyHandler()
 
 # ユーザーごとの薬剤名バッファ
 user_drug_buffer = {}
@@ -194,7 +213,7 @@ def handle_text_message(event):
         # サービス初期化チェック
         if not _services_initialized:
             if not initialize_services():
-                messaging_api.reply_message(
+                (messaging_api or MessagingApi(ApiClient(Configuration(access_token="")))).reply_message(
                     ReplyMessageRequest(
                         replyToken=event.reply_token,
                         messages=[TextMessage(text="サービス初期化エラーが発生しました。しばらく時間をおいて再度お試しください。")]
@@ -256,7 +275,7 @@ def handle_text_message(event):
         if user_message.lower() in ['診断', 'しんだん', 'diagnosis']:
             if user_id in user_drug_buffer and user_drug_buffer[user_id]:
                 # 診断中のメッセージを送信
-                messaging_api.reply_message(
+                (messaging_api or MessagingApi(ApiClient(Configuration(access_token="")))).reply_message(
                     ReplyMessageRequest(
                         replyToken=event.reply_token,
                         messages=[TextMessage(text="🔍 診断中です…")]
@@ -310,7 +329,7 @@ def handle_text_message(event):
                     )
                 )
             else:
-                messaging_api.reply_message(
+                (messaging_api or MessagingApi(ApiClient(Configuration(access_token="")))).reply_message(
                     ReplyMessageRequest(
                         replyToken=event.reply_token,
                         messages=[TextMessage(text="薬剤が登録されていません。\n\n📝 **薬剤名を直接入力して診断する方法：**\n\n薬剤名をスペース区切りで入力してください。\n例：クラリスロマイシン ベルソムラ デビゴ\n\nまたは、画像を送信して薬剤を登録してください。")]
@@ -507,16 +526,7 @@ def handle_text_message(event):
                         messages=[TextMessage(text=response_text)]
                     )
                 )
-        
-            else:
-                response_text = "薬局サポートBotへようこそ！\n\n画像を送信して薬剤を登録するか、以下のコマンドを使用してください：\n• 診断 - 飲み合わせチェック\n• 薬剤追加：〇〇 - 薬剤を手動追加\n• リスト確認 - 現在の薬剤リスト\n• ヘルプ - 使い方表示"
             
-            messaging_api.reply_message(
-                ReplyMessageRequest(
-                    replyToken=event.reply_token,
-                    messages=[TextMessage(text=response_text)]
-                )
-            )
         
     except Exception as e:
         logger.error(f"Text message handling error: {e}")
@@ -539,7 +549,7 @@ def handle_image_message(event):
         # サービス初期化チェック
         if not _services_initialized:
             if not initialize_services():
-                messaging_api.reply_message(
+                (messaging_api or MessagingApi(ApiClient(Configuration(access_token="")))).reply_message(
                     ReplyMessageRequest(
                         replyToken=event.reply_token,
                         messages=[TextMessage(text="サービス初期化エラーが発生しました。しばらく時間をおいて再度お試しください。")]
@@ -581,8 +591,8 @@ def handle_image_message(event):
         ocr_text = ocr_result.get('raw_text', '')
         if not ocr_text:
             # フォールバック: 従来の方法で薬剤名抽出
-            drug_names = ocr_result['drug_names']
-        if drug_names:
+            drug_names = ocr_result.get('drug_names', [])
+            if drug_names:
                 matched_drugs = drug_service.match_to_database(drug_names)
             else:
                 matched_drugs = []
