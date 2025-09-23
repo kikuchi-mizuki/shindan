@@ -97,7 +97,7 @@ class DrugNormalizationService:
             if isinstance(tags, list) and tags:
                 self.interaction_tags[g] = list(dict.fromkeys(tags))
 
-        # 国内向け薬剤辞書（一般名・商品名・別名・剤形）
+        # 国内向け薬剤辞書（一般名・商品名・別名・剤形・配合剤対応）
         self.drug_dictionary = {
             # マクロライド系抗生物質
             'クラリスロマイシン': {
@@ -190,7 +190,26 @@ class DrugNormalizationService:
                 'normalized': 'テルミサルタン/アムロジピン',
                 'generic_name': 'テルミサルタン/アムロジピン',
                 'category': 'ca_antagonist_arb_combination',
-                'aliases': ['テルミサルタン/アムロジピン', 'テラムロAP錠'],
+                'aliases': ['テルミサルタン/アムロジピン', 'テラムロAP錠', 'テラムロ'],
+                'confidence': 1.0,
+                'components': ['テルミサルタン', 'アムロジピン']
+            },
+            
+            # P-CAB
+            'タケキャブ': {
+                'normalized': 'ボノプラザン',
+                'generic_name': 'ボノプラザン',
+                'category': 'p_cab',
+                'aliases': ['ボノプラザン', 'タケキャブ錠', 'タケキャブOD錠'],
+                'confidence': 1.0
+            },
+            
+            # PPI
+            'ランソプラゾール': {
+                'normalized': 'ランソプラゾール',
+                'generic_name': 'ランソプラゾール',
+                'category': 'ppi',
+                'aliases': ['ランソプラゾール', 'タケプロン', 'タケプロン錠', 'タケプロンOD錠'],
                 'confidence': 1.0
             },
             
@@ -588,3 +607,143 @@ class DrugNormalizationService:
                 tags.update(self.get_interaction_tags(alias))
         
         return tags
+    
+    def fuzzy_match_drug(self, drug_name: str, threshold: float = 80.0) -> Optional[dict]:
+        """ファジーマッチングによる薬剤名検索"""
+        try:
+            from rapidfuzz import process, fuzz
+            
+            # 辞書から候補を取得
+            candidates = []
+            for key, info in self.drug_dictionary.items():
+                candidates.append(key)
+                candidates.extend(info.get('aliases', []))
+            
+            # ファジーマッチング実行
+            match, score = process.extractOne(drug_name, candidates, scorer=fuzz.ratio)
+            
+            if score >= threshold:
+                # マッチした薬剤の詳細情報を取得
+                for key, info in self.drug_dictionary.items():
+                    if match == key or match in info.get('aliases', []):
+                        return {
+                            'matched_name': match,
+                            'score': score,
+                            'drug_info': info,
+                            'confidence': min(score / 100.0, 1.0)
+                        }
+            
+            return None
+            
+        except ImportError:
+            logger.warning("rapidfuzz not available, falling back to exact matching")
+            return None
+        except Exception as e:
+            logger.error(f"Fuzzy matching failed: {e}")
+            return None
+    
+    def llm_correct_drug_name(self, ocr_text: str) -> Optional[str]:
+        """ChatGPTによる薬剤名補正"""
+        try:
+            import openai
+            
+            # OpenAI APIキーの確認
+            if not openai.api_key:
+                logger.warning("OpenAI API key not configured")
+                return None
+            
+            # 薬剤辞書から候補を取得
+            drug_candidates = []
+            for key, info in self.drug_dictionary.items():
+                drug_candidates.append(f"{key} ({info.get('generic_name', '')})")
+                for alias in info.get('aliases', []):
+                    drug_candidates.append(f"{alias} ({info.get('generic_name', '')})")
+            
+            candidates_text = "\n".join(drug_candidates[:50])  # 最初の50個に制限
+            
+            prompt = f"""
+以下のOCRテキストから薬剤名を特定し、最も適切な候補を1つ選んでください。
+
+OCRテキスト: "{ocr_text}"
+
+候補薬剤:
+{candidates_text}
+
+注意事項:
+- 配合剤の場合は成分名を「/」で区切って記載
+- 商品名の場合は一般名も併記
+- 確信が持てない場合は「不明」と回答
+
+回答形式: 薬剤名のみ（例: テラムロAP または テルミサルタン/アムロジピン）
+"""
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=100,
+                temperature=0.1
+            )
+            
+            corrected_name = response.choices[0].message.content.strip()
+            
+            if corrected_name and corrected_name != "不明":
+                logger.info(f"LLM correction: '{ocr_text}' -> '{corrected_name}'")
+                return corrected_name
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"LLM correction failed: {e}")
+            return None
+    
+    def two_stage_drug_matching(self, drug_name: str) -> dict:
+        """二段階チェックによる薬剤名マッチング"""
+        # 第1段階: 完全一致
+        exact_match = self._exact_match(drug_name)
+        if exact_match:
+            return {
+                'method': 'exact',
+                'result': exact_match,
+                'confidence': 1.0
+            }
+        
+        # 第2段階: ファジーマッチ
+        fuzzy_match = self.fuzzy_match_drug(drug_name)
+        if fuzzy_match:
+            return {
+                'method': 'fuzzy',
+                'result': fuzzy_match,
+                'confidence': fuzzy_match['confidence']
+            }
+        
+        # 第3段階: LLM補正
+        corrected_name = self.llm_correct_drug_name(drug_name)
+        if corrected_name:
+            # 補正後の名前で再検索
+            corrected_match = self._exact_match(corrected_name)
+            if corrected_match:
+                return {
+                    'method': 'llm_corrected',
+                    'result': corrected_match,
+                    'confidence': 0.8
+                }
+        
+        # 全て失敗
+        return {
+            'method': 'failed',
+            'result': None,
+            'confidence': 0.0
+        }
+    
+    def _exact_match(self, drug_name: str) -> Optional[dict]:
+        """完全一致による薬剤名検索"""
+        # 辞書から直接検索
+        if drug_name in self.drug_dictionary:
+            return self.drug_dictionary[drug_name]
+        
+        # エイリアスから検索
+        for key, info in self.drug_dictionary.items():
+            if drug_name in info.get('aliases', []):
+                return info
+        
+        return None
