@@ -511,6 +511,8 @@ class ResponseService:
                         drug_name = drug_name.replace('アスピリン', 'アスピリン腸溶')
                     if 'ニフェジピン' in drug_name and '徐放' not in drug_name:
                         drug_name = drug_name.replace('ニフェジピン', 'ニフェジピン徐放')
+                    if 'ロキソプロフェン' in drug_name and 'Naテープ' not in drug_name:
+                        drug_name = drug_name.replace('ロキソプロフェン', 'ロキソプロフェンNaテープ')
                     classification = drug.get('final_classification', '分類未設定')
                     strength = drug.get('strength', '')
                     dose = drug.get('dose', '')
@@ -528,7 +530,11 @@ class ResponseService:
                         display_dose = nz(dose).replace('cap', 'カプセル')
                         if any(keyword in drug_name for keyword in ["芍薬甘草湯", "エキス顆粒", "ツムラ"]):
                             display_dose = display_dose.replace("錠", "包")
-                        response_parts.append(f"   用法: {display_dose}")
+                        # 外用剤の数量表示を修正
+                        if "テープ" in drug_name or "外用" in classification:
+                            response_parts.append(f"   数量: {display_dose}")
+                        else:
+                            response_parts.append(f"   用法: {display_dose}")
                     if freq:
                         response_parts.append(f"   頻度: {nz(freq)}")
                     response_parts.append(f"   分類: {classification}")

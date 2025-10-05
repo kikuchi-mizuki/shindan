@@ -85,10 +85,13 @@ def extract_names_from_block(block_text: str) -> List[str]:
         # 外用剤のサイズ/枚数を抽出（情報付加用途）
         size_match = re.search(r"(\d+)\s*cm\s*×\s*(\d+)\s*cm", t)
         qty_match = re.search(r"(\d+)\s*枚", t)
+        days_match = re.search(r"(\d+)\s*日分", t)
         if size_match:
             logger.info(f"Detected external size: {size_match.group(0)}")
         if qty_match:
             logger.info(f"Detected external quantity: {qty_match.group(0)}")
+        if days_match:
+            logger.info(f"Detected days: {days_match.group(0)}")
         
         # 重複除去（順序保持）
         unique_names = list(dict.fromkeys(names))
