@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import List, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
@@ -11,6 +12,9 @@ class ResponseService:
         """薬剤情報からLINE Bot用の応答メッセージを生成（詳細版）"""
         try:
             logger.info(f"Generating response for drug_info keys: {list(drug_info.keys())}")
+            
+            # 監査用トレース：matched_rules と matched_drugs のJSONログ出力
+            self._log_audit_trace(drug_info)
             
             response_parts = []
             
@@ -47,11 +51,11 @@ class ResponseService:
                         targets = interaction.get('target_drugs') or interaction.get('targets') or interaction.get('matched_drugs') or []
                         advice = interaction.get('advice') or interaction.get('description')
 
-                        # 相互作用の表示
+                        # 相互作用の表示（先頭の全角スペースを削除）
                         response_parts.append(f"{risk_emoji}：{name}")
-                        response_parts.append(f"・対象：{self._format_targets(targets)}")
+                        response_parts.append(f"・対象：{self._format_targets(targets).strip()}")
                         if advice:
-                            response_parts.append(f"・対応：{advice}")
+                            response_parts.append(f"・対応：{advice.strip()}")
                         response_parts.append("")
                 else:
                     # 相互作用がない場合は簡潔に通知
@@ -634,20 +638,61 @@ class ResponseService:
         }.get(severity, "⚠️ 併用注意")
     
     def _format_targets(self, targets) -> str:
-        """対象薬剤リストを表示用にフォーマット"""
+        """対象薬剤リストを表示用にフォーマット（先頭の全角スペースを削除）"""
         if not targets:
             return "（対象薬の特定に失敗）"
         
         # targetsが文字列の場合はそのまま返す（target_drugsの場合）
         if isinstance(targets, str):
-            return targets
+            return targets.strip()
         
         # targetsがリストの場合は結合して返す
         if isinstance(targets, list):
-            return "、".join(targets)
+            return "、".join(targets).strip()
         
         # その他の場合は文字列に変換
-        return str(targets)
+        return str(targets).strip()
+
+    def _log_audit_trace(self, drug_info: dict[str, Any]) -> None:
+        """監査用トレース：matched_rules と matched_drugs のJSONログ出力"""
+        try:
+            # 薬剤情報の抽出
+            drugs = drug_info.get('drugs', [])
+            interactions = drug_info.get('interactions', [])
+            
+            # 薬剤名のリストを作成
+            drug_names = []
+            for drug in drugs:
+                name = drug.get('generic') or drug.get('brand') or drug.get('raw', '')
+                if name:
+                    drug_names.append(name)
+            
+            # 相互作用ルールの情報を抽出
+            matched_rules = []
+            for interaction in interactions:
+                rule_info = {
+                    'id': interaction.get('id', ''),
+                    'name': interaction.get('name', ''),
+                    'severity': interaction.get('severity', ''),
+                    'target_drugs': interaction.get('target_drugs', ''),
+                    'advice': interaction.get('advice', '')
+                }
+                matched_rules.append(rule_info)
+            
+            # 監査用JSONログを出力
+            audit_data = {
+                'timestamp': __import__('datetime').datetime.now().isoformat(),
+                'matched_drugs': drug_names,
+                'matched_rules': matched_rules,
+                'total_interactions': len(matched_rules),
+                'major_interactions': len([r for r in matched_rules if r.get('severity') == 'major']),
+                'moderate_interactions': len([r for r in matched_rules if r.get('severity') in ['moderate', 'minor']])
+            }
+            
+            logger.info(f"AUDIT_TRACE: {json.dumps(audit_data, ensure_ascii=False, indent=2)}")
+            
+        except Exception as e:
+            logger.error(f"Audit trace logging failed: {e}")
 
     def generate_manual_addition_guide(self):
         """手動追加ガイドを生成"""
