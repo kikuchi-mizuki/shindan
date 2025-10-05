@@ -1,16 +1,16 @@
 import json
 import os
 import threading
-from typing import Dict, List
+from typing import List
 
 STORE_PATH = os.path.join(os.path.dirname(__file__), "normalize_store.json")
 _lock = threading.Lock()
 
 # In-memory stores (loaded at import)
-MISREAD: Dict[str, str] = {"ロ腔": "口腔"}
-SYN: Dict[str, str] = {}
-ATC_CACHE: Dict[str, List[str]] = {}
-TAGS: Dict[str, List[str]] = {}
+MISREAD: dict[str, str] = {"ロ腔": "口腔"}
+SYN: dict[str, str] = {}
+ATC_CACHE: dict[str, List[str]] = {}
+TAGS: dict[str, List[str]] = {}
 
 
 def _load_store():
