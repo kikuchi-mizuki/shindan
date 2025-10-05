@@ -88,7 +88,10 @@ class InteractionTargetResolver:
     
     def rule_raas_overlap(self, bx: Dict[str, List[str]]) -> List[str]:
         """ACEI/ARB/ARNI 重複"""
-        raas = sorted(set(bx.get("ACEI", []) + bx.get("ARB", []) + bx.get("ARNI", [])))
+        acei = set(bx.get("ACEI", []))
+        arb  = set(bx.get("ARB", []))
+        arni = set(bx.get("ARNI", []))
+        raas = sorted(acei | arb | arni)   # 和集合で3系統すべてを対象化
         return raas if len(raas) >= 2 else []
     
     def rule_pde5_nitrate(self, bx: Dict[str, List[str]]) -> List[str]:
