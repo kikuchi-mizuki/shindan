@@ -44,7 +44,7 @@ def extract_attrs(line: str) -> Dict[str, Any]:
     m = re.search(r"(\d+)\s*日分", line)
     if m:
         days = f"{m.group(1)}日分"
-    dose_form = "テープ" if "テープ" in line else ("錠" if "錠" in line else None)
+    dose_form = "テープ" if "テープ" in line or "パップ" in line else ("錠" if "錠" in line else None)
     return {"strength": strength, "size": size, "qty": qty, "days": days, "dose_form": dose_form}
 
 def dict_match_score(name: str, normalized: str) -> float:

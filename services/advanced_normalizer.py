@@ -99,6 +99,12 @@ class AdvancedNormalizer:
             # 外用NSAIDs
             "ロキソニンテープ": "ロキソプロフェンナトリウム外用テープ",
         }
+
+        # 混同防止の強制補正ルール（正規表現）
+        self.confusion_fix = [
+            (re.compile(r"アスパラ.?C[AＡ]", re.I), "L-アスパラギン酸カルシウム"),
+            (re.compile(r"アスパラ.?K", re.I), "L-アスパラギン酸カリウム・L-アスパラギン酸マグネシウム"),
+        ]
     
     def normalize_drug_name(self, drug_name: str, manufacturer: str = None, context: str = None) -> Dict[str, Any]:
         """
@@ -126,9 +132,12 @@ class AdvancedNormalizer:
             
             # 4. 部分一致パターン適用
             partial_matched = self._apply_partial_match_patterns(manufacturer_corrected)
+
+            # 4.5 混同防止の強制補正
+            forced = self._apply_confusion_fix(partial_matched)
             
             # 5. KEGG存在確認
-            kegg_verified = self._verify_with_kegg(partial_matched)
+            kegg_verified = self._verify_with_kegg(forced)
             
             # 6. 結果統合
             result = {
@@ -140,6 +149,7 @@ class AdvancedNormalizer:
                     {'step': 'normalization_map', 'result': mapped_name},
                     {'step': 'manufacturer_correction', 'result': manufacturer_corrected},
                     {'step': 'partial_match', 'result': partial_matched},
+                    {'step': 'confusion_fix', 'result': forced},
                     {'step': 'kegg_verification', 'result': kegg_verified}
                 ],
                 'confidence': self._calculate_confidence(kegg_verified, manufacturer)
@@ -186,6 +196,14 @@ class AdvancedNormalizer:
                 logger.info(f"Partial match correction: {drug_name} -> {replacement}")
                 return replacement
         
+        return drug_name
+
+    def _apply_confusion_fix(self, drug_name: str) -> str:
+        """混同しやすい製品の強制補正"""
+        for pat, replacement in self.confusion_fix:
+            if pat.search(drug_name):
+                logger.info(f"Confusion fix: {drug_name} -> {replacement}")
+                return replacement
         return drug_name
     
     def _verify_with_kegg(self, drug_name: str) -> str:
