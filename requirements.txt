@@ -4,7 +4,7 @@ line-bot-sdk==3.5.0
 pillow==10.0.1
 pytesseract==0.3.10
 google-cloud-vision==3.4.4
-openai==0.28.1
+openai>=1.0.0
 requests==2.31.0
 pyyaml==6.0.1
 pandas==2.1.1
