@@ -145,6 +145,10 @@ class AIExtractorService:
                         import re
                         if re.search(r"アスパラ.?C[AＡ]", brand_or_raw):
                             corrected_name = "アスパラ-CA"
+                        elif re.search(r"アスパラーCA", brand_or_raw):
+                            corrected_name = "アスパラ-CA"
+                        elif re.search(r"アスパラCA", brand_or_raw):
+                            corrected_name = "アスパラ-CA"
                         elif re.search(r"アスパラ.?Ｋ|アスパラ.?K", brand_or_raw):
                             corrected_name = "アスパラK"
                         elif "ロキソニンテープ" in brand_or_raw:
