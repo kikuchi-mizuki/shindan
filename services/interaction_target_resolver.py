@@ -69,7 +69,9 @@ class InteractionTargetResolver:
         """薬剤を薬効クラス別にインデックス化"""
         buckets = {}
         for d in drugs:
-            gname = self.canonicalize(d.get("name", ""))
+            # 薬剤名の取得（generic > name > brand > raw の順で優先）
+            drug_name = d.get("generic") or d.get("name") or d.get("brand") or d.get("raw", "")
+            gname = self.canonicalize(drug_name)
             for cls in self.CLASS_MAP.get(gname, []):
                 buckets.setdefault(cls, []).append(gname)
         
