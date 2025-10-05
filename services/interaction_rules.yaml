@@ -108,3 +108,13 @@
   examples:
     - "エナラプリル + エンレスト + テラムロAP"
     - "アムロジピン + バルサルタン + ニコランジル"
+
+- id: pde5_nitrate_contraindicated
+  name: "PDE5阻害薬＋硝酸薬相当（禁忌）"
+  severity: major
+  description: "PDE5阻害薬と硝酸薬相当の併用は禁忌（重度低血圧・失神の危険）"
+  requires_tags_all: ["PDE5", "NITRATE"]
+  advice: "禁忌。重度低血圧・失神の危険があるため併用回避。"
+  examples:
+    - "タダラフィル + ニコランジル"
+    - "シルデナフィル + ニトログリセリン"

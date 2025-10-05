@@ -149,15 +149,18 @@ class InteractionEngine:
                     if display_name not in targets:
                         targets.append(display_name)
         
-        # requires_tags_allの場合
+        # requires_tags_allの場合（必要なタグを持つ薬剤をすべて追加）
         requires_all = rule.get("requires_tags_all")
         if requires_all:
             for drug in drugs:
                 name = drug.get("generic") or drug.get("brand") or drug.get("raw", "")
-                if name in per_drug_tags and all(tag in per_drug_tags[name] for tag in requires_all):
-                    display_name = self._get_display_name(drug)
-                    if display_name not in targets:
-                        targets.append(display_name)
+                if name in per_drug_tags:
+                    # この薬剤が持つタグのうち、required_tags_allに含まれるものがあれば追加
+                    drug_tags = per_drug_tags[name]
+                    if any(tag in drug_tags for tag in requires_all):
+                        display_name = self._get_display_name(drug)
+                        if display_name not in targets:
+                            targets.append(display_name)
         
         # match_anyの場合
         match_any = rule.get("match_any")
@@ -176,7 +179,7 @@ class InteractionEngine:
         return drug.get("display") or drug.get("brand") or drug.get("generic") or drug.get("raw", "")
     
     def format_interactions(self, triggered_rules: List[dict[str, Any]]) -> dict[str, Any]:
-        """相互作用結果をフォーマット（注意も必ず表示）"""
+        """相互作用結果をフォーマット（対象薬の特定付き）"""
         if not triggered_rules:
             return {
                 "has_interactions": False,
@@ -184,6 +187,13 @@ class InteractionEngine:
                 "moderate_interactions": [],
                 "summary": "相互作用は検出されませんでした。"
             }
+        
+        # 対象薬の特定を追加
+        for rule in triggered_rules:
+            if 'targets' in rule:
+                rule['target_drugs'] = ", ".join(rule['targets']) if rule['targets'] else "対象薬の特定に失敗"
+            elif 'matched_drugs' not in rule:
+                rule['target_drugs'] = self._identify_target_drugs(rule)
         
         # 重大度別に分類
         major_interactions = [r for r in triggered_rules if r.get("severity") == "major"]
@@ -208,6 +218,26 @@ class InteractionEngine:
             "summary": summary,
             "total_count": len(triggered_rules)
         }
+    
+    def _identify_target_drugs(self, rule: dict[str, Any]) -> str:
+        """ルールに該当した薬剤名を特定"""
+        try:
+            matched_drugs = rule.get('matched_drugs', [])
+            if not matched_drugs:
+                return "対象薬の特定に失敗"
+            
+            # 薬剤名を結合
+            target_names = []
+            for drug in matched_drugs:
+                display_name = self._get_display_name(drug)
+                if display_name:
+                    target_names.append(display_name)
+            
+            return ", ".join(target_names) if target_names else "対象薬の特定に失敗"
+            
+        except Exception as e:
+            logger.error(f"Target drug identification failed: {e}")
+            return "対象薬の特定に失敗"
     
     def check_drug_interactions(self, drugs: List[dict[str, Any]]) -> dict[str, Any]:
         """薬剤相互作用の総合チェック"""
