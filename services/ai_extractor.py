@@ -80,7 +80,15 @@ class AIExtractorService:
 - 漢方薬（エキス顆粒）の場合は「包」単位を使用
 - 外用薬の場合は「患部に塗布」等の適切な用法を抽出
 - 不明な項目は null
-- 加えて 'class_hint' に簡潔な薬効分類（例: NSAIDs外用, 下剤, 抗アレルギー(LTRA), 便秘薬(GC-C作動薬), 高尿酸血症治療薬 等）を入れる"""
+- 加えて 'class_hint' に簡潔な薬効分類（例: NSAIDs外用, 下剤, 抗アレルギー(LTRA), 便秘薬(GC-C作動薬), 高尿酸血症治療薬 等）を入れる
+
+**重要な薬剤名正規化ルール:**
+- デエビゴ → レンボレキサント（オレキシン受容体拮抗薬）
+- デビゴ → レンボレキサント（オレキシン受容体拮抗薬）
+- ベルソムラ → スボレキサント（オレキシン受容体拮抗薬）
+- ロゼレム → ラメルテオン（メラトニン受容体作動薬）
+
+**注意: デエビゴとロゼレムは異なる成分です！**"""
                     },
                     {
                         "role": "user",
@@ -153,6 +161,8 @@ class AIExtractorService:
                             corrected_name = "アスパラK"
                         elif "ロキソニンテープ" in brand_or_raw:
                             corrected_name = "ロキソニンテープ"
+                        elif "デエビゴ" in brand_or_raw or "デビゴ" in brand_or_raw:
+                            corrected_name = "デエビゴ"  # 強制的にデエビゴに修正
                         else:
                             corrected_name = original_name
                     except Exception:
