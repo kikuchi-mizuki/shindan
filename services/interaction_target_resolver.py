@@ -39,9 +39,9 @@ class InteractionTargetResolver:
         self.CLASS_MAP = {
             "タダラフィル": ["PDE5"],
             "ニコランジル": ["NITRATE_LIKE"],   # 硝酸薬相当
-            "サクビトリル/バルサルタン": ["ARNI", "ARB"],  # ARNIはARB性分含む
-            "テルミサルタン/アムロジピン": ["ARB", "CCB"],
-            "エナラプリル": ["ACEI"],
+            "サクビトリル/バルサルタン": ["ARNI", "ARB", "RAAS"],  # ARNIはARB性分含む
+            "テルミサルタン/アムロジピン": ["ARB", "CCB", "RAAS"],
+            "エナラプリル": ["ACEI", "RAAS"],
             "ボノプラザン": ["PCAB"],
             "ランソプラゾール": ["PPI"],
         }
