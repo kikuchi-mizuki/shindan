@@ -774,7 +774,7 @@ OCRテキスト:
                         name = line[2:].strip()
                     elif line.startswith("-"):
                         name = line[1:].strip()
-            else:
+                    else:
                         name = line.strip()
                     
                     # 薬剤名として有効かチェック
@@ -987,9 +987,9 @@ OCRテキスト:
             # テキストを抽出
             texts = response.text_annotations
             if texts:
-            full_text = texts[0].description
+                full_text = texts[0].description
                 logger.info(f"Vision API extracted text: {full_text[:200]}...")
-            return full_text
+                return full_text
             else:
                 logger.warning("No text detected by Vision API")
             return ""
@@ -1192,7 +1192,7 @@ OCRテキスト:
             # 実際の実装では、Hough変換などを使う
             return image
             
-            except Exception as e:
+        except Exception as e:
             logger.warning(f"Skew correction failed: {e}")
             return image
     
@@ -1225,7 +1225,7 @@ OCRテキスト:
             
             return binary_image.convert('RGB')
             
-            except Exception as e:
+        except Exception as e:
             logger.warning(f"Adaptive threshold failed: {e}")
             # フォールバック: 通常の二値化
             gray = image.convert('L')
@@ -1257,7 +1257,7 @@ OCRテキスト:
             image.save(output, format='PNG', optimize=True, quality=100)
             return output.getvalue()
             
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Enhanced preprocessing error: {e}")
             return image_content
     
@@ -1429,8 +1429,8 @@ OCRテキスト:
                 r'タケキャブ錠\s*\d+mg'
             ]
             
-        import re
-        drug_names = []
+            import re
+            drug_names = []
             
             for pattern in expected_patterns:
                 matches = re.findall(pattern, text, re.IGNORECASE)
@@ -1440,9 +1440,9 @@ OCRテキスト:
             if not drug_names:
                 # 薬剤名の特徴的なパターンを検索
                 drug_keywords = ['錠', 'mg', 'µg', 'g']
-        lines = text.split('\n')
-        
-        for line in lines:
+                lines = text.split('\n')
+                
+                for line in lines:
                     line = line.strip()
                     if any(keyword in line for keyword in drug_keywords):
                         # 数字を含む行を薬剤名として扱う
