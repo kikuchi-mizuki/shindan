@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Railway用の設定
+app.config['DEBUG'] = False
+app.config['TESTING'] = False
+
 # LINE Bot設定（環境変数が未設定でも起動できるようデフォルトを設定）
 _access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN') or ""
 _channel_secret = os.getenv('LINE_CHANNEL_SECRET') or ""
@@ -158,8 +162,10 @@ def initialize_services():
 def root():
     """ルートエンドポイント"""
     try:
+        logger.info("Root endpoint accessed")
         return {"status": "ok", "message": "薬局サポートBot is running"}, 200
     except Exception as e:
+        logger.error(f"Root endpoint error: {e}")
         return {"status": "error", "message": str(e)}, 500
 
 @app.route("/health", methods=['GET'])
@@ -921,6 +927,12 @@ try:
         logger.info("✅ All services initialized successfully")
     else:
         logger.error("❌ Service initialization failed")
+    
+    # アプリケーションの設定を確認
+    logger.info(f"Flask app name: {app.name}")
+    logger.info(f"Flask debug mode: {app.debug}")
+    logger.info("✅ Flask application ready for Railway")
+    
 except Exception as e:
     logger.error(f"❌ Service initialization failed during import: {e}")
     import traceback
