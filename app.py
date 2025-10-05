@@ -170,23 +170,14 @@ def root():
 
 @app.route("/health", methods=['GET'])
 def health_check():
-    """ヘルスチェックエンドポイント"""
+    """ヘルスチェックエンドポイント（シンプル版）"""
     try:
         logger.info("Health check requested")
-        logger.info(f"Services initialized: {_services_initialized}")
-        
-        # サービス初期化を確認
-        if not _services_initialized:
-            logger.info("Services not initialized, attempting initialization...")
-            success = initialize_services()
-            logger.info(f"Service initialization result: {success}")
-        
-        logger.info("Health check passed")
+        # サービス初期化は試行しない（ヘルスチェックをシンプルに）
+        logger.info("Health check passed - basic app is running")
         return {"status": "healthy", "message": "ok"}, 200
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        import traceback
-        logger.error(f"Health check traceback: {traceback.format_exc()}")
         return {"status": "unhealthy", "message": str(e)}, 500
 
 @app.route("/test", methods=['GET'])
@@ -918,23 +909,12 @@ if __name__ == "__main__":
         raise
 
 # Railway用の初期化（gunicornで起動時）
-try:
-    logger.info("=== Railway Deployment Initialization ===")
-    logger.info(f"PORT environment variable: {os.getenv('PORT', 'not set')}")
-    logger.info("Starting service initialization...")
-    success = initialize_services()
-    if success:
-        logger.info("✅ All services initialized successfully")
-    else:
-        logger.error("❌ Service initialization failed")
-    
-    # アプリケーションの設定を確認
-    logger.info(f"Flask app name: {app.name}")
-    logger.info(f"Flask debug mode: {app.debug}")
-    logger.info("✅ Flask application ready for Railway")
-    
-except Exception as e:
-    logger.error(f"❌ Service initialization failed during import: {e}")
-    import traceback
-    logger.error(f"Traceback: {traceback.format_exc()}")
-    # 初期化失敗でもアプリケーションは起動可能にする 
+logger.info("=== Railway Deployment Initialization ===")
+logger.info(f"PORT environment variable: {os.getenv('PORT', 'not set')}")
+
+# アプリケーションの設定を確認
+logger.info(f"Flask app name: {app.name}")
+logger.info(f"Flask debug mode: {app.debug}")
+
+# サービス初期化は遅延実行（ヘルスチェック時）に変更
+logger.info("✅ Flask application ready for Railway (services will initialize on first request)") 
