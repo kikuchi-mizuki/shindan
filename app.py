@@ -166,6 +166,11 @@ def root():
 def health_check():
     """ヘルスチェックエンドポイント"""
     try:
+        # サービス初期化を確認
+        if not _services_initialized:
+            logger.info("Services not initialized, attempting initialization...")
+            initialize_services()
+        
         return {"status": "healthy", "message": "ok"}, 200
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -886,6 +891,10 @@ if __name__ == "__main__":
         debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
         
         logger.info(f"Starting complete drug interaction diagnosis system on port {port}, debug mode: {debug_mode}")
+        
+        # サービス初期化を試行
+        initialize_services()
+        
         logger.info("Complete drug interaction diagnosis system startup completed successfully")
         
         app.run(host='0.0.0.0', port=port, debug=debug_mode)
@@ -893,4 +902,12 @@ if __name__ == "__main__":
         logger.error(f"Application startup failed: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        raise 
+        raise
+
+# Railway用の初期化（gunicornで起動時）
+try:
+    logger.info("Initializing services for Railway deployment...")
+    initialize_services()
+except Exception as e:
+    logger.warning(f"Service initialization failed during import: {e}")
+    # 初期化失敗でもアプリケーションは起動可能にする 
