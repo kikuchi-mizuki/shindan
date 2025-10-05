@@ -44,6 +44,15 @@ class InteractionTargetResolver:
             "エナラプリル": ["ACEI", "RAAS"],
             "ボノプラザン": ["PCAB"],
             "ランソプラゾール": ["PPI"],
+            
+            # 新しく追加した薬剤クラス
+            "クラリスロマイシン": ["ABX", "CYP3A_STRONG_INHIB"],
+            "スボレキサント": ["OREXIN_ANTAGONIST", "SEDATIVE"],
+            "レンボレキサント": ["OREXIN_ANTAGONIST", "SEDATIVE"],
+            "ラメルテオン": ["MELATONIN_AGONIST", "SEDATIVE", "RAMELTEON"],
+            "フルボキサミン": ["SSRI", "RAMELTEON_CONTRA_PAIR"],
+            "アムロジピン": ["DHP_CCB"],
+            "エソメプラゾール": ["PPI"],
         }
     
     def sanitize_name(self, s: str) -> str:
