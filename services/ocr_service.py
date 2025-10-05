@@ -774,7 +774,7 @@ OCRテキスト:
                         name = line[2:].strip()
                     elif line.startswith("-"):
                         name = line[1:].strip()
-                    else:
+            else:
                         name = line.strip()
                     
                     # 薬剤名として有効かチェック
@@ -987,9 +987,9 @@ OCRテキスト:
             # テキストを抽出
             texts = response.text_annotations
             if texts:
-                full_text = texts[0].description
+            full_text = texts[0].description
                 logger.info(f"Vision API extracted text: {full_text[:200]}...")
-                return full_text
+            return full_text
             else:
                 logger.warning("No text detected by Vision API")
             return ""
