@@ -198,6 +198,20 @@ class DrugNormalizationService:
                 'aliases': ['エソメプラゾール', 'ネキシウム', 'ネキシウム錠', 'ネキシウムOD錠'],
                 'confidence': 1.0
             },
+
+            # 電解質・ミネラル（カルシウム製剤）
+            'L-アスパラギン酸カルシウム': {
+                'normalized': 'L-アスパラギン酸カルシウム',
+                'generic_name': 'L-アスパラギン酸カルシウム',
+                'category': 'electrolyte_mineral_calcium',
+                'aliases': [
+                    'アスパラ-CA', 'アスパラーCA', 'アスパラCA',
+                    'アスパラ-CA錠200', 'アスパラーCA錠200', 'アスパラCA錠200',
+                    'L-アスパラギン酸カルシウム錠200'
+                ],
+                'confidence': 1.0,
+                'class_jp': '電解質・ミネラル（カルシウム製剤）'
+            },
             
             # PDE5阻害薬
             'タダラフィル': {
