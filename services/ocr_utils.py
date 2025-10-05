@@ -35,7 +35,7 @@ def split_numbered_blocks(text: str) -> List[Tuple[str, str]]:
 
 # 薬剤名抽出パターン（改良版）
 NAME_PAT = re.compile(
-    r"(?:ツムラ)?([ぁ-んァ-ヶ一-龥A-Za-z0-9・ー]+?)(?:錠|カプセル|口腔内崩壊錠|顆粒|ゲル|散|液|エキス顆粒|テープ|点眼液|点鼻液|吸入液|注射剤|注射液|錠剤|カプセル剤|顆粒剤|ゲル剤|散剤|液剤)"
+    r"(?:ツムラ)?([ぁ-んァ-ヶ一-龥A-Za-z0-9・ー\-]+?)(?:錠|カプセル|口腔内崩壊錠|顆粒|ゲル|散|液|エキス顆粒|テープ|点眼液|点鼻液|吸入液|注射剤|注射液|錠剤|カプセル剤|顆粒剤|ゲル剤|散剤|液剤)"
 )
 
 def extract_names_from_block(block_text: str) -> List[str]:
@@ -81,6 +81,14 @@ def extract_names_from_block(block_text: str) -> List[str]:
                         name = name[1:]
                     if name and len(name) >= 3:
                         names.append(name)
+
+        # 外用剤のサイズ/枚数を抽出（情報付加用途）
+        size_match = re.search(r"(\d+)\s*cm\s*×\s*(\d+)\s*cm", t)
+        qty_match = re.search(r"(\d+)\s*枚", t)
+        if size_match:
+            logger.info(f"Detected external size: {size_match.group(0)}")
+        if qty_match:
+            logger.info(f"Detected external quantity: {qty_match.group(0)}")
         
         # 重複除去（順序保持）
         unique_names = list(dict.fromkeys(names))
