@@ -185,8 +185,28 @@ class InteractionEngine:
         return targets
     
     def _get_display_name(self, drug: dict[str, Any]) -> str:
-        """表示用の薬剤名を取得"""
-        return drug.get("display") or drug.get("brand") or drug.get("generic") or drug.get("raw", "")
+        """表示用の薬剤名を取得（一般名で統一）"""
+        # 表示用の正規化（一般名で統一）
+        GENERIC_DISPLAY = {
+            "エンレスト": "サクビトリル/バルサルタン",
+            "テラムロAP": "テルミサルタン/アムロジピン",
+            "タケキャブ": "ボノプラザン",
+            "ランソプラゾールOD": "ランソプラゾール",
+        }
+        
+        # 一般名を優先
+        name = drug.get("generic") or drug.get("brand") or drug.get("raw", "")
+        
+        # 用量情報を除去（5mg、100mg等）
+        import re
+        name = re.sub(r'\s*\d+(\.\d+)?\s*mg\b', '', name, flags=re.IGNORECASE)
+        # メーカー情報を除去（「トーワ」、「サンド」等）
+        name = re.sub(r'「.*?」', '', name)
+        # 余分な空白を整理
+        name = re.sub(r'\s+', '', name).strip()
+        
+        # 一般名に変換
+        return GENERIC_DISPLAY.get(name, name)
     
     def format_interactions(self, triggered_rules: List[dict[str, Any]], drugs: List[dict[str, Any]] = None) -> dict[str, Any]:
         """相互作用結果をフォーマット（対象薬の特定付き）"""

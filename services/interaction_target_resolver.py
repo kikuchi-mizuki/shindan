@@ -112,8 +112,40 @@ class InteractionTargetResolver:
         return pool if len(pool) >= 3 else []
     
     def join_targets(self, names: List[str]) -> str:
-        """対象薬名をフォーマット"""
-        return "、".join(names) if names else "（該当なし）"
+        """対象薬名をフォーマット（一般名で統一）"""
+        if not names:
+            return "（該当なし）"
+        
+        # 表示用の正規化（一般名で統一）
+        PREFER_GENERIC = True
+        GENERIC_DISPLAY = {
+            "エンレスト": "サクビトリル/バルサルタン",
+            "テラムロAP": "テルミサルタン/アムロジピン",
+            "タケキャブ": "ボノプラザン",
+            "ランソプラゾールOD": "ランソプラゾール",
+        }
+        
+        def display_name(name: str) -> str:
+            # 用量情報を除去（5mg、100mg等）
+            import re
+            name = re.sub(r'\s*\d+(\.\d+)?\s*mg\b', '', name, flags=re.IGNORECASE)
+            # メーカー情報を除去（「トーワ」、「サンド」等）
+            name = re.sub(r'「.*?」', '', name)
+            # 余分な空白を整理
+            name = re.sub(r'\s+', '', name).strip()
+            
+            # 一般名に変換
+            return GENERIC_DISPLAY.get(name, name) if PREFER_GENERIC else name
+        
+        # 一般名で統一して結合
+        normalized_names = [display_name(name) for name in names]
+        # 重複除去
+        unique_names = []
+        for name in normalized_names:
+            if name not in unique_names:
+                unique_names.append(name)
+        
+        return "、".join(unique_names)
     
     def explain_raas_overlap(self, targets: List[str]) -> str:
         """RAAS重複の理由を一行補足"""
