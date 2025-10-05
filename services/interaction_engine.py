@@ -208,8 +208,19 @@ class InteractionEngine:
                 # ルールIDに基づいて対象薬を設定
                 if rule_id == 'raas_contraindicated' and 'raas_contraindicated' in resolved_targets:
                     rule['target_drugs'] = resolved_targets['raas_contraindicated']
+                    # 仕上げ修正：モニタリングの定型文を追加
+                    if rule.get('advice'):
+                        rule['advice'] += "開始/変更後1–2週でCr/eGFR/K、血圧を再評価。"
                 elif rule_id == 'raas_double_block_avoid' and 'raas_overlap' in resolved_targets:
                     rule['target_drugs'] = resolved_targets['raas_overlap']
+                    # 仕上げ修正：理由の一行補足とモニタリングの定型文を追加
+                    if rule.get('advice'):
+                        advice = rule['advice']
+                        # ARNIが含まれていればARB含有の旨を補足
+                        if "サクビトリル/バルサルタン" in resolved_targets['raas_overlap']:
+                            advice += "（注：ARNIはARB成分〈バルサルタン〉を含むため）"
+                        advice += "開始/変更後1–2週でCr/eGFR/K、血圧を再評価。"
+                        rule['advice'] = advice
                 elif rule_id == 'pde5_nitrate_contraindicated' and 'pde5_nitrate' in resolved_targets:
                     rule['target_drugs'] = resolved_targets['pde5_nitrate']
                 elif rule_id == 'gastric_acid_suppression_duplicate' and 'acid_dup' in resolved_targets:

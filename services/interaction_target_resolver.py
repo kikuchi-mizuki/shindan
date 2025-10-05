@@ -115,6 +115,13 @@ class InteractionTargetResolver:
         """対象薬名をフォーマット"""
         return "、".join(names) if names else "（該当なし）"
     
+    def explain_raas_overlap(self, targets: List[str]) -> str:
+        """RAAS重複の理由を一行補足"""
+        # ARNIが含まれていればARB含有の旨を補足
+        if any("サクビトリル/バルサルタン" in x for x in targets):
+            return "（注：ARNIはARB成分〈バルサルタン〉を含むため）"
+        return ""
+    
     def build_report(self, drugs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """薬剤リストから相互作用レポートを生成"""
         try:
@@ -128,17 +135,19 @@ class InteractionTargetResolver:
                     "severity": "重大",
                     "title": "RAAS禁忌（ARNI＋ACEIの同時併用）",
                     "targets": self.join_targets(t),
-                    "action": "禁忌（36時間ルール）。ACEI中止後36時間空けてARNIへ切替。"
+                    "action": "禁忌（36時間ルール）。ACEI中止後36時間空けてARNIへ切替。開始/変更後1–2週でCr/eGFR/K、血圧を再評価。"
                 })
             
-            # RAAS重複
+            # RAAS重複（RAAS禁忌がヒットした場合は除外）
             t = self.rule_raas_overlap(bx)
-            if t:
+            if t and not (bx.get("ARNI") and bx.get("ACEI")):
+                action = "低血圧・高K・腎機能悪化リスク。原則併用回避を検討。" + self.explain_raas_overlap(t)
+                action += "開始/変更後1–2週でCr/eGFR/K、血圧を再評価。"
                 findings.append({
                     "severity": "重大",
                     "title": "RAAS重複（原則併用回避：ACEI/ARB/ARNI）",
                     "targets": self.join_targets(t),
-                    "action": "低血圧・高K・腎機能悪化リスク。原則併用回避を検討。"
+                    "action": action
                 })
             
             # PDE5＋硝酸薬相当
@@ -189,9 +198,9 @@ class InteractionTargetResolver:
             if raas_contraindicated:
                 targets["raas_contraindicated"] = self.join_targets(raas_contraindicated)
             
-            # RAAS重複
+            # RAAS重複（RAAS禁忌がヒットした場合は除外）
             raas_overlap = self.rule_raas_overlap(bx)
-            if raas_overlap:
+            if raas_overlap and not (bx.get("ARNI") and bx.get("ACEI")):
                 targets["raas_overlap"] = self.join_targets(raas_overlap)
             
             # PDE5＋硝酸薬相当
