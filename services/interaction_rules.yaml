@@ -84,3 +84,27 @@
   examples:
     - "ロキソプロフェン + ジクロフェナク"
     - "イブプロフェン + アスピリン"
+
+- id: gastric_acid_suppression_duplicate
+  name: "胃酸抑制薬の重複"
+  severity: moderate
+  description: "PPIとP-CABの併用による重複投与注意"
+  need_tags:
+    any_of: ["PPI", "P-CAB"]
+    min_count: 2
+  advice: "同効薬の重複投与注意。目的が同じなら簡素化を検討。"
+  examples:
+    - "ランソプラゾール + ボノプラザン"
+    - "オメプラゾール + タケキャブ"
+
+- id: antihypertensive_multi_drug
+  name: "降圧薬の多剤併用"
+  severity: moderate
+  description: "降圧薬の多剤併用による過度な降圧リスク"
+  need_tags:
+    any_of: ["RAAS", "CCB", "ACEI", "ARB", "ARNI"]
+    min_count: 3
+  advice: "過度な降圧リスク。血圧モニタリングを強化。"
+  examples:
+    - "エナラプリル + エンレスト + テラムロAP"
+    - "アムロジピン + バルサルタン + ニコランジル"
