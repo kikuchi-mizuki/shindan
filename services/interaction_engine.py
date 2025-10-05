@@ -340,18 +340,22 @@ class InteractionEngine:
                 
                 for finding in findings:
                     severity = finding.get("severity", "")
+                    logger.info(f"Processing finding: {finding.get('title', '')} with severity: {severity}")
+                    
                     if severity == "重大":
                         major_interactions.append({
                             "name": finding.get("title", ""),
                             "target_drugs": finding.get("targets", ""),
                             "advice": finding.get("action", "")
                         })
+                        logger.info(f"Added to major_interactions: {finding.get('title', '')}")
                     else:
                         moderate_interactions.append({
                             "name": finding.get("title", ""),
                             "target_drugs": finding.get("targets", ""),
                             "advice": finding.get("action", "")
                         })
+                        logger.info(f"Added to moderate_interactions: {finding.get('title', '')}")
                 
                 has_interactions = len(major_interactions) > 0 or len(moderate_interactions) > 0
                 summary = f"重大な相互作用: {len(major_interactions)}件、注意すべき相互作用: {len(moderate_interactions)}件" if has_interactions else "相互作用は検出されませんでした。"
