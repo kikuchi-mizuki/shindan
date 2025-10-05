@@ -103,7 +103,7 @@ class AdvancedNormalizer:
         # 混同防止の強制補正ルール（正規表現）
         self.confusion_fix = [
             (re.compile(r"アスパラ.?C[AＡ]", re.I), "L-アスパラギン酸カルシウム"),
-            (re.compile(r"アスパラ.?K", re.I), "L-アスパラギン酸カリウム・L-アスパラギン酸マグネシウム"),
+            (re.compile(r"アスパラ.?Ｋ|アスパラ.?K", re.I), "L-アスパラギン酸カリウム・L-アスパラギン酸マグネシウム"),
         ]
     
     def normalize_drug_name(self, drug_name: str, manufacturer: str = None, context: str = None) -> Dict[str, Any]:
