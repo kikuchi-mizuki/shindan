@@ -774,7 +774,7 @@ OCRテキスト:
                         name = line[2:].strip()
                     elif line.startswith("-"):
                         name = line[1:].strip()
-            else:
+                    else:
                         name = line.strip()
                     
                     # 薬剤名として有効かチェック
