@@ -166,14 +166,21 @@ def root():
 def health_check():
     """ヘルスチェックエンドポイント"""
     try:
+        logger.info("Health check requested")
+        logger.info(f"Services initialized: {_services_initialized}")
+        
         # サービス初期化を確認
         if not _services_initialized:
             logger.info("Services not initialized, attempting initialization...")
-            initialize_services()
+            success = initialize_services()
+            logger.info(f"Service initialization result: {success}")
         
+        logger.info("Health check passed")
         return {"status": "healthy", "message": "ok"}, 200
     except Exception as e:
         logger.error(f"Health check failed: {e}")
+        import traceback
+        logger.error(f"Health check traceback: {traceback.format_exc()}")
         return {"status": "unhealthy", "message": str(e)}, 500
 
 @app.route("/test", methods=['GET'])
@@ -906,8 +913,16 @@ if __name__ == "__main__":
 
 # Railway用の初期化（gunicornで起動時）
 try:
-    logger.info("Initializing services for Railway deployment...")
-    initialize_services()
+    logger.info("=== Railway Deployment Initialization ===")
+    logger.info(f"PORT environment variable: {os.getenv('PORT', 'not set')}")
+    logger.info("Starting service initialization...")
+    success = initialize_services()
+    if success:
+        logger.info("✅ All services initialized successfully")
+    else:
+        logger.error("❌ Service initialization failed")
 except Exception as e:
-    logger.warning(f"Service initialization failed during import: {e}")
+    logger.error(f"❌ Service initialization failed during import: {e}")
+    import traceback
+    logger.error(f"Traceback: {traceback.format_exc()}")
     # 初期化失敗でもアプリケーションは起動可能にする 
