@@ -128,7 +128,7 @@ class OCRService:
             
             # 7. シャープ化（複数回適用）
             for _ in range(2):
-            image = image.filter(ImageFilter.SHARPEN)
+                image = image.filter(ImageFilter.SHARPEN)
             
             # 8. エッジ強調
             image = image.filter(ImageFilter.EDGE_ENHANCE)
