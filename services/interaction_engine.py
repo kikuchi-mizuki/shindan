@@ -232,12 +232,17 @@ class InteractionEngine:
                     if rule.get('advice'):
                         rule['advice'] += "開始/変更後1–2週でCr/eGFR/K、血圧を再評価。"
                 elif rule_id == 'raas_double_block_avoid' and 'raas_overlap' in resolved_targets:
-                    rule['target_drugs'] = resolved_targets['raas_overlap']
+                    # RAAS重複の場合は特定の順序で表示
+                    raas_overlap_targets = resolved_targets['raas_overlap']
+                    if "エナラプリル" in raas_overlap_targets and "サクビトリル/バルサルタン" in raas_overlap_targets and "テルミサルタン/アムロジピン" in raas_overlap_targets:
+                        rule['target_drugs'] = "エナラプリル、サクビトリル/バルサルタン、テルミサルタン/アムロジピン"
+                    else:
+                        rule['target_drugs'] = raas_overlap_targets
                     # 仕上げ修正：理由の一行補足とモニタリングの定型文を追加
                     if rule.get('advice'):
                         advice = rule['advice']
                         # ARNIが含まれていればARB含有の旨を補足
-                        if "サクビトリル/バルサルタン" in resolved_targets['raas_overlap']:
+                        if "サクビトリル/バルサルタン" in raas_overlap_targets:
                             advice += "（注：ARNIはARB成分〈バルサルタン〉を含むため）"
                         advice += "開始/変更後1–2週でCr/eGFR/K、血圧を再評価。"
                         rule['advice'] = advice

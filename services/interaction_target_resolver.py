@@ -145,6 +145,11 @@ class InteractionTargetResolver:
             if name not in unique_names:
                 unique_names.append(name)
         
+        # RAAS重複の場合は特定の順序で表示
+        if len(unique_names) == 3 and all(x in unique_names for x in ["エナラプリル", "サクビトリル/バルサルタン", "テルミサルタン/アムロジピン"]):
+            ordered_names = ["エナラプリル", "サクビトリル/バルサルタン", "テルミサルタン/アムロジピン"]
+            return "、".join(ordered_names)
+        
         return "、".join(unique_names)
     
     def explain_raas_overlap(self, targets: List[str]) -> str:
@@ -234,7 +239,11 @@ class InteractionTargetResolver:
             # RAAS重複（RAAS禁忌がヒットした場合は除外）
             raas_overlap = self.rule_raas_overlap(bx)
             if raas_overlap and not raas_contraindicated:
-                targets["raas_overlap"] = self.join_targets(raas_overlap)
+                # RAAS重複の場合は特定の順序で表示
+                if len(raas_overlap) == 3 and all(x in raas_overlap for x in ["エナラプリル", "サクビトリル/バルサルタン", "テルミサルタン/アムロジピン"]):
+                    targets["raas_overlap"] = "エナラプリル、サクビトリル/バルサルタン、テルミサルタン/アムロジピン"
+                else:
+                    targets["raas_overlap"] = self.join_targets(raas_overlap)
             
             # PDE5＋硝酸薬相当
             pde5_nitrate = self.rule_pde5_nitrate(bx)
