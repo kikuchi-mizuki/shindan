@@ -46,7 +46,7 @@ def normalize_generic(name: str) -> str:
         "アスパラK錠": "L-アスパラギン酸カリウム・L-アスパラギン酸マグネシウム",
         # 外用NSAIDs
         "ロキソニンテープ": "ロキソプロフェンナトリウム外用テープ",
-        # 眠剤ブランド→一般名（同一成分で重複統合）
+        # 眠剤ブランド→一般名（異なる成分なので重複除去しない）
         "ベルソムラ": "スボレキサント",
         "デエビゴ": "レンボレキサント",
         "デビゴ": "レンボレキサント",
@@ -183,13 +183,18 @@ def strip_form(s: str) -> str:
     return s
 
 def canonical_key_form_agnostic(name: str) -> str:
-    """剤形を無視した正規化キー"""
+    """剤形を無視した正規化キー（異なる成分は区別）"""
     # OCR誤読の修正
     fixed_name = name.replace("ロ腔", "口腔")
     # 剤形除去
     stripped = strip_form(fixed_name)
-    # 正規化
+    # 正規化（異なる成分は区別する）
     normalized = normalize_generic(stripped)
+    # スボレキサントとレンボレキサントは異なる成分なので区別
+    if "スボレキサント" in normalized:
+        return "スボレキサント"
+    elif "レンボレキサント" in normalized:
+        return "レンボレキサント"
     return normalized.replace(" ", "")
 
 def dedupe_with_form_agnostic(drugs: List[dict[str, Any]]) -> Tuple[List[dict[str, Any]], int]:
