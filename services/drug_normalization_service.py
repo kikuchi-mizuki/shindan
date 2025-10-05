@@ -38,6 +38,7 @@ class DrugNormalizationService:
             # 新規追加：画像照合で発見された誤認識パターン
             "テラムロジン": "テラムロAP",  # 存在しない薬剤名→配合剤
             "テラムロプリド": "テラムロAP",  # 新規：OCR誤読パターン
+            "テラムロリウム": "テラムロAP",  # 新規：OCR誤読パターン（AP→リウム）
             "ラベプラゾール": "ボノプラザン",  # PPI→P-CABの誤認識
             "ラベプラゾールナトリウム": "ボノプラザン",  # 同様の誤認識
         }
@@ -198,7 +199,7 @@ class DrugNormalizationService:
                 'normalized': 'テルミサルタン/アムロジピン',
                 'generic_name': 'テルミサルタン/アムロジピン',
                 'category': 'ca_antagonist_arb_combination',
-                'aliases': ['テルミサルタン/アムロジピン', 'テラムロAP錠', 'テラムロ', 'テラムロジン', 'テラムロプリド'],  # OCR誤認識パターンを追加
+                'aliases': ['テルミサルタン/アムロジピン', 'テラムロAP錠', 'テラムロ', 'テラムロジン', 'テラムロプリド', 'テラムロリウム'],  # OCR誤認識パターンを追加
                 'confidence': 1.0,
                 'components': ['テルミサルタン', 'アムロジピン'],
                 'class_jp': '降圧薬（ARB＋Ca拮抗薬）'
@@ -311,19 +312,44 @@ class DrugNormalizationService:
         self.manufacturer_mapping = {
             "サンド": {
                 "common_drugs": ["タダラフィル", "シアリス"],
-                "categories": ["pde5_inhibitor"]
+                "categories": ["pde5_inhibitor"],
+                "brand_mappings": {
+                    "タダラフィル": "シアリス",
+                    "シアリス": "タダラフィル"
+                }
             },
             "トーワ": {
                 "common_drugs": ["ニコランジル", "エナラプリル", "ランソプラゾール"],
-                "categories": ["nitrate", "ace_inhibitor", "ppi"]
+                "categories": ["nitrate", "ace_inhibitor", "ppi"],
+                "brand_mappings": {
+                    "ニコランジル": "シグマート",
+                    "エナラプリル": "レニベース",
+                    "ランソプラゾール": "タケプロン"
+                }
             },
             "サワイ": {
                 "common_drugs": ["テラムロAP", "テルミサルタン/アムロジピン"],
-                "categories": ["ca_antagonist_arb_combination"]
+                "categories": ["ca_antagonist_arb_combination"],
+                "brand_mappings": {
+                    "テラムロAP": "テルミサルタン/アムロジピン",
+                    "テルミサルタン/アムロジピン": "テラムロAP"
+                }
             },
             "武田": {
                 "common_drugs": ["タケキャブ", "ボノプラザン"],
-                "categories": ["p_cab"]
+                "categories": ["p_cab"],
+                "brand_mappings": {
+                    "タケキャブ": "ボノプラザン",
+                    "ボノプラザン": "タケキャブ"
+                }
+            },
+            "ノバルティス": {
+                "common_drugs": ["エンレスト", "サクビトリル/バルサルタン"],
+                "categories": ["arni"],
+                "brand_mappings": {
+                    "エンレスト": "サクビトリル/バルサルタン",
+                    "サクビトリル/バルサルタン": "エンレスト"
+                }
             }
         }
         
@@ -339,6 +365,13 @@ class DrugNormalizationService:
             "テラムロプリド": {
                 "candidates": [
                     {"name": "テラムロAP", "score": 0.95, "reason": "OCR誤読パターン"},
+                    {"name": "テルミサルタン", "score": 0.7, "reason": "成分の一部"},
+                    {"name": "アムロジピン", "score": 0.6, "reason": "成分の一部"}
+                ]
+            },
+            "テラムロリウム": {
+                "candidates": [
+                    {"name": "テラムロAP", "score": 0.95, "reason": "OCR誤読パターン（AP→リウム）"},
                     {"name": "テルミサルタン", "score": 0.7, "reason": "成分の一部"},
                     {"name": "アムロジピン", "score": 0.6, "reason": "成分の一部"}
                 ]
@@ -737,7 +770,7 @@ class DrugNormalizationService:
         return []
     
     def get_manufacturer_hints(self, drug_name: str, manufacturer: str = None) -> List[dict]:
-        """製薬会社名を活用した成分逆引き"""
+        """製薬会社名を活用した成分逆引き（強化版）"""
         hints = []
         
         if not drug_name and not manufacturer:
@@ -746,6 +779,8 @@ class DrugNormalizationService:
         # 製薬会社名から推測
         if manufacturer and manufacturer in self.manufacturer_mapping:
             manufacturer_info = self.manufacturer_mapping[manufacturer]
+            
+            # 1. 直接マッチング
             for drug in manufacturer_info['common_drugs']:
                 if drug in self.drug_dictionary:
                     drug_info = self.drug_dictionary[drug]
@@ -755,6 +790,17 @@ class DrugNormalizationService:
                         'reason': f'{manufacturer}の主要薬剤',
                         'category': manufacturer_info['categories'][0] if manufacturer_info['categories'] else 'unknown'
                     })
+            
+            # 2. ブランド名マッピング
+            if 'brand_mappings' in manufacturer_info:
+                for brand, generic in manufacturer_info['brand_mappings'].items():
+                    if brand in drug_name or drug_name in brand:
+                        hints.append({
+                            'name': generic,
+                            'score': 0.9,
+                            'reason': f'{manufacturer}のブランド名マッピング',
+                            'brand_name': brand
+                        })
         
         # 薬剤名から製薬会社を推測
         if drug_name:
@@ -765,6 +811,17 @@ class DrugNormalizationService:
                         'score': 0.9,
                         'reason': f'{drug_name}の主要製造会社'
                     })
+                
+                # ブランド名からも推測
+                if 'brand_mappings' in info:
+                    for brand, generic in info['brand_mappings'].items():
+                        if brand in drug_name or drug_name in brand:
+                            hints.append({
+                                'manufacturer': manufacturer_name,
+                                'score': 0.85,
+                                'reason': f'{drug_name}のブランド名から推測',
+                                'brand_name': brand
+                            })
         
         return hints
     

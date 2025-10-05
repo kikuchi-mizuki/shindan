@@ -46,6 +46,7 @@ JA2EN = {
     # 新規追加：画像照合で発見された誤認識パターン
     "テラムロジン": "telmisartan amlodipine",  # 配合剤の誤認識
     "テラムロプリド": "telmisartan amlodipine",  # 新規：OCR誤読パターン
+    "テラムロリウム": "telmisartan amlodipine",  # 新規：OCR誤読パターン（AP→リウム）
     "テラムロAP": "telmisartan amlodipine",  # 配合剤の正しい名称
     "ラベプラゾール": "vonoprazan",  # PPI→P-CABの誤認識
     "ラベプラゾールナトリウム": "vonoprazan",  # 同様の誤認識
@@ -166,6 +167,7 @@ class KEGGClient:
         similar_candidates = {
             "テラムロジン": "テラムロAP",  # 配合剤の誤認識
             "テラムロプリド": "テラムロAP",  # 新規：OCR誤読パターン
+            "テラムロリウム": "テラムロAP",  # 新規：OCR誤読パターン（AP→リウム）
             "ラベプラゾール": "ボノプラザン",  # PPI→P-CABの誤認識
             "ラベプラゾールナトリウム": "ボノプラザン",  # 同様の誤認識
         }
