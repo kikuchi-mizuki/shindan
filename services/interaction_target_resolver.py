@@ -162,6 +162,7 @@ class InteractionTargetResolver:
             
             # RAAS禁忌（ARNI＋ACEI）
             t = self.rule_raas_arni_plus_acei(bx)
+            raas_contraindicated = t
             if t:
                 findings.append({
                     "severity": "重大",
@@ -172,7 +173,7 @@ class InteractionTargetResolver:
             
             # RAAS重複（RAAS禁忌がヒットした場合は除外）
             t = self.rule_raas_overlap(bx)
-            if t and not (bx.get("ARNI") and bx.get("ACEI")):
+            if t and not raas_contraindicated:
                 action = "低血圧・高K・腎機能悪化リスク。原則併用回避を検討。" + self.explain_raas_overlap(t)
                 action += "開始/変更後1–2週でCr/eGFR/K、血圧を再評価。"
                 findings.append({
@@ -232,7 +233,7 @@ class InteractionTargetResolver:
             
             # RAAS重複（RAAS禁忌がヒットした場合は除外）
             raas_overlap = self.rule_raas_overlap(bx)
-            if raas_overlap and not (bx.get("ARNI") and bx.get("ACEI")):
+            if raas_overlap and not raas_contraindicated:
                 targets["raas_overlap"] = self.join_targets(raas_overlap)
             
             # PDE5＋硝酸薬相当

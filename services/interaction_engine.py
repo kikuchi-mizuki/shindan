@@ -250,14 +250,14 @@ class InteractionEngine:
                 else:
                     # フォールバック: 既存のロジック
                     if 'targets' in rule:
-                        rule['target_drugs'] = ", ".join(rule['targets']) if rule['targets'] else "対象薬の特定に失敗"
+                        rule['target_drugs'] = "、".join(rule['targets']) if rule['targets'] else "対象薬の特定に失敗"
                     else:
                         rule['target_drugs'] = self._identify_target_drugs(rule)
         else:
             # フォールバック: 既存のロジック
             for rule in triggered_rules:
                 if 'targets' in rule:
-                    rule['target_drugs'] = ", ".join(rule['targets']) if rule['targets'] else "対象薬の特定に失敗"
+                    rule['target_drugs'] = "、".join(rule['targets']) if rule['targets'] else "対象薬の特定に失敗"
                 elif 'matched_drugs' not in rule:
                     rule['target_drugs'] = self._identify_target_drugs(rule)
         
@@ -299,7 +299,7 @@ class InteractionEngine:
                 if display_name:
                     target_names.append(display_name)
             
-            return ", ".join(target_names) if target_names else "対象薬の特定に失敗"
+            return "、".join(target_names) if target_names else "対象薬の特定に失敗"
             
         except Exception as e:
             logger.error(f"Target drug identification failed: {e}")
