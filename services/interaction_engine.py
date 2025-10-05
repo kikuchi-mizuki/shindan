@@ -312,7 +312,7 @@ class InteractionEngine:
             return "対象薬の特定に失敗"
     
     def check_drug_interactions(self, drugs: List[dict[str, Any]]) -> dict[str, Any]:
-        """薬剤相互作用の総合チェック"""
+        """薬剤相互作用の総合チェック（InteractionTargetResolver使用）"""
         try:
             if not drugs:
                 return {
@@ -322,14 +322,52 @@ class InteractionEngine:
                     "summary": "薬剤が検出されませんでした。"
                 }
             
-            # ルール評価
-            triggered_rules = self.evaluate_rules(drugs)
-            
-            # 結果フォーマット
-            result = self.format_interactions(triggered_rules, drugs)
-            
-            logger.info(f"Interaction check completed: {result['summary']}")
-            return result
+            # InteractionTargetResolverを使用
+            if self.target_resolver:
+                findings = self.target_resolver.build_report(drugs)
+                
+                if not findings:
+                    return {
+                        "has_interactions": False,
+                        "major_interactions": [],
+                        "moderate_interactions": [],
+                        "summary": "相互作用は検出されませんでした。"
+                    }
+                
+                # 重大度別に分類
+                major_interactions = []
+                moderate_interactions = []
+                
+                for finding in findings:
+                    severity = finding.get("severity", "")
+                    if severity == "重大":
+                        major_interactions.append({
+                            "name": finding.get("title", ""),
+                            "target_drugs": finding.get("targets", ""),
+                            "advice": finding.get("action", "")
+                        })
+                    else:
+                        moderate_interactions.append({
+                            "name": finding.get("title", ""),
+                            "target_drugs": finding.get("targets", ""),
+                            "advice": finding.get("action", "")
+                        })
+                
+                has_interactions = len(major_interactions) > 0 or len(moderate_interactions) > 0
+                summary = f"重大な相互作用: {len(major_interactions)}件、注意すべき相互作用: {len(moderate_interactions)}件" if has_interactions else "相互作用は検出されませんでした。"
+                
+                return {
+                    "has_interactions": has_interactions,
+                    "major_interactions": major_interactions,
+                    "moderate_interactions": moderate_interactions,
+                    "summary": summary
+                }
+            else:
+                # フォールバック: 古いルールシステム
+                triggered_rules = self.evaluate_rules(drugs)
+                result = self.format_interactions(triggered_rules, drugs)
+                logger.info(f"Interaction check completed: {result['summary']}")
+                return result
             
         except Exception as e:
             logger.error(f"Interaction check failed: {e}")
