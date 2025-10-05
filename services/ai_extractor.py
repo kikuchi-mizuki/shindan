@@ -137,10 +137,25 @@ class AIExtractorService:
             normalized_drugs = []
             for drug in extracted_data['drugs']:
                 # 薬剤名の正規化
+                brand_or_raw = (drug.get('brand') or '') + ' ' + (drug.get('raw') or '')
                 original_name = drug.get('generic', '') or drug.get('brand', '') or ''
                 if original_name:
+                    # 取り違え防止（ブランド/生テキスト優先で強制補正）
+                    try:
+                        import re
+                        if re.search(r"アスパラ.?C[AＡ]", brand_or_raw):
+                            corrected_name = "アスパラ-CA"
+                        elif re.search(r"アスパラ.?Ｋ|アスパラ.?K", brand_or_raw):
+                            corrected_name = "アスパラK"
+                        elif "ロキソニンテープ" in brand_or_raw:
+                            corrected_name = "ロキソニンテープ"
+                        else:
+                            corrected_name = original_name
+                    except Exception:
+                        corrected_name = original_name
+
                     # OCR誤読の修正
-                    corrected_name = self.normalization_service.fix_ocr_aliases(original_name)
+                    corrected_name = self.normalization_service.fix_ocr_aliases(corrected_name)
                     
                     # 完全な正規化
                     normalization_result = self.normalization_service.normalize_drug_name(corrected_name)
