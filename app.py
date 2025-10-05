@@ -616,8 +616,36 @@ def handle_image_message(event):
             # AI抽出結果を重複統合
             from services.deduper import dedupe
             from services.classifier_kegg import KeggClassifier
+            from services.drug_normalization_service import DrugNormalizationService
             
             ai_drugs = ai_result.get('drugs', [])
+            
+            # 正規化処理を適用
+            normalization_service = DrugNormalizationService()
+            normalized_drugs = []
+            for drug in ai_drugs:
+                original_name = drug.get('generic', '') or drug.get('brand', '') or ''
+                if original_name:
+                    # OCR誤読の修正
+                    corrected_name = normalization_service.fix_ocr_aliases(original_name)
+                    
+                    # 完全な正規化
+                    normalization_result = normalization_service.normalize_drug_name(corrected_name)
+                    
+                    # 正規化結果を適用
+                    if normalization_result['confidence'] > 0.8:
+                        drug['generic'] = normalization_result['normalized']
+                        drug['normalization_applied'] = True
+                        drug['original_name'] = original_name
+                        drug['confidence'] = max(drug.get('confidence', 0.8), normalization_result['confidence'])
+                        
+                        logger.info(f"Normalized: {original_name} -> {normalization_result['normalized']}")
+                    else:
+                        drug['normalization_applied'] = False
+                
+                normalized_drugs.append(drug)
+            
+            ai_drugs = normalized_drugs
 
             # 補完: 番号ブロック抽出由来の薬剤名をAI結果にマージして取りこぼしを回収
             try:
@@ -634,7 +662,18 @@ def handle_image_message(event):
                 # 同義語/表記ゆれ補正してdrug辞書に変換
                 block_drug_dicts = []
                 for name in block_names:
-                    normalized = drug_service._pattern_based_correction(name)
+                    # 正規化サービスを使用
+                    corrected_name = normalization_service.fix_ocr_aliases(name)
+                    normalization_result = normalization_service.normalize_drug_name(corrected_name)
+                    
+                    if normalization_result['confidence'] > 0.8:
+                        normalized = normalization_result['normalized']
+                        confidence = normalization_result['confidence']
+                    else:
+                        # フォールバック: 従来の正規化
+                        normalized = drug_service._pattern_based_correction(name)
+                        confidence = 0.7
+                    
                     block_drug_dicts.append({
                         'raw': name,
                         'generic': normalized,
@@ -643,8 +682,10 @@ def handle_image_message(event):
                         'dose': '',
                         'freq': '',
                         'days': None,
-                        'confidence': 0.7,  # 補完はやや低めの信頼度で扱う
-                        'class_hint': None
+                        'confidence': confidence,
+                        'class_hint': None,
+                        'normalization_applied': normalization_result['confidence'] > 0.8,
+                        'original_name': name
                     })
 
                 # AI抽出とブロック抽出を結合

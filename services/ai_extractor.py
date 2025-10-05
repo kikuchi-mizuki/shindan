@@ -16,6 +16,15 @@ class AIExtractorService:
         """初期化"""
         self.openai_client = None
         self._initialize_openai()
+        
+        # 正規化サービスを初期化
+        try:
+            from .drug_normalization_service import DrugNormalizationService
+            self.normalization_service = DrugNormalizationService()
+            logger.info("Drug normalization service initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize normalization service: {e}")
+            self.normalization_service = None
     
     def _initialize_openai(self):
         """OpenAI APIの初期化"""
@@ -89,6 +98,10 @@ class AIExtractorService:
             # JSON解析
             extracted_data = self._parse_ai_response(ai_response)
             
+            # 正規化処理を適用
+            if self.normalization_service:
+                extracted_data = self._apply_normalization(extracted_data)
+            
             # 信頼度評価
             confidence = self._evaluate_confidence(extracted_data, ocr_text)
             
@@ -114,6 +127,43 @@ class AIExtractorService:
                 'error': str(e),
                 'raw_text': ocr_text
             }
+    
+    def _apply_normalization(self, extracted_data: dict) -> dict:
+        """抽出された薬剤データに正規化処理を適用"""
+        try:
+            if not self.normalization_service or 'drugs' not in extracted_data:
+                return extracted_data
+            
+            normalized_drugs = []
+            for drug in extracted_data['drugs']:
+                # 薬剤名の正規化
+                original_name = drug.get('generic', '') or drug.get('brand', '') or ''
+                if original_name:
+                    # OCR誤読の修正
+                    corrected_name = self.normalization_service.fix_ocr_aliases(original_name)
+                    
+                    # 完全な正規化
+                    normalization_result = self.normalization_service.normalize_drug_name(corrected_name)
+                    
+                    # 正規化結果を適用
+                    if normalization_result['confidence'] > 0.8:
+                        drug['generic'] = normalization_result['normalized']
+                        drug['normalization_applied'] = True
+                        drug['original_name'] = original_name
+                        drug['confidence'] = max(drug.get('confidence', 0.8), normalization_result['confidence'])
+                        
+                        logger.info(f"Normalized: {original_name} -> {normalization_result['normalized']}")
+                    else:
+                        drug['normalization_applied'] = False
+                
+                normalized_drugs.append(drug)
+            
+            extracted_data['drugs'] = normalized_drugs
+            return extracted_data
+            
+        except Exception as e:
+            logger.error(f"Normalization failed: {e}")
+            return extracted_data
     
     def _build_extraction_prompt(self, ocr_text: str) -> str:
         """抽出用プロンプトを構築"""
