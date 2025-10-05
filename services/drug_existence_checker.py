@@ -16,7 +16,7 @@ class DrugExistenceChecker:
         self.kegg_client = KEGGClient()
         self.normalization_service = DrugNormalizationService()
         
-        # 存在しない薬剤名のパターン辞書
+        # 存在しない薬剤名のパターン辞書（強化版）
         self.non_existent_drugs = {
             "テラムロジン": "テラムロAP",
             "テラムロプリド": "テラムロAP", 
@@ -26,7 +26,10 @@ class DrugExistenceChecker:
             "ラベプラゾール": "タケキャブ",  # 武田製薬の場合
             "タダラフィルリウム": "タダラフィル",
             "ニコランジルリウム": "ニコランジル",
-            "エナラプリルリウム": "エナラプリル"
+            "エナラプリルリウム": "エナラプリル",
+            # 新規追加：OCR誤読パターン
+            "テラムロプリド": "テラムロAP",  # AP→プリドの誤読
+            "ラベプラゾール": "タケキャブ",  # タケキャブ→ラベプラゾールの誤読
         }
         
         # 薬剤名の妥当性パターン
@@ -39,12 +42,13 @@ class DrugExistenceChecker:
             r'^[ア-ン]+/アムロジピン$', # 配合剤
         ]
         
-        # 薬剤名の異常パターン
+        # 薬剤名の異常パターン（強化版）
         self.invalid_drug_patterns = [
             r'リウム$',     # 存在しない成分名
-            r'プリド$',     # 存在しない成分名
+            r'プリド$',     # 存在しない成分名（テラムロプリド等）
             r'ジン$',       # 存在しない成分名
-            r'プラゾール$', # PPI系の誤認識
+            r'プラゾール$', # PPI系の誤認識（ラベプラゾール等）
+            r'プラゾールナトリウム$', # PPI系の誤認識（ラベプラゾールナトリウム等）
         ]
     
     def check_drug_existence(self, drug_name: str, manufacturer: str = None) -> Dict[str, Any]:

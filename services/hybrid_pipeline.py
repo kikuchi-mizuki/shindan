@@ -9,6 +9,7 @@ from .hybrid_ocr_service import HybridOCRService
 from .multi_layer_matcher import MultiLayerMatcher
 from .atc_classifier import ATCClassifier
 from .drug_normalization_service import DrugNormalizationService
+from .advanced_normalizer import AdvancedNormalizer
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class HybridPipeline:
         self.matcher = MultiLayerMatcher()
         self.classifier = ATCClassifier()
         self.normalization_service = DrugNormalizationService()
+        self.advanced_normalizer = AdvancedNormalizer()
         
         # パイプライン設定
         self.confidence_threshold = 0.8
@@ -52,12 +54,26 @@ class HybridPipeline:
             validated_candidates = self.ocr_service.validate_candidates(ocr_candidates)
             logger.info(f"Validated candidates: {len(validated_candidates)}")
             
-            # 3. 多層辞書照合
-            matched_drugs = []
+            # 3. 高度正規化
+            normalized_candidates = []
             for candidate in validated_candidates[:self.max_candidates]:
+                manufacturer = self._extract_manufacturer(candidate['text'])
+                normalization_result = self.advanced_normalizer.normalize_drug_name(
+                    candidate['text'], 
+                    manufacturer
+                )
+                
+                if normalization_result['confidence'] >= 0.7:
+                    candidate['normalized_text'] = normalization_result['normalized_name']
+                    candidate['manufacturer'] = manufacturer
+                    normalized_candidates.append(candidate)
+            
+            # 4. 多層辞書照合
+            matched_drugs = []
+            for candidate in normalized_candidates:
                 match_result = self.matcher.match_drug(
-                    candidate['text'],
-                    manufacturer=self._extract_manufacturer(candidate['text']),
+                    candidate.get('normalized_text', candidate['text']),
+                    manufacturer=candidate.get('manufacturer'),
                     dose=self._extract_dose(candidate['text'])
                 )
                 
@@ -66,7 +82,7 @@ class HybridPipeline:
             
             logger.info(f"Matched drugs: {len(matched_drugs)}")
             
-            # 4. ATCコードベース分類
+            # 5. ATCコードベース分類
             classified_drugs = []
             for drug_match in matched_drugs:
                 classification_result = self.classifier.classify_drug(
@@ -82,13 +98,13 @@ class HybridPipeline:
             
             logger.info(f"Classified drugs: {len(classified_drugs)}")
             
-            # 5. 結果統合
+            # 6. 結果統合
             final_drugs = self._integrate_results(classified_drugs)
             
-            # 6. 品質評価
+            # 7. 品質評価
             quality_metrics = self._evaluate_quality(final_drugs, ocr_candidates)
             
-            # 7. 結果返却
+            # 8. 結果返却
             result = {
                 'session_id': session_id,
                 'drugs': final_drugs,
@@ -96,6 +112,7 @@ class HybridPipeline:
                 'processing_stats': {
                     'ocr_candidates': len(ocr_candidates),
                     'validated_candidates': len(validated_candidates),
+                    'normalized_candidates': len(normalized_candidates),
                     'matched_drugs': len(matched_drugs),
                     'classified_drugs': len(classified_drugs),
                     'final_drugs': len(final_drugs)
