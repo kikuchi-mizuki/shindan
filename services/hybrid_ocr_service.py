@@ -184,16 +184,42 @@ class HybridOCRService:
         return candidates[:top_k]
     
     def validate_candidates(self, candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """候補の妥当性検証"""
+        """候補の妥当性検証（存在確認付き）"""
         validated_candidates = []
+        
+        # 薬剤存在確認サービスをインポート
+        try:
+            from .drug_existence_checker import DrugExistenceChecker
+            existence_checker = DrugExistenceChecker()
+        except ImportError:
+            existence_checker = None
         
         for candidate in candidates:
             text = candidate['text']
             confidence = candidate['confidence']
             
             # 基本的な妥当性チェック
-            if self._is_valid_drug_name(text) and confidence >= self.confidence_threshold:
-                validated_candidates.append(candidate)
+            if not self._is_valid_drug_name(text) or confidence < self.confidence_threshold:
+                continue
+            
+            # 薬剤存在確認
+            if existence_checker:
+                existence_result = existence_checker.check_drug_existence(text)
+                
+                # 存在しない薬剤名の場合は補正候補を取得
+                if not existence_result['exists'] and existence_result['corrected_name']:
+                    # 補正された薬剤名で候補を更新
+                    corrected_candidate = candidate.copy()
+                    corrected_candidate['text'] = existence_result['corrected_name']
+                    corrected_candidate['correction_reason'] = existence_result['correction_reason']
+                    corrected_candidate['original_text'] = text
+                    validated_candidates.append(corrected_candidate)
+                    continue
+                elif not existence_result['exists']:
+                    # 補正できない場合は除外
+                    continue
+            
+            validated_candidates.append(candidate)
         
         return validated_candidates
     

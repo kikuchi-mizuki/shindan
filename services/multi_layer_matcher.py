@@ -91,7 +91,7 @@ class MultiLayerMatcher:
     
     def match_drug(self, ocr_text: str, manufacturer: str = None, dose: str = None) -> Dict[str, Any]:
         """
-        多層辞書照合による薬剤名マッチング
+        多層辞書照合による薬剤名マッチング（存在確認付き）
         
         Args:
             ocr_text: OCRで抽出されたテキスト
@@ -107,7 +107,20 @@ class MultiLayerMatcher:
             # 1. 正規化
             normalized_text = self.normalization_service.fix_ocr_aliases(ocr_text)
             
-            # 2. 各層での照合
+            # 2. 薬剤存在確認
+            try:
+                from .drug_existence_checker import DrugExistenceChecker
+                existence_checker = DrugExistenceChecker()
+                existence_result = existence_checker.check_drug_existence(normalized_text, manufacturer)
+                
+                # 存在しない薬剤名の場合は補正
+                if not existence_result['exists'] and existence_result['corrected_name']:
+                    logger.info(f"Drug name corrected: {normalized_text} -> {existence_result['corrected_name']}")
+                    normalized_text = existence_result['corrected_name']
+            except ImportError:
+                pass
+            
+            # 3. 各層での照合
             matches = {
                 'kegg': self._match_kegg(normalized_text),
                 'pmda': self._match_pmda(normalized_text),
@@ -115,10 +128,10 @@ class MultiLayerMatcher:
                 'manufacturer': self._match_manufacturer(normalized_text, manufacturer)
             }
             
-            # 3. 統合スコアリング
+            # 4. 統合スコアリング
             best_match = self._integrate_matches(matches, manufacturer, dose)
             
-            # 4. 信頼度評価
+            # 5. 信頼度評価
             confidence = self._calculate_confidence(best_match, matches)
             
             result = {
@@ -128,10 +141,11 @@ class MultiLayerMatcher:
                 'confidence': confidence,
                 'all_matches': matches,
                 'manufacturer_hint': manufacturer,
-                'dose_hint': dose
+                'dose_hint': dose,
+                'existence_checked': True
             }
             
-            logger.info(f"Match result: {best_match['name']} (confidence: {confidence:.2f})")
+            logger.info(f"Match result: {best_match['name'] if best_match else 'None'} (confidence: {confidence:.2f})")
             return result
             
         except Exception as e:

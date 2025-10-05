@@ -116,12 +116,26 @@ class HybridPipeline:
             }
     
     def _extract_manufacturer(self, text: str) -> Optional[str]:
-        """テキストからメーカー名を抽出"""
-        manufacturers = ['サンド', 'トーワ', 'サワイ', '武田', 'ノバルティス', 'ファイザー', 'MSD']
+        """テキストからメーカー名を抽出（強化版）"""
+        # 主要製薬会社名のパターン
+        manufacturer_patterns = {
+            'サンド': ['サンド', 'SANDOZ', 'ノバルティス'],
+            'トーワ': ['トーワ', 'TOWA', '東和'],
+            'サワイ': ['サワイ', 'SAWAI', '沢井'],
+            '武田': ['武田', 'TAKEDA', 'タケダ'],
+            'ノバルティス': ['ノバルティス', 'NOVARTIS'],
+            'ファイザー': ['ファイザー', 'PFIZER'],
+            'MSD': ['MSD', 'メルク'],
+            'アステラス': ['アステラス', 'ASTELLAS'],
+            '第一三共': ['第一三共', 'DAIICHI SANKYO'],
+            'エーザイ': ['エーザイ', 'EISAI']
+        }
         
-        for manufacturer in manufacturers:
-            if manufacturer in text:
-                return manufacturer
+        # テキストからメーカー名を検索
+        for manufacturer, patterns in manufacturer_patterns.items():
+            for pattern in patterns:
+                if pattern in text:
+                    return manufacturer
         
         return None
     
