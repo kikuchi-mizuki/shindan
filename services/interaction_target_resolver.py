@@ -243,9 +243,9 @@ class InteractionTargetResolver:
             if raas_contraindicated:
                 targets["raas_contraindicated"] = self.join_targets(raas_contraindicated)
             
-            # RAAS重複（RAAS禁忌がヒットした場合は除外）
+            # RAAS重複（常に表示）
             raas_overlap = self.rule_raas_overlap(bx)
-            if raas_overlap and not raas_contraindicated:
+            if raas_overlap:
                 # RAAS重複の場合は特定の順序で表示
                 if len(raas_overlap) == 3 and all(x in raas_overlap for x in ["エナラプリル", "サクビトリル/バルサルタン", "テルミサルタン/アムロジピン"]):
                     targets["raas_overlap"] = "エナラプリル、サクビトリル/バルサルタン、テルミサルタン/アムロジピン"

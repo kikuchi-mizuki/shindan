@@ -234,6 +234,7 @@ class InteractionEngine:
                 elif rule_id == 'raas_double_block_avoid' and 'raas_overlap' in resolved_targets:
                     # RAAS重複の場合は特定の順序で表示
                     raas_overlap_targets = resolved_targets['raas_overlap']
+                    # 3剤すべてが含まれている場合は推奨フォーマット順で表示
                     if "エナラプリル" in raas_overlap_targets and "サクビトリル/バルサルタン" in raas_overlap_targets and "テルミサルタン/アムロジピン" in raas_overlap_targets:
                         rule['target_drugs'] = "エナラプリル、サクビトリル/バルサルタン、テルミサルタン/アムロジピン"
                     else:
