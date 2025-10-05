@@ -39,6 +39,9 @@ class AdvancedNormalizer:
             # 眠剤ブランド→一般名
             "デエビゴ": "レンボレキサント",
             "デビゴ": "レンボレキサント",
+            # OCRゆれ
+            "デエビコ": "レンボレキサント",
+            "デェビゴ": "レンボレキサント",
         }
         
         # メーカー名マッピング（OCR補助用）
@@ -84,6 +87,8 @@ class AdvancedNormalizer:
             # 眠剤ブランドの部分一致
             "デエビゴ": "レンボレキサント",
             "デビゴ": "レンボレキサント",
+            "デエビコ": "レンボレキサント",
+            "デェビゴ": "レンボレキサント",
         }
     
     def normalize_drug_name(self, drug_name: str, manufacturer: str = None, context: str = None) -> Dict[str, Any]:
