@@ -19,7 +19,7 @@ class DrugNormalizationService:
             self._fix_misread = lambda s: s
             self._dynamic_syn = {}
             self._dynamic_tags = {}
-        # OCR誤読の正規化辞書
+        # OCR誤読の正規化辞書（強化版）
         self.ocr_aliases = {
             "ロ腔": "口腔",
             "口腔内崩壊錠": "口腔内崩壊",  # 揺れ吸収
@@ -35,6 +35,10 @@ class DrugNormalizationService:
             "クリーム剤": "クリーム",
             "貼付剤": "貼付",
             "テープ剤": "テープ",
+            # 新規追加：画像照合で発見された誤認識パターン
+            "テラムロジン": "テラムロAP",  # 存在しない薬剤名→配合剤
+            "ラベプラゾール": "ボノプラザン",  # PPI→P-CABの誤認識
+            "ラベプラゾールナトリウム": "ボノプラザン",  # 同様の誤認識
         }
         
         # 相互作用判定用のタグ辞書（強化版）
@@ -190,7 +194,7 @@ class DrugNormalizationService:
                 'normalized': 'テルミサルタン/アムロジピン',
                 'generic_name': 'テルミサルタン/アムロジピン',
                 'category': 'ca_antagonist_arb_combination',
-                'aliases': ['テルミサルタン/アムロジピン', 'テラムロAP錠', 'テラムロ'],
+                'aliases': ['テルミサルタン/アムロジピン', 'テラムロAP錠', 'テラムロ', 'テラムロジン'],  # OCR誤認識パターンを追加
                 'confidence': 1.0,
                 'components': ['テルミサルタン', 'アムロジピン']
             },
@@ -200,7 +204,7 @@ class DrugNormalizationService:
                 'normalized': 'ボノプラザン',
                 'generic_name': 'ボノプラザン',
                 'category': 'p_cab',
-                'aliases': ['ボノプラザン', 'タケキャブ錠', 'タケキャブOD錠'],
+                'aliases': ['ボノプラザン', 'タケキャブ錠', 'タケキャブOD錠', 'ラベプラゾール', 'ラベプラゾールナトリウム'],  # OCR誤認識パターンを追加
                 'confidence': 1.0
             },
             
@@ -295,6 +299,50 @@ class DrugNormalizationService:
             }
         }
         
+        # 製薬会社名マッピング（成分逆引き用）
+        self.manufacturer_mapping = {
+            "サンド": {
+                "common_drugs": ["タダラフィル", "シアリス"],
+                "categories": ["pde5_inhibitor"]
+            },
+            "トーワ": {
+                "common_drugs": ["ニコランジル", "エナラプリル", "ランソプラゾール"],
+                "categories": ["nitrate", "ace_inhibitor", "ppi"]
+            },
+            "サワイ": {
+                "common_drugs": ["テラムロAP", "テルミサルタン/アムロジピン"],
+                "categories": ["ca_antagonist_arb_combination"]
+            },
+            "武田": {
+                "common_drugs": ["タケキャブ", "ボノプラザン"],
+                "categories": ["p_cab"]
+            }
+        }
+        
+        # 類似薬剤候補辞書（スコアリング用）
+        self.similar_drug_candidates = {
+            "テラムロジン": {
+                "candidates": [
+                    {"name": "テラムロAP", "score": 0.95, "reason": "配合剤の誤認識"},
+                    {"name": "テルミサルタン", "score": 0.7, "reason": "成分の一部"},
+                    {"name": "アムロジピン", "score": 0.6, "reason": "成分の一部"}
+                ]
+            },
+            "ラベプラゾール": {
+                "candidates": [
+                    {"name": "ボノプラザン", "score": 0.9, "reason": "PPI→P-CABの誤認識"},
+                    {"name": "ランソプラゾール", "score": 0.8, "reason": "類似PPI"},
+                    {"name": "オメプラゾール", "score": 0.7, "reason": "類似PPI"}
+                ]
+            },
+            "ラベプラゾールナトリウム": {
+                "candidates": [
+                    {"name": "ボノプラザン", "score": 0.95, "reason": "PPI→P-CABの誤認識"},
+                    {"name": "ランソプラゾール", "score": 0.8, "reason": "類似PPI"}
+                ]
+            }
+        }
+        
         # 信頼度閾値（実用精度向上のため厳格化）
         self.confidence_thresholds = {
             'high': 0.85,    # 高信頼度（確定）
@@ -303,7 +351,7 @@ class DrugNormalizationService:
         }
     
     def normalize_drug_name(self, drug_name: str) -> dict[str, Any]:
-        """薬剤名の正規化（辞書＋あいまい一致＋信頼度）"""
+        """薬剤名の正規化（辞書＋あいまい一致＋信頼度＋類似候補スコアリング）"""
         try:
             # 前処理
             cleaned_name = self._preprocess_drug_name(drug_name)
@@ -317,6 +365,23 @@ class DrugNormalizationService:
                 result['match_type'] = 'exact'
                 logger.info(f"完全一致: {drug_name} -> {result['normalized']}")
                 return result
+            
+            # 類似候補スコアリング（新機能）
+            similar_candidates = self._get_similar_candidates(cleaned_name)
+            if similar_candidates:
+                best_candidate = similar_candidates[0]
+                if best_candidate['score'] >= 0.9:  # 高スコアの場合は採用
+                    candidate_name = best_candidate['name']
+                    if candidate_name in self.drug_dictionary:
+                        result = self.drug_dictionary[candidate_name].copy()
+                        result['original'] = drug_name
+                        result['cleaned'] = cleaned_name
+                        result['confidence'] = best_candidate['score']
+                        result['match_type'] = 'similar_candidate'
+                        result['correction_reason'] = best_candidate['reason']
+                        result['candidates'] = [c['name'] for c in similar_candidates[:3]]
+                        logger.info(f"類似候補マッチ: {drug_name} -> {result['normalized']} (スコア: {best_candidate['score']:.2f}, 理由: {best_candidate['reason']})")
+                        return result
             
             # あいまい一致チェック
             fuzzy_matches = self._fuzzy_match(cleaned_name)
@@ -641,6 +706,52 @@ class DrugNormalizationService:
         except Exception as e:
             logger.error(f"Fuzzy matching failed: {e}")
             return None
+    
+    def _get_similar_candidates(self, drug_name: str) -> List[dict]:
+        """類似候補スコアリングによる薬剤名検索"""
+        if not drug_name:
+            return []
+        
+        # 類似候補辞書から検索
+        if drug_name in self.similar_drug_candidates:
+            candidates = self.similar_drug_candidates[drug_name]['candidates']
+            # スコアでソート
+            candidates.sort(key=lambda x: x['score'], reverse=True)
+            return candidates
+        
+        return []
+    
+    def get_manufacturer_hints(self, drug_name: str, manufacturer: str = None) -> List[dict]:
+        """製薬会社名を活用した成分逆引き"""
+        hints = []
+        
+        if not drug_name and not manufacturer:
+            return hints
+        
+        # 製薬会社名から推測
+        if manufacturer and manufacturer in self.manufacturer_mapping:
+            manufacturer_info = self.manufacturer_mapping[manufacturer]
+            for drug in manufacturer_info['common_drugs']:
+                if drug in self.drug_dictionary:
+                    drug_info = self.drug_dictionary[drug]
+                    hints.append({
+                        'name': drug,
+                        'score': 0.8,
+                        'reason': f'{manufacturer}の主要薬剤',
+                        'category': manufacturer_info['categories'][0] if manufacturer_info['categories'] else 'unknown'
+                    })
+        
+        # 薬剤名から製薬会社を推測
+        if drug_name:
+            for manufacturer_name, info in self.manufacturer_mapping.items():
+                if drug_name in info['common_drugs']:
+                    hints.append({
+                        'manufacturer': manufacturer_name,
+                        'score': 0.9,
+                        'reason': f'{drug_name}の主要製造会社'
+                    })
+        
+        return hints
     
     def llm_correct_drug_name(self, ocr_text: str) -> Optional[str]:
         """ChatGPTによる薬剤名補正"""

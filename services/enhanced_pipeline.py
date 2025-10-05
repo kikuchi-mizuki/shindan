@@ -13,6 +13,7 @@ from .classifier_kegg import KeggClassifier
 from .interaction_engine import InteractionEngine
 from .quality_gate import QualityGate
 from .audit_logger import AuditLogger
+from .drug_normalization_service import DrugNormalizationService
 
 logger = logging.getLogger(__name__)
 

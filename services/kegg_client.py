@@ -43,6 +43,14 @@ JA2EN = {
     "センナ": "senna",
     "センナ・センナ実": "senna",
     "センナ・センナ実配合": "senna",
+    # 新規追加：画像照合で発見された誤認識パターン
+    "テラムロジン": "telmisartan amlodipine",  # 配合剤の誤認識
+    "テラムロAP": "telmisartan amlodipine",  # 配合剤の正しい名称
+    "ラベプラゾール": "vonoprazan",  # PPI→P-CABの誤認識
+    "ラベプラゾールナトリウム": "vonoprazan",  # 同様の誤認識
+    "ボノプラザン": "vonoprazan",  # P-CABの正しい名称
+    "タケキャブ": "vonoprazan",  # P-CABの商品名
+    "ランソプラゾール": "lansoprazole",  # PPIの正しい名称
 }
 
 def _http_get(url, timeout=5, retries=1, backoff=0.3):
@@ -112,8 +120,15 @@ class KEGGClient:
         """
         1) 英語別名に変換して find（日本語直接検索はスキップ）
         2) 上位ヒットの KEGG ID から ATC を /link で取得
+        3) 類似候補スコアリングによる補正
         """
         logger.info(f"KEGG search for: {generic_ja}")
+        
+        # 類似候補スコアリングによる補正
+        corrected_name = self._apply_similar_candidate_scoring(generic_ja)
+        if corrected_name != generic_ja:
+            logger.info(f"Similar candidate correction: {generic_ja} -> {corrected_name}")
+            generic_ja = corrected_name
         
         # 英語変換を優先（日本語直接検索は400エラーが多いためスキップ）
         en = JA2EN.get(generic_ja)
@@ -140,8 +155,20 @@ class KEGGClient:
         return {
             "kegg_id": top["kegg_id"],
             "label": top["label"],
-            "atc": atc
+            "atc": atc,
+            "corrected_name": corrected_name if corrected_name != generic_ja else None
         }
+    
+    def _apply_similar_candidate_scoring(self, drug_name: str) -> str:
+        """類似候補スコアリングによる薬剤名補正"""
+        # 類似候補辞書（KEGG用）
+        similar_candidates = {
+            "テラムロジン": "テラムロAP",  # 配合剤の誤認識
+            "ラベプラゾール": "ボノプラザン",  # PPI→P-CABの誤認識
+            "ラベプラゾールナトリウム": "ボノプラザン",  # 同様の誤認識
+        }
+        
+        return similar_candidates.get(drug_name, drug_name)
     
     def get_drug_brite(self, drug_name: str) -> dict[str, Any]:
         """KEGG/get でBRITEパースしてATCコードを取得"""
