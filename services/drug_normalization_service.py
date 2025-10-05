@@ -39,8 +39,8 @@ class DrugNormalizationService:
             "テラムロジン": "テラムロAP",  # 存在しない薬剤名→配合剤
             "テラムロプリド": "テラムロAP",  # 新規：OCR誤読パターン
             "テラムロリウム": "テラムロAP",  # 新規：OCR誤読パターン（AP→リウム）
-            "ラベプラゾール": "ボノプラザン",  # PPI→P-CABの誤認識
-            "ラベプラゾールナトリウム": "ボノプラザン",  # 同様の誤認識
+            "ラベプラゾール": "タケキャブ",  # PPI→P-CABの誤認識（武田製薬）
+            "ラベプラゾールナトリウム": "タケキャブ",  # 同様の誤認識
         }
         
         # 相互作用判定用のタグ辞書（強化版）
@@ -493,7 +493,7 @@ class DrugNormalizationService:
             }
     
     def fix_ocr_aliases(self, drug_name: str) -> str:
-        """OCR誤読の正規化"""
+        """OCR誤読の正規化（強化版）"""
         if not drug_name:
             return ""
         
@@ -503,9 +503,18 @@ class DrugNormalizationService:
         except Exception:
             name = drug_name
         
+        # 完全一致チェック（最優先）
+        if name in self.ocr_aliases:
+            corrected = self.ocr_aliases[name]
+            logger.info(f"Direct OCR correction: {name} -> {corrected}")
+            return corrected
+        
+        # 部分一致チェック
         cleaned = name
         for ocr_error, correct in self.ocr_aliases.items():
-            cleaned = cleaned.replace(ocr_error, correct)
+            if ocr_error in cleaned:
+                cleaned = cleaned.replace(ocr_error, correct)
+                logger.info(f"OCR alias correction: {ocr_error} -> {correct} in '{drug_name}'")
         
         return cleaned
     
