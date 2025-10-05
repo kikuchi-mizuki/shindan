@@ -44,7 +44,7 @@ class ResponseService:
                         name = interaction.get('name') or interaction.get('id', '相互作用注意')
                         severity = interaction.get('severity', 'moderate')
                         risk_emoji = self._get_severity_label(severity)
-                        targets = interaction.get('targets') or interaction.get('matched_drugs') or []
+                        targets = interaction.get('target_drugs') or interaction.get('targets') or interaction.get('matched_drugs') or []
                         advice = interaction.get('advice') or interaction.get('description')
 
                         # 相互作用の表示
@@ -589,7 +589,10 @@ class ResponseService:
                         response_parts.append("🚨 重大な相互作用:")
                         for interaction in major_interactions:
                             response_parts.append(f"• {interaction.get('name', '相互作用')}")
-                            response_parts.append(f"  {interaction.get('advice', '')}")
+                            target_drugs = interaction.get('target_drugs', '')
+                            if target_drugs:
+                                response_parts.append(f"  対象：{target_drugs}")
+                            response_parts.append(f"  対応：{interaction.get('advice', '')}")
                             response_parts.append("")
                     
                     # 注意すべき相互作用
@@ -598,7 +601,10 @@ class ResponseService:
                         response_parts.append("⚠️ 注意すべき相互作用:")
                         for interaction in moderate_interactions:
                             response_parts.append(f"• {interaction.get('name', '相互作用')}")
-                            response_parts.append(f"  {interaction.get('advice', '')}")
+                            target_drugs = interaction.get('target_drugs', '')
+                            if target_drugs:
+                                response_parts.append(f"  対象：{target_drugs}")
+                            response_parts.append(f"  対応：{interaction.get('advice', '')}")
                             response_parts.append("")
                     
                     response_parts.append("━━━━━━━━━━━━━━")
@@ -627,11 +633,21 @@ class ResponseService:
             "minor": "ℹ️ 参考"
         }.get(severity, "⚠️ 併用注意")
     
-    def _format_targets(self, targets: List[str]) -> str:
+    def _format_targets(self, targets) -> str:
         """対象薬剤リストを表示用にフォーマット"""
         if not targets:
             return "（対象薬の特定に失敗）"
-        return "、".join(targets)
+        
+        # targetsが文字列の場合はそのまま返す（target_drugsの場合）
+        if isinstance(targets, str):
+            return targets
+        
+        # targetsがリストの場合は結合して返す
+        if isinstance(targets, list):
+            return "、".join(targets)
+        
+        # その他の場合は文字列に変換
+        return str(targets)
 
     def generate_manual_addition_guide(self):
         """手動追加ガイドを生成"""
