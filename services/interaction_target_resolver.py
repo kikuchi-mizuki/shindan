@@ -118,6 +118,30 @@ class InteractionTargetResolver:
         pool = sorted(set(pool))
         return pool if len(pool) >= 3 else []
     
+    def rule_contra_orexin_strong_cyp3a(self, bx: Dict[str, List[str]]) -> List[str]:
+        """オレキシン受容体拮抗薬 + CYP3A強阻害薬（禁忌）"""
+        if bx.get("OREXIN_ANTAGONIST") and bx.get("CYP3A_STRONG_INHIB"):
+            return sorted(set(bx["OREXIN_ANTAGONIST"] + bx["CYP3A_STRONG_INHIB"]))
+        return []
+    
+    def rule_contra_fluvoxamine_ramelteon(self, bx: Dict[str, List[str]]) -> List[str]:
+        """フルボキサミン + ラメルテオン（禁忌）"""
+        if bx.get("RAMELTEON") and bx.get("RAMELTEON_CONTRA_PAIR"):
+            return ["ラメルテオン", "フルボキサミン"]
+        return []
+    
+    def rule_caution_cyp3a_dhpccb(self, bx: Dict[str, List[str]]) -> List[str]:
+        """CYP3A阻害薬 + DHP-CCB（注意）"""
+        cyp3a_drugs = bx.get("CYP3A_STRONG_INHIB", []) + bx.get("CYP3A_MOD_INHIB", [])
+        if cyp3a_drugs and bx.get("DHP_CCB"):
+            return sorted(set(cyp3a_drugs + bx["DHP_CCB"]))
+        return []
+    
+    def rule_poly_sedatives(self, bx: Dict[str, List[str]]) -> List[str]:
+        """鎮静薬多剤（2剤以上）"""
+        pool = bx.get("SEDATIVE", [])
+        return sorted(set(pool)) if len(set(pool)) >= 2 else []
+    
     def join_targets(self, names: List[str]) -> str:
         """対象薬名をフォーマット（一般名で統一）"""
         if not names:
@@ -223,6 +247,46 @@ class InteractionTargetResolver:
                     "title": "降圧薬の多剤併用",
                     "targets": self.join_targets(t),
                     "action": "過度な降圧リスク。血圧・腎機能・K値のモニタリングを強化。"
+                })
+            
+            # オレキシン受容体拮抗薬 + CYP3A強阻害薬（禁忌）
+            t = self.rule_contra_orexin_strong_cyp3a(bx)
+            if t:
+                findings.append({
+                    "severity": "重大",
+                    "title": "オレキシン受容体拮抗薬 + CYP3A強阻害薬（禁忌）",
+                    "targets": self.join_targets(t),
+                    "action": "禁忌。CYP3A強阻害によりオレキシン薬の曝露が大幅上昇。併用回避。"
+                })
+            
+            # フルボキサミン + ラメルテオン（禁忌）
+            t = self.rule_contra_fluvoxamine_ramelteon(bx)
+            if t:
+                findings.append({
+                    "severity": "重大",
+                    "title": "フルボキサミン + ラメルテオン（禁忌）",
+                    "targets": self.join_targets(t),
+                    "action": "禁忌。フルボキサミンによりラメルテオンの曝露が大幅上昇。併用回避。"
+                })
+            
+            # CYP3A阻害薬 + DHP-CCB（注意）
+            t = self.rule_caution_cyp3a_dhpccb(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "CYP3A阻害薬 + DHP-CCB（注意）",
+                    "targets": self.join_targets(t),
+                    "action": "CYP3A阻害によりDHP-CCBの曝露上昇。過度の降圧・浮腫に注意。血圧・腎機能モニタリング強化。"
+                })
+            
+            # 鎮静薬多剤（注意）
+            t = self.rule_poly_sedatives(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "鎮静薬の多剤併用",
+                    "targets": self.join_targets(t),
+                    "action": "過鎮静・転倒リスク。必要性を再評価し、簡素化を検討。"
                 })
             
             logger.info(f"Build report: {len(findings)} findings")

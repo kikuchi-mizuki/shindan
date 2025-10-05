@@ -131,6 +131,28 @@ class DrugNormalizationService:
             "オメプラゾール": ["PPI"],
             "エソメプラゾール": ["PPI"],
             "ラベプラゾール": ["PPI"],
+            
+            # CYP3A強阻害薬
+            "クラリスロマイシン": ["ABX", "CYP3A_STRONG_INHIB"],
+            "エリスロマイシン": ["ABX", "CYP3A_STRONG_INHIB"],
+            "イトラコナゾール": ["ANTIFUNGAL", "CYP3A_STRONG_INHIB"],
+            "ボリコナゾール": ["ANTIFUNGAL", "CYP3A_STRONG_INHIB"],
+            "リトナビル": ["ANTIVIRAL", "CYP3A_STRONG_INHIB"],
+            
+            # オレキシン受容体拮抗薬
+            "スボレキサント": ["OREXIN_ANTAGONIST", "SEDATIVE"],
+            "レンボレキサント": ["OREXIN_ANTAGONIST", "SEDATIVE"],
+            
+            # メラトニン受容体作動薬
+            "ラメルテオン": ["MELATONIN_AGONIST", "SEDATIVE", "RAMELTEON"],
+            
+            # SSRI（ラメルテオン禁忌ペア）
+            "フルボキサミン": ["SSRI", "RAMELTEON_CONTRA_PAIR"],
+            
+            # DHP-CCB
+            "アムロジピン": ["DHP_CCB"],
+            "ニフェジピン": ["DHP_CCB"],
+            "ベニジピン": ["DHP_CCB"],
         }
 
         # 動的タグを上書き反映（学習内容を優先）
