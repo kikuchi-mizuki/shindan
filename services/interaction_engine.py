@@ -16,6 +16,16 @@ class InteractionEngine:
     def __init__(self, rules_file: str = "services/interaction_rules.yaml"):
         self.rules_file = rules_file
         self.rules = self._load_rules()
+        
+        # 対象薬特定サービスを初期化
+        try:
+            from .interaction_target_resolver import InteractionTargetResolver
+            self.target_resolver = InteractionTargetResolver()
+            logger.info("InteractionTargetResolver initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize InteractionTargetResolver: {e}")
+            self.target_resolver = None
+        
         logger.info(f"InteractionEngine initialized with {len(self.rules)} rules")
     
     def _load_rules(self) -> List[dict[str, Any]]:
@@ -178,7 +188,7 @@ class InteractionEngine:
         """表示用の薬剤名を取得"""
         return drug.get("display") or drug.get("brand") or drug.get("generic") or drug.get("raw", "")
     
-    def format_interactions(self, triggered_rules: List[dict[str, Any]]) -> dict[str, Any]:
+    def format_interactions(self, triggered_rules: List[dict[str, Any]], drugs: List[dict[str, Any]] = None) -> dict[str, Any]:
         """相互作用結果をフォーマット（対象薬の特定付き）"""
         if not triggered_rules:
             return {
@@ -188,12 +198,37 @@ class InteractionEngine:
                 "summary": "相互作用は検出されませんでした。"
             }
         
-        # 対象薬の特定を追加
-        for rule in triggered_rules:
-            if 'targets' in rule:
-                rule['target_drugs'] = ", ".join(rule['targets']) if rule['targets'] else "対象薬の特定に失敗"
-            elif 'matched_drugs' not in rule:
-                rule['target_drugs'] = self._identify_target_drugs(rule)
+        # 対象薬の特定を追加（最小パッチ適用）
+        if self.target_resolver:
+            resolved_targets = self.target_resolver.resolve_targets(drugs)
+            
+            for rule in triggered_rules:
+                rule_id = rule.get('id', '')
+                
+                # ルールIDに基づいて対象薬を設定
+                if rule_id == 'raas_contraindicated' and 'raas_contraindicated' in resolved_targets:
+                    rule['target_drugs'] = resolved_targets['raas_contraindicated']
+                elif rule_id == 'raas_double_block_avoid' and 'raas_overlap' in resolved_targets:
+                    rule['target_drugs'] = resolved_targets['raas_overlap']
+                elif rule_id == 'pde5_nitrate_contraindicated' and 'pde5_nitrate' in resolved_targets:
+                    rule['target_drugs'] = resolved_targets['pde5_nitrate']
+                elif rule_id == 'gastric_acid_suppression_duplicate' and 'acid_dup' in resolved_targets:
+                    rule['target_drugs'] = resolved_targets['acid_dup']
+                elif rule_id == 'antihypertensive_multi_drug' and 'poly_antihypertensive' in resolved_targets:
+                    rule['target_drugs'] = resolved_targets['poly_antihypertensive']
+                else:
+                    # フォールバック: 既存のロジック
+                    if 'targets' in rule:
+                        rule['target_drugs'] = ", ".join(rule['targets']) if rule['targets'] else "対象薬の特定に失敗"
+                    else:
+                        rule['target_drugs'] = self._identify_target_drugs(rule)
+        else:
+            # フォールバック: 既存のロジック
+            for rule in triggered_rules:
+                if 'targets' in rule:
+                    rule['target_drugs'] = ", ".join(rule['targets']) if rule['targets'] else "対象薬の特定に失敗"
+                elif 'matched_drugs' not in rule:
+                    rule['target_drugs'] = self._identify_target_drugs(rule)
         
         # 重大度別に分類
         major_interactions = [r for r in triggered_rules if r.get("severity") == "major"]
@@ -254,7 +289,7 @@ class InteractionEngine:
             triggered_rules = self.evaluate_rules(drugs)
             
             # 結果フォーマット
-            result = self.format_interactions(triggered_rules)
+            result = self.format_interactions(triggered_rules, drugs)
             
             logger.info(f"Interaction check completed: {result['summary']}")
             return result
