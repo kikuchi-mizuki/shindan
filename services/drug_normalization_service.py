@@ -37,6 +37,7 @@ class DrugNormalizationService:
             "テープ剤": "テープ",
             # 新規追加：画像照合で発見された誤認識パターン
             "テラムロジン": "テラムロAP",  # 存在しない薬剤名→配合剤
+            "テラムロプリド": "テラムロAP",  # 新規：OCR誤読パターン
             "ラベプラゾール": "ボノプラザン",  # PPI→P-CABの誤認識
             "ラベプラゾールナトリウム": "ボノプラザン",  # 同様の誤認識
         }
@@ -168,7 +169,8 @@ class DrugNormalizationService:
                 'generic_name': 'タダラフィル',
                 'category': 'pde5_inhibitor',
                 'aliases': ['タダラフィル', 'シアリス', 'シアリス錠'],
-                'confidence': 1.0
+                'confidence': 1.0,
+                'class_jp': 'PDE5阻害薬（前立腺肥大症・ED・肺高血圧）'
             },
             
             # 硝酸薬
@@ -177,7 +179,8 @@ class DrugNormalizationService:
                 'generic_name': 'ニコランジル',
                 'category': 'nitrate',
                 'aliases': ['ニコランジル', 'シグマート', 'シグマート錠'],
-                'confidence': 1.0
+                'confidence': 1.0,
+                'class_jp': '冠血管拡張薬（狭心症治療薬）'
             },
             
             # ARNI
@@ -186,7 +189,8 @@ class DrugNormalizationService:
                 'generic_name': 'サクビトリル/バルサルタン',
                 'category': 'arni',
                 'aliases': ['サクビトリル/バルサルタン', 'エンレスト錠'],
-                'confidence': 1.0
+                'confidence': 1.0,
+                'class_jp': 'ARNI（心不全治療薬）'
             },
             
             # 配合剤
@@ -194,9 +198,10 @@ class DrugNormalizationService:
                 'normalized': 'テルミサルタン/アムロジピン',
                 'generic_name': 'テルミサルタン/アムロジピン',
                 'category': 'ca_antagonist_arb_combination',
-                'aliases': ['テルミサルタン/アムロジピン', 'テラムロAP錠', 'テラムロ', 'テラムロジン'],  # OCR誤認識パターンを追加
+                'aliases': ['テルミサルタン/アムロジピン', 'テラムロAP錠', 'テラムロ', 'テラムロジン', 'テラムロプリド'],  # OCR誤認識パターンを追加
                 'confidence': 1.0,
-                'components': ['テルミサルタン', 'アムロジピン']
+                'components': ['テルミサルタン', 'アムロジピン'],
+                'class_jp': '降圧薬（ARB＋Ca拮抗薬）'
             },
             
             # P-CAB
@@ -205,7 +210,8 @@ class DrugNormalizationService:
                 'generic_name': 'ボノプラザン',
                 'category': 'p_cab',
                 'aliases': ['ボノプラザン', 'タケキャブ錠', 'タケキャブOD錠', 'ラベプラゾール', 'ラベプラゾールナトリウム'],  # OCR誤認識パターンを追加
-                'confidence': 1.0
+                'confidence': 1.0,
+                'class_jp': 'P-CAB（新型胃酸抑制薬）'
             },
             
             # PPI
@@ -214,7 +220,8 @@ class DrugNormalizationService:
                 'generic_name': 'ランソプラゾール',
                 'category': 'ppi',
                 'aliases': ['ランソプラゾール', 'タケプロン', 'タケプロン錠', 'タケプロンOD錠'],
-                'confidence': 1.0
+                'confidence': 1.0,
+                'class_jp': 'PPI（プロトンポンプ阻害薬）'
             },
             
             # ACE阻害薬
@@ -223,7 +230,8 @@ class DrugNormalizationService:
                 'generic_name': 'エナラプリル',
                 'category': 'ace_inhibitor',
                 'aliases': ['エナラプリル', 'レニベース', 'レニベース錠'],
-                'confidence': 1.0
+                'confidence': 1.0,
+                'class_jp': 'ACE阻害薬'
             },
             
             # P-CAB
@@ -324,6 +332,13 @@ class DrugNormalizationService:
             "テラムロジン": {
                 "candidates": [
                     {"name": "テラムロAP", "score": 0.95, "reason": "配合剤の誤認識"},
+                    {"name": "テルミサルタン", "score": 0.7, "reason": "成分の一部"},
+                    {"name": "アムロジピン", "score": 0.6, "reason": "成分の一部"}
+                ]
+            },
+            "テラムロプリド": {
+                "candidates": [
+                    {"name": "テラムロAP", "score": 0.95, "reason": "OCR誤読パターン"},
                     {"name": "テルミサルタン", "score": 0.7, "reason": "成分の一部"},
                     {"name": "アムロジピン", "score": 0.6, "reason": "成分の一部"}
                 ]
