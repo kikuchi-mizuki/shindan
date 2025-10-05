@@ -315,6 +315,8 @@ def handle_text_message(event):
                             'name': r.get('name'),
                             'severity': r.get('severity'),
                             'advice': r.get('advice'),
+                            'target_drugs': r.get('target_drugs', ''),
+                            'targets': r.get('targets', []),
                             'matched_drugs': []
                         })
 
