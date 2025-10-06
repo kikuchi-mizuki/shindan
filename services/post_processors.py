@@ -17,4 +17,23 @@ def fix_picosulfate_form(drug: dict) -> dict:
             drug["dose_form"] = "錠"
     return drug
 
+def fix_dosage_forms(drug: dict) -> dict:
+    """特定薬剤の剤形を修正（µg単位の薬剤はカプセル優先）"""
+    generic = drug.get('generic', '')
+    strength = drug.get('strength', '')
+    
+    # ナルフラフィン塩酸塩（µg単位）→ カプセル
+    if "ナルフラフィン" in generic and "µg" in strength:
+        drug["dose"] = "1カプセル"
+        drug["dose_form"] = "カプセル"
+    
+    # リナクロチド（µg単位）→ カプセル、用法を朝食前に修正
+    elif "リナクロチド" in generic and "µg" in strength:
+        drug["dose"] = "1カプセル"
+        drug["dose_form"] = "カプセル"
+        drug["freq"] = "朝食前"
+        drug["frequency"] = "朝食前"
+    
+    return drug
+
 
