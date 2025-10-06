@@ -309,11 +309,20 @@ def handle_text_message(event):
                     ie_result = engine.check_drug_interactions(drug_list if isinstance(drug_list[0], dict) else [{'raw': n} for n in drug_names])
                     # 表示用にフラットなリストへ変換（generate_responseの形式Bに合わせる）
                     interactions_flat = []
-                    for r in ie_result.get('major_interactions', []) + ie_result.get('moderate_interactions', []):
+                    major_interactions = ie_result.get('major_interactions', [])
+                    moderate_interactions = ie_result.get('moderate_interactions', [])
+                    
+                    logger.info(f"Major interactions: {major_interactions}")
+                    logger.info(f"Moderate interactions: {moderate_interactions}")
+                    
+                    for r in major_interactions + moderate_interactions:
+                        # デバッグ用ログ
+                        logger.info(f"Processing interaction: {r}")
+                        logger.info(f"Severity from interaction: {r.get('severity')}")
                         interactions_flat.append({
                             'id': r.get('id'),
                             'name': r.get('name'),
-                            'severity': r.get('severity'),
+                            'severity': r.get('severity', '併用注意'),  # デフォルト値を設定
                             'advice': r.get('advice'),
                             'target_drugs': r.get('target_drugs', ''),
                             'targets': r.get('targets', []),
