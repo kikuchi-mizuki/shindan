@@ -673,13 +673,29 @@ class ResponseService:
                 if name:
                     drug_names.append(name)
             
-            # 相互作用ルールの情報を抽出
+            # 相互作用ルールの情報を抽出（重大度を日本語→英語に正規化して保存）
             matched_rules = []
+            def _normalize_severity(sev: str) -> str:
+                if not sev:
+                    return ''
+                sev = str(sev).strip()
+                mapping = {
+                    '重大': 'major',
+                    '併用注意': 'moderate',
+                    '注意': 'moderate',
+                    '軽微': 'minor',
+                    'major': 'major',
+                    'moderate': 'moderate',
+                    'minor': 'minor'
+                }
+                return mapping.get(sev, sev)
+
             for interaction in interactions:
+                sev_norm = _normalize_severity(interaction.get('severity', ''))
                 rule_info = {
                     'id': interaction.get('id', ''),
                     'name': interaction.get('name', ''),
-                    'severity': interaction.get('severity', ''),
+                    'severity': sev_norm,
                     'target_drugs': interaction.get('target_drugs', ''),
                     'advice': interaction.get('advice', '')
                 }
