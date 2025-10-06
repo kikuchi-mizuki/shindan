@@ -346,14 +346,16 @@ class InteractionEngine:
                         major_interactions.append({
                             "name": finding.get("title", ""),
                             "target_drugs": finding.get("targets", ""),
-                            "advice": finding.get("action", "")
+                            "advice": finding.get("action", ""),
+                            "severity": "重大"
                         })
                         logger.info(f"Added to major_interactions: {finding.get('title', '')}")
                     else:
                         moderate_interactions.append({
                             "name": finding.get("title", ""),
                             "target_drugs": finding.get("targets", ""),
-                            "advice": finding.get("action", "")
+                            "advice": finding.get("action", ""),
+                            "severity": "併用注意"
                         })
                         logger.info(f"Added to moderate_interactions: {finding.get('title', '')}")
                 
