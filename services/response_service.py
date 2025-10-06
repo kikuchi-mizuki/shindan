@@ -58,7 +58,8 @@ class ResponseService:
 
                         # 形式B: ルールエンジンの {id, name, severity, advice, targets}
                         name = interaction.get('name') or interaction.get('id', '相互作用注意')
-                        severity = interaction.get('severity', 'moderate')
+                        severity = interaction.get('severity', '併用注意')  # デフォルト値を日本語に変更
+                        logger.info(f"ResponseService: processing interaction with severity: {severity}")
                         risk_emoji = self._get_severity_label(severity)
                         targets = interaction.get('target_drugs') or interaction.get('targets') or interaction.get('matched_drugs') or []
                         advice = interaction.get('advice') or interaction.get('description')
