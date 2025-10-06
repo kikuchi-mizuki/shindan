@@ -33,6 +33,18 @@ class ResponseService:
                 # 相互作用チェック結果のみ表示（余計な前置きは出さない）
                 interactions = drug_info.get('interactions') or []
                 if interactions:
+                    # 重大度でソート（重大→併用注意の順）
+                    def sort_key(interaction):
+                        severity = interaction.get('severity', 'moderate')
+                        if severity in ['重大', 'major']:
+                            return 0
+                        elif severity in ['併用注意', 'moderate', '注意']:
+                            return 1
+                        else:
+                            return 2
+                    
+                    interactions.sort(key=sort_key)
+                    
                     for interaction in interactions:
                         # 形式A: 従来の {drug1, drug2, risk, description, mechanism}
                         if 'drug1' in interaction and 'drug2' in interaction:
@@ -637,11 +649,17 @@ class ResponseService:
     
     def _get_severity_label(self, severity: str) -> str:
         """severityを表示用ラベルに変換"""
-        return {
+        # 日本語と英語の両方に対応
+        severity_mapping = {
+            "重大": "🚨 重大",
             "major": "🚨 重大",
-            "moderate": "⚠️ 併用注意", 
+            "併用注意": "⚠️ 併用注意",
+            "moderate": "⚠️ 併用注意",
+            "注意": "⚠️ 併用注意",
+            "参考": "ℹ️ 参考",
             "minor": "ℹ️ 参考"
-        }.get(severity, "⚠️ 併用注意")
+        }
+        return severity_mapping.get(severity, "⚠️ 併用注意")
     
     def _format_targets(self, targets) -> str:
         """対象薬剤リストを表示用にフォーマット（先頭の全角スペースを削除）"""
