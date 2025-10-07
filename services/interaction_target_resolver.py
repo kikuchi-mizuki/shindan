@@ -53,6 +53,15 @@ class InteractionTargetResolver:
             "フルボキサミン": ["SSRI", "RAMELTEON_CONTRA_PAIR"],
             "アムロジピン": ["DHP_CCB"],
             "エソメプラゾール": ["PPI"],
+            
+            # 今回の11剤に対応するクラス
+            "センノシド": ["STIM_LAX", "LAXATIVE"],
+            "ピコスルファートナトリウム": ["STIM_LAX", "LAXATIVE"],
+            "リナクロチド": ["GCC_AGONIST", "LAXATIVE"],
+            "エロビキシバット": ["IBAT_INHIB", "LAXATIVE"],
+            "芍薬甘草湯": ["GLYCYRRHIZA", "KAMPO"],
+            "沈降炭酸カルシウム": ["CALCIUM_BINDER", "PHOSPHATE_BINDER"],
+            "エボカルセト": ["CALCIMIMETIC"],
         }
     
     def sanitize_name(self, s: str) -> str:
@@ -150,6 +159,28 @@ class InteractionTargetResolver:
         """鎮静薬多剤（2剤以上）"""
         pool = bx.get("SEDATIVE", [])
         return sorted(set(pool)) if len(set(pool)) >= 2 else []
+    
+    def rule_poly_laxatives(self, bx: Dict[str, List[str]]) -> List[str]:
+        """下剤の多剤併用（2剤以上）"""
+        pool = bx.get("LAXATIVE", [])
+        return sorted(set(pool)) if len(set(pool)) >= 2 else []
+    
+    def rule_glycyrrhiza_stim_lax(self, bx: Dict[str, List[str]]) -> List[str]:
+        """甘草 + 刺激性下剤（低K血症リスク）"""
+        if bx.get("GLYCYRRHIZA") and bx.get("STIM_LAX"):
+            return sorted(set(bx["GLYCYRRHIZA"] + bx["STIM_LAX"]))
+        return []
+    
+    def rule_calcium_binder_caution(self, bx: Dict[str, List[str]]) -> List[str]:
+        """Ca製剤による吸収低下（一般的注意）"""
+        pool = bx.get("CALCIUM_BINDER", [])
+        return sorted(set(pool)) if pool else []
+    
+    def rule_calcimimetic_electrolyte(self, bx: Dict[str, List[str]]) -> List[str]:
+        """カルシミメティクス + 下剤多剤（低Ca/QT延長リスク）"""
+        if bx.get("CALCIMIMETIC") and bx.get("LAXATIVE") and len(set(bx.get("LAXATIVE", []))) >= 2:
+            return sorted(set(bx["CALCIMIMETIC"] + bx["LAXATIVE"]))
+        return []
     
     def join_targets(self, names: List[str]) -> str:
         """対象薬名をフォーマット（一般名で統一）"""
@@ -296,6 +327,46 @@ class InteractionTargetResolver:
                     "title": "鎮静薬の多剤併用",
                     "targets": self.join_targets(t),
                     "action": "過鎮静・転倒リスク。必要性を再評価し、簡素化を検討。"
+                })
+            
+            # 下剤の多剤併用（注意）
+            t = self.rule_poly_laxatives(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "下剤の多剤併用",
+                    "targets": self.join_targets(t),
+                    "action": "下痢・脱水・電解質異常（特にK）に注意。便回数・体重・血圧のモニタリング。必要性を再評価し簡素化を検討。"
+                })
+            
+            # 甘草 + 刺激性下剤（注意）
+            t = self.rule_glycyrrhiza_stim_lax(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "甘草（芍薬甘草湯）+ 刺激性下剤",
+                    "targets": self.join_targets(t),
+                    "action": "低K血症（偽性アルドステロン症）や浮腫・高血圧のリスク。K値・血圧・浮腫を定期確認。"
+                })
+            
+            # Ca製剤による吸収低下（注意）
+            t = self.rule_calcium_binder_caution(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "Ca製剤による他剤の吸収低下",
+                    "targets": self.join_targets(t),
+                    "action": "キレート・吸着による他剤の吸収低下に注意。該当薬（ニューキノロン、テトラサイクリン、甲状腺薬、ビスホスホネート、ミコフェノール酸、鉄剤など）は2時間以上間隔をあける。"
+                })
+            
+            # カルシミメティクス + 下剤多剤（状況依存の注意）
+            t = self.rule_calcimimetic_electrolyte(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "エボカルセト + 下剤多剤（低Ca/QT延長リスク）",
+                    "targets": self.join_targets(t),
+                    "action": "Ca低下によりQT延長素因が増す可能性。Ca・Mg・Kを定期確認（特に開始・増量時）。"
                 })
             
             logger.info(f"Build report: {len(findings)} findings")
