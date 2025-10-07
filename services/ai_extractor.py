@@ -72,23 +72,43 @@ class AIExtractorService:
                 messages=[
                     {
                         "role": "system",
-                        "content": """あなたは日本の処方せんOCR後テキストから薬剤情報を抽出する専門家です。
-- 出力は必ず次のJSONスキーマに厳密準拠
-- 商品名は可能なら一般名に正規化（例: マイスリー→ゾルピデム酒石酸塩）
-- 用量（strength）は正確に抽出：mg、μg、g、%、mg/mL、μg/mL等の単位を含める
-- 用法（dose）は錠数・包数・容量を正確に抽出
-- 漢方薬（エキス顆粒）の場合は「包」単位を使用
-- 外用薬の場合は「患部に塗布」等の適切な用法を抽出
-- 不明な項目は null
-- 加えて 'class_hint' に簡潔な薬効分類（例: NSAIDs外用, 下剤, 抗アレルギー(LTRA), 便秘薬(GC-C作動薬), 高尿酸血症治療薬 等）を入れる
+                        "content": """あなたは調剤レイアウト特化の情報抽出器です。
 
-**重要な薬剤名正規化ルール:**
-- デエビゴ → レンボレキサント（オレキシン受容体拮抗薬）
-- デビゴ → レンボレキサント（オレキシン受容体拮抗薬）
-- ベルソムラ → スボレキサント（オレキシン受容体拮抗薬）
-- ロゼレム → ラメルテオン（メラトニン受容体作動薬）
+【重要】推測や常識での補完は禁止。未記載は "不明" と書く。
+出力はこのJSONのみ。追加の文章は禁止。キー以外は返さない。
 
-**注意: デエビゴとロゼレムは異なる成分です！**"""
+【抽出ルール】
+- 見つかった薬ごとに1行＝1薬で返す
+- 外用は「数量」「規格」を優先
+- 漢方薬（エキス顆粒）は「包」単位
+- 配合薬は成分名を「/」で区切る（例：テルミサルタン/アムロジピン）
+
+【HARD_RULES（取り違え防止）】
+- アスパラ.?C[AＡ] → L-アスパラギン酸カルシウム
+- デエビゴ → レンボレキサント
+- ベルソムラ → スボレキサント
+- ロゼレム → ラメルテオン
+
+【出力スキーマ】
+{
+  "drugs": [
+    {
+      "raw": "生の薬剤名",
+      "brand": "商品名",
+      "generic": "一般名",
+      "strength": "用量（数値+単位）",
+      "strength_unit": "単位",
+      "dose_form": "剤形",
+      "dose_per_dose": "1回量",
+      "freq_per_day": "1日回数",
+      "timing": "服用タイミング",
+      "quantity": "数量（外用）",
+      "size": "規格（外用）",
+      "days": "日数",
+      "class_hint": "薬効分類"
+    }
+  ]
+}"""
                     },
                     {
                         "role": "user",
@@ -109,6 +129,9 @@ class AIExtractorService:
             # 正規化処理を適用
             if self.normalization_service:
                 extracted_data = self._apply_normalization(extracted_data)
+            
+            # 検証フェーズ（整合性チェック）
+            extracted_data = self._validate_extraction(extracted_data)
             
             # 信頼度評価
             confidence = self._evaluate_confidence(extracted_data, ocr_text)
@@ -416,6 +439,35 @@ class AIExtractorService:
         except Exception as e:
             logger.warning(f"Confidence evaluation error: {e}")
             return 'low'
+    
+    def _validate_extraction(self, extracted_data: dict) -> dict:
+        """抽出結果の整合性を検証・修正"""
+        if not extracted_data or 'drugs' not in extracted_data:
+            return extracted_data
+        
+        drugs = extracted_data['drugs']
+        validated_drugs = []
+        
+        for drug in drugs:
+            # 基本的な整合性チェック
+            if not drug.get('generic') and not drug.get('brand'):
+                continue  # 無効な薬剤をスキップ
+            
+            # テープ剤の整合性チェック
+            if drug.get('dose_form') == '外用貼付' or 'テープ' in str(drug.get('raw', '')):
+                if not drug.get('quantity') and not drug.get('size'):
+                    drug['quantity'] = '不明'
+                    drug['size'] = '不明'
+            
+            # 配合薬の整合性チェック
+            if '/' in str(drug.get('generic', '')):
+                if not drug.get('strength'):
+                    drug['strength'] = '配合錠'
+            
+            validated_drugs.append(drug)
+        
+        extracted_data['drugs'] = validated_drugs
+        return extracted_data
     
     def generate_confirmation_message(self, extraction_result: dict[str, Any]) -> str:
         """信頼度が低い場合の確認メッセージを生成"""

@@ -235,6 +235,29 @@ def dedupe_with_form_agnostic(drugs: List[dict[str, Any]]) -> Tuple[List[dict[st
     logger.info(f"Enhanced deduplication: {len(drugs)} -> {len(final_drugs)} drugs (removed {total_removed} duplicates)")
     return final_drugs, total_removed
 
+def dedupe_by_name_only(drugs: List[dict[str, Any]]) -> Tuple[List[dict[str, Any]], int]:
+    """薬剤名のみで重複除去（同義語を統合）"""
+    if not drugs:
+        return [], 0
+    
+    # 薬剤名をキーとした重複除去
+    unique = {}
+    removed_count = 0
+    
+    for drug in drugs:
+        # 一般名を正規化
+        generic = normalize_generic(drug.get('generic', drug.get('name', drug.get('raw', ''))))
+        
+        if generic not in unique:
+            unique[generic] = drug
+        else:
+            removed_count += 1
+            logger.debug(f"Removed duplicate by name: {generic}")
+    
+    unique_drugs = list(unique.values())
+    logger.info(f"Name-based deduplication: {len(drugs)} -> {len(unique_drugs)} (removed {removed_count})")
+    return unique_drugs, removed_count
+
 # ノイズ削除
 NOISE_PATTERNS = [
     r"^[ン・\s]*配合$",

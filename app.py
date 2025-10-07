@@ -710,9 +710,11 @@ def handle_image_message(event):
             clean_drugs = remove_noise(combined_drugs)
             
             # 重複統合（配合錠と単剤の二重取りを防ぐ）
-            from services.deduper import collapse_combos, dedupe_with_form_agnostic
+            from services.deduper import collapse_combos, dedupe_with_form_agnostic, dedupe_by_name_only
             unique_drugs = collapse_combos(clean_drugs)
             unique_drugs, removed_count = dedupe_with_form_agnostic(unique_drugs)
+            # 同義語による重複除去（センナ・センナ実配合 → センナ・センナ実）
+            unique_drugs, name_removed = dedupe_by_name_only(unique_drugs)
             
             # 形態補正（ピコスルファートNaの錠/液を補正）
             try:
