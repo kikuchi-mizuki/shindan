@@ -244,7 +244,8 @@ class InteractionTargetResolver:
                     "severity": "重大",
                     "title": "RAAS禁忌（ARNI＋ACEIの同時併用）",
                     "targets": self.join_targets(t),
-                    "action": "禁忌（36時間ルール）。ACEI中止後36時間空けてARNIへ切替。開始/変更後1–2週でCr/eGFR/K、血圧を再評価。"
+                    "action": "禁忌（36時間ルール）。ACEI中止後36時間空けてARNIへ切替。開始/変更後1–2週でCr/eGFR/K、血圧を再評価。",
+                    "priority": 0  # 禁忌（最優先）
                 })
             
             # RAAS重複（RAAS禁忌がヒットした場合は除外）
@@ -256,7 +257,8 @@ class InteractionTargetResolver:
                     "severity": "重大",
                     "title": "RAAS重複（原則併用回避：ACEI/ARB/ARNI）",
                     "targets": self.join_targets(t),
-                    "action": action
+                    "action": action,
+                    "priority": 0  # 重大リスク
                 })
             
             # PDE5＋硝酸薬相当
@@ -266,7 +268,8 @@ class InteractionTargetResolver:
                     "severity": "重大",
                     "title": "PDE5阻害薬＋硝酸薬相当（禁忌）",
                     "targets": self.join_targets(t),
-                    "action": "禁忌。重度低血圧・失神リスクのため併用回避。"
+                    "action": "禁忌。重度低血圧・失神リスクのため併用回避。",
+                    "priority": 0  # 禁忌（最優先）
                 })
             
             # 胃酸抑制の重複
@@ -276,7 +279,8 @@ class InteractionTargetResolver:
                     "severity": "併用注意",
                     "title": "胃酸抑制薬の重複",
                     "targets": self.join_targets(t),
-                    "action": "同効薬の重複投与に注意。適応・目的が同じなら簡素化を検討。"
+                    "action": "同効薬の重複投与に注意。適応・目的が同じなら簡素化を検討。",
+                    "priority": 5  # 軽微
                 })
             
             # 降圧薬の多剤併用
@@ -286,7 +290,8 @@ class InteractionTargetResolver:
                     "severity": "併用注意",
                     "title": "降圧薬の多剤併用",
                     "targets": self.join_targets(t),
-                    "action": "過度な降圧リスク。血圧・腎機能・K値のモニタリングを強化。"
+                    "action": "過度な降圧リスク。血圧・腎機能・K値のモニタリングを強化。",
+                    "priority": 2  # 血圧異常リスク
                 })
             
             # オレキシン受容体拮抗薬 + CYP3A強阻害薬（禁忌）
@@ -294,9 +299,10 @@ class InteractionTargetResolver:
             if t:
                 findings.append({
                     "severity": "重大",
-                    "title": "オレキシン受容体拮抗薬 + CYP3A強阻害薬（禁忌）",
+                    "title": "オレキシン受容体拮抗薬＋CYP3A強阻害薬（禁忌）",
                     "targets": self.join_targets(t),
-                    "action": "禁忌。CYP3A強阻害によりオレキシン薬の曝露が大幅上昇。併用回避。"
+                    "action": "禁忌。CYP3A強阻害によりオレキシン薬の曝露が大幅上昇。併用回避。",
+                    "priority": 0  # 禁忌（最優先）
                 })
             
             # フルボキサミン + ラメルテオン（禁忌）
@@ -304,9 +310,10 @@ class InteractionTargetResolver:
             if t:
                 findings.append({
                     "severity": "重大",
-                    "title": "フルボキサミン + ラメルテオン（禁忌）",
+                    "title": "フルボキサミン＋ラメルテオン（禁忌）",
                     "targets": self.join_targets(t),
-                    "action": "禁忌。フルボキサミンによりラメルテオンの曝露が大幅上昇。併用回避。"
+                    "action": "禁忌。フルボキサミンによりラメルテオンの曝露が大幅上昇。併用回避。",
+                    "priority": 0  # 禁忌（最優先）
                 })
             
             # CYP3A阻害薬 + DHP-CCB（注意）
@@ -314,9 +321,10 @@ class InteractionTargetResolver:
             if t:
                 findings.append({
                     "severity": "併用注意",
-                    "title": "CYP3A阻害薬 + DHP-CCB（注意）",
+                    "title": "CYP3A阻害薬＋DHP-CCB（注意）",
                     "targets": self.join_targets(t),
-                    "action": "CYP3A阻害によりDHP-CCBの曝露上昇。過度の降圧・浮腫に注意。血圧・腎機能モニタリング強化。"
+                    "action": "CYP3A阻害によりDHP-CCBの曝露上昇。過度の降圧・浮腫に注意。血圧・腎機能モニタリング強化。",
+                    "priority": 2  # 血圧異常リスク
                 })
             
             # 鎮静薬多剤（注意）
@@ -326,7 +334,8 @@ class InteractionTargetResolver:
                     "severity": "併用注意",
                     "title": "鎮静薬の多剤併用",
                     "targets": self.join_targets(t),
-                    "action": "過鎮静・転倒リスク。必要性を再評価し、簡素化を検討。"
+                    "action": "過鎮静・転倒リスク。必要性を再評価し、簡素化を検討。",
+                    "priority": 1  # 転倒リスク（高齢者で特に重要）
                 })
             
             # 下剤の多剤併用（注意）
@@ -336,7 +345,8 @@ class InteractionTargetResolver:
                     "severity": "併用注意",
                     "title": "下剤の多剤併用",
                     "targets": self.join_targets(t),
-                    "action": "下痢・脱水・電解質異常（特にK）に注意。便回数・体重・血圧のモニタリング。必要性を再評価し簡素化を検討。"
+                    "action": "下痢・脱水・電解質異常（特にK）に注意。便回数・体重・血圧のモニタリング。必要性を再評価し簡素化を検討。",
+                    "priority": 2  # 電解質異常リスク
                 })
             
             # 甘草 + 刺激性下剤（注意）
@@ -344,19 +354,26 @@ class InteractionTargetResolver:
             if t:
                 findings.append({
                     "severity": "併用注意",
-                    "title": "甘草（芍薬甘草湯）+ 刺激性下剤",
+                    "title": "甘草（芍薬甘草湯）＋刺激性下剤",
                     "targets": self.join_targets(t),
-                    "action": "低K血症（偽性アルドステロン症）や浮腫・高血圧のリスク。K値・血圧・浮腫を定期確認。"
+                    "action": "低K血症（偽性アルドステロン症）や浮腫・高血圧のリスク。K値・血圧・浮腫を定期確認。",
+                    "priority": 1  # 患者安全への影響が大きい
                 })
             
             # Ca製剤による吸収低下（注意）
             t = self.rule_calcium_binder_caution(bx)
             if t:
+                # キレート対象薬が含まれているかチェック
+                chelate_sensitive = ["ニューキノロン", "テトラサイクリン", "甲状腺", "ビスホスホネート", "ミコフェノール", "鉄剤", "レボチロキシン", "シプロフロキサシン", "レボフロキサシン"]
+                has_chelate_target = any(any(keyword in d.get('generic', d.get('name', d.get('raw', ''))).lower() for keyword in chelate_sensitive) for d in drugs)
+                
+                note = "" if has_chelate_target else "（該当薬なし：一般注意）"
                 findings.append({
                     "severity": "併用注意",
-                    "title": "Ca製剤による他剤の吸収低下",
+                    "title": f"Ca製剤による他剤の吸収低下{note}",
                     "targets": self.join_targets(t),
-                    "action": "キレート・吸着による他剤の吸収低下に注意。該当薬（ニューキノロン、テトラサイクリン、甲状腺薬、ビスホスホネート、ミコフェノール酸、鉄剤など）は2時間以上間隔をあける。"
+                    "action": "キレート・吸着による他剤の吸収低下に注意。該当薬（ニューキノロン、テトラサイクリン、甲状腺薬、ビスホスホネート、ミコフェノール酸、鉄剤など）は2時間以上間隔をあける。",
+                    "priority": 4  # 一般注意（該当薬なしの場合は影響小）
                 })
             
             # カルシミメティクス + 下剤多剤（状況依存の注意）
@@ -364,10 +381,14 @@ class InteractionTargetResolver:
             if t:
                 findings.append({
                     "severity": "併用注意",
-                    "title": "エボカルセト + 下剤多剤（低Ca/QT延長リスク）",
+                    "title": "エボカルセト＋下剤多剤（低Ca/QT延長リスク）",
                     "targets": self.join_targets(t),
-                    "action": "Ca低下によりQT延長素因が増す可能性。Ca・Mg・Kを定期確認（特に開始・増量時）。"
+                    "action": "Ca低下によりQT延長素因が増す可能性。Ca・Mg・Kを定期確認（特に開始・増量時）。",
+                    "priority": 3  # 状況依存だが重要
                 })
+            
+            # 優先度でソート（小さい数字=高優先度）
+            findings.sort(key=lambda x: x.get('priority', 99))
             
             logger.info(f"Build report: {len(findings)} findings")
             return findings
