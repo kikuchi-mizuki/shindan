@@ -716,9 +716,15 @@ def handle_image_message(event):
             
             # 形態補正（ピコスルファートNaの錠/液を補正）
             try:
-                from services.post_processors import fix_picosulfate_form, fix_dosage_forms
+                from services.post_processors import (
+                    fix_picosulfate_form, fix_dosage_forms, 
+                    fix_frequency_normalization, fix_tramadol_display, fix_entresto_dosage
+                )
                 unique_drugs = [fix_picosulfate_form(d) for d in unique_drugs]
                 unique_drugs = [fix_dosage_forms(d) for d in unique_drugs]
+                unique_drugs = [fix_frequency_normalization(d) for d in unique_drugs]
+                unique_drugs = [fix_tramadol_display(d) for d in unique_drugs]
+                unique_drugs = [fix_entresto_dosage(d) for d in unique_drugs]
             except Exception as _pp_err:
                 logger.warning(f"Post processing failed (dosage forms): {_pp_err}")
             

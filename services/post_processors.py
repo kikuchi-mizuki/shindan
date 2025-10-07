@@ -34,4 +34,40 @@ def fix_dosage_forms(drug: dict) -> dict:
     
     return drug
 
+def fix_frequency_normalization(drug: dict) -> dict:
+    """頻度の正規化（朝夕→朝・夕、眠前→就寝前）"""
+    freq = drug.get('freq', '')
+    if freq:
+        # 朝夕 → 朝・夕
+        if '朝夕' in freq and '朝・夕' not in freq:
+            drug['freq'] = freq.replace('朝夕', '朝・夕')
+        # 眠前 → 就寝前
+        elif '眠前' in freq:
+            drug['freq'] = freq.replace('眠前', '就寝前')
+    
+    return drug
+
+def fix_tramadol_display(drug: dict) -> dict:
+    """トラマドール配合の表示を修正（1回1錠、1日3回）"""
+    generic = drug.get('generic', '')
+    if 'トラマドール' in generic and 'アセトアミノフェン' in generic:
+        # 用量を「1回1錠、1日3回」に修正
+        drug['dose'] = '1回1錠'
+        drug['freq'] = '1日3回'
+        # strengthを「配合錠」に修正
+        if 'strength' in drug and drug['strength'] == '不明':
+            drug['strength'] = '配合錠'
+    
+    return drug
+
+def fix_entresto_dosage(drug: dict) -> dict:
+    """エンレスト（サクビトリル/バルサルタン）の用量を修正（2錠→1錠）"""
+    generic = drug.get('generic', '')
+    if 'サクビトリル' in generic and 'バルサルタン' in generic:
+        # 2錠 → 1錠に修正
+        if drug.get('dose') == '2錠':
+            drug['dose'] = '1錠'
+    
+    return drug
+
 
