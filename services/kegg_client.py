@@ -245,10 +245,10 @@ class KEGGClient:
             # KEGG DDI API（注：実際のエンドポイントはKEGG公式ドキュメント参照）
             # https://rest.kegg.jp/ddi/D00903+D00564
             url = f"{self.BASE}/ddi/{kid1}+{kid2}"
-            logger.info(f"Fetching DDI: {url}")
+            logger.debug(f"Fetching DDI: {url}")
             
             try:
-                response = _http_get(url, timeout=5, retries=1)
+                response = _http_get(url, timeout=2, retries=0)  # タイムアウト2秒、リトライなし
                 interactions = []
                 
                 if response and response.text:

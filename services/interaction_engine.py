@@ -414,44 +414,98 @@ class InteractionEngine:
             }
     
     def _check_kegg_ddi(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
-        """KEGG DDIで薬剤間相互作用をチェック"""
+        """KEGG DDIで薬剤間相互作用をチェック（最適化版）"""
         interactions = []
         
         try:
-            # 各薬剤のKEGG IDを取得
+            import concurrent.futures
+            import time
+            
+            # 各薬剤のKEGG IDを取得（最大10剤まで、タイムアウト管理）
             drug_kegg_ids = []
-            for drug in drugs:
+            start_time = time.time()
+            max_kegg_lookup_time = 10  # KEGG ID取得に最大10秒
+            
+            for drug in drugs[:10]:  # 最大10剤まで
+                if time.time() - start_time > max_kegg_lookup_time:
+                    logger.warning(f"KEGG ID lookup timeout, stopping at {len(drug_kegg_ids)} drugs")
+                    break
+                
                 generic = drug.get('generic', drug.get('name', drug.get('raw', '')))
                 
+                # 漢方は英語翻訳がないのでスキップ
+                if any(keyword in generic for keyword in ['湯', 'エキス', 'ツムラ']):
+                    logger.info(f"Skipping KEGG lookup for herbal medicine: {generic}")
+                    continue
+                
                 # KEGG検索
-                kegg_info = self.kegg_client.best_kegg_and_atc(generic)
-                if kegg_info and kegg_info.get('kegg_id'):
-                    drug_kegg_ids.append({
-                        'name': generic,
-                        'kegg_id': kegg_info['kegg_id']
-                    })
+                try:
+                    kegg_info = self.kegg_client.best_kegg_and_atc(generic)
+                    if kegg_info and kegg_info.get('kegg_id'):
+                        drug_kegg_ids.append({
+                            'name': generic,
+                            'kegg_id': kegg_info['kegg_id']
+                        })
+                except Exception as e:
+                    logger.warning(f"KEGG lookup failed for {generic}: {e}")
+                    continue
             
-            logger.info(f"Found KEGG IDs for {len(drug_kegg_ids)} drugs")
+            logger.info(f"Found KEGG IDs for {len(drug_kegg_ids)} drugs (took {time.time() - start_time:.1f}s)")
             
-            # 薬剤ペアごとにDDIをチェック
-            for i in range(len(drug_kegg_ids)):
-                for j in range(i + 1, len(drug_kegg_ids)):
-                    drug1 = drug_kegg_ids[i]
-                    drug2 = drug_kegg_ids[j]
-                    
+            # 薬剤ペアが多すぎる場合はKEGG DDIをスキップ
+            total_pairs = len(drug_kegg_ids) * (len(drug_kegg_ids) - 1) // 2
+            if total_pairs > 20:
+                logger.warning(f"Too many drug pairs ({total_pairs}), skipping KEGG DDI to avoid timeout")
+                return []
+            
+            # 並列でDDIをチェック（タイムアウト管理）
+            def check_pair(pair_data):
+                i, j = pair_data
+                drug1 = drug_kegg_ids[i]
+                drug2 = drug_kegg_ids[j]
+                
+                try:
                     ddi_results = self.kegg_client.get_drug_interactions(
                         drug1['kegg_id'], 
                         drug2['kegg_id']
                     )
                     
+                    pair_interactions = []
                     for ddi in ddi_results:
-                        interactions.append({
+                        pair_interactions.append({
                             'name': f"{drug1['name']} × {drug2['name']}",
                             'target_drugs': f"{drug1['name']}、{drug2['name']}",
                             'advice': ddi.get('description', '相互作用が報告されています。'),
                             'severity': ddi.get('severity', '併用注意'),
                             'source': 'KEGG'
                         })
+                    return pair_interactions
+                except Exception as e:
+                    logger.debug(f"DDI check failed for {drug1['name']} x {drug2['name']}: {e}")
+                    return []
+            
+            # ペアリストを作成
+            pairs = [(i, j) for i in range(len(drug_kegg_ids)) for j in range(i + 1, len(drug_kegg_ids))]
+            
+            # 並列実行（最大5スレッド、合計タイムアウト15秒）
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                future_to_pair = {executor.submit(check_pair, pair): pair for pair in pairs}
+                
+                start_time = time.time()
+                max_ddi_check_time = 15  # DDIチェックに最大15秒
+                
+                for future in concurrent.futures.as_completed(future_to_pair, timeout=max_ddi_check_time):
+                    if time.time() - start_time > max_ddi_check_time:
+                        logger.warning("DDI check timeout, stopping early")
+                        break
+                    
+                    try:
+                        pair_interactions = future.result(timeout=2)
+                        interactions.extend(pair_interactions)
+                    except concurrent.futures.TimeoutError:
+                        logger.debug("DDI check timeout for a pair")
+                    except Exception as e:
+                        logger.debug(f"DDI check error: {e}")
             
             logger.info(f"KEGG DDI check completed: {len(interactions)} interactions found")
             return interactions
