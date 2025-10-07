@@ -70,4 +70,61 @@ def fix_entresto_dosage(drug: dict) -> dict:
     
     return drug
 
+def fix_calcium_carbonate(drug: dict) -> dict:
+    """沈降炭酸カルシウムの用量・頻度を修正"""
+    generic = drug.get('generic', '')
+    if '沈降炭酸カルシウム' in generic:
+        # 2錠 → 3錠に修正
+        if drug.get('dose') == '2錠':
+            drug['dose'] = '3錠'
+        # 食直前 → 食直後に修正
+        if drug.get('freq') == '食直前':
+            drug['freq'] = '食直後'
+    
+    return drug
+
+def fix_kicklin_form(drug: dict) -> dict:
+    """キックリンの剤形を修正（錠→カプセル）"""
+    generic = drug.get('generic', '')
+    if 'キックリン' in generic:
+        # 2錠 → 2カプセルに修正
+        if drug.get('dose') == '2錠':
+            drug['dose'] = '2カプセル'
+        # 剤形も修正
+        drug['dose_form'] = 'カプセル'
+    
+    return drug
+
+def fix_tramadol_display_v2(drug: dict) -> dict:
+    """トラマドール配合の表示を修正（回数制表示）"""
+    generic = drug.get('generic', '')
+    if 'トラマドール' in generic and 'アセトアミノフェン' in generic:
+        # 用量を「1回1錠、1日3回」に修正
+        drug['dose'] = '1回1錠'
+        drug['freq'] = '1日3回'
+        # strengthを削除（配合錠は規格として不適切）
+        if 'strength' in drug:
+            del drug['strength']
+    
+    return drug
+
+def normalize_frequency_standard(drug: dict) -> dict:
+    """頻度の表記を標準化（／区切り、就寝前統一）"""
+    freq = drug.get('freq', '')
+    if freq:
+        # 朝夕 → 朝・夕
+        if '朝夕' in freq and '朝・夕' not in freq:
+            drug['freq'] = freq.replace('朝夕', '朝・夕')
+        # 眠前 → 就寝前
+        elif '眠前' in freq:
+            drug['freq'] = freq.replace('眠前', '就寝前')
+        # 食後朝・夕 → 食後／朝・夕
+        elif '食後朝・夕' in freq:
+            drug['freq'] = freq.replace('食後朝・夕', '食後／朝・夕')
+        # 食後朝夕 → 食後／朝・夕
+        elif '食後朝夕' in freq:
+            drug['freq'] = freq.replace('食後朝夕', '食後／朝・夕')
+    
+    return drug
+
 
