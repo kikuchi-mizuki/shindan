@@ -59,13 +59,16 @@ class ResponseService:
                         # 形式B: ルールエンジンの {id, name, severity, advice, targets}
                         name = interaction.get('name') or interaction.get('id', '相互作用注意')
                         severity = interaction.get('severity', '併用注意')  # デフォルト値を日本語に変更
-                        logger.info(f"ResponseService: processing interaction with severity: {severity}")
+                        source = interaction.get('source', '')  # 診断元（手動ルール/KEGG/AI）
+                        logger.info(f"ResponseService: processing interaction with severity: {severity}, source: {source}")
                         risk_emoji = self._get_severity_label(severity)
                         targets = interaction.get('target_drugs') or interaction.get('targets') or interaction.get('matched_drugs') or []
                         advice = interaction.get('advice') or interaction.get('description')
 
                         # 相互作用の表示（先頭の全角スペースを削除）
-                        response_parts.append(f"{risk_emoji}：{name}")
+                        # 診断元を表示（デバッグ用、本番では非表示も可）
+                        source_label = self._get_source_label(source)
+                        response_parts.append(f"{risk_emoji}：{name}{source_label}")
                         response_parts.append(f"・対象：{self._format_targets(targets).strip()}")
                         if advice:
                             response_parts.append(f"・対応：{advice.strip()}")
@@ -661,6 +664,18 @@ class ResponseService:
             "minor": "ℹ️ 参考"
         }
         return severity_mapping.get(severity, "⚠️ 併用注意")
+    
+    def _get_source_label(self, source: str) -> str:
+        """診断元を表示用ラベルに変換"""
+        if not source:
+            return ""
+        
+        source_mapping = {
+            "手動ルール": "",  # 手動ルールは表示しない（デフォルト）
+            "KEGG": " 📚",  # KEGGデータベース
+            "AI": " 🤖"  # AI診断
+        }
+        return source_mapping.get(source, "")
     
     def _format_targets(self, targets) -> str:
         """対象薬剤リストを表示用にフォーマット（先頭の全角スペースを削除）"""
