@@ -11,7 +11,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 class InteractionEngine:
-    """薬剤相互作用判定エンジン"""
+    """薬剤相互作用判定エンジン（3層ハイブリッド診断）"""
     
     def __init__(self, rules_file: str = "services/interaction_rules.yaml"):
         self.rules_file = rules_file
@@ -25,6 +25,15 @@ class InteractionEngine:
         except Exception as e:
             logger.error(f"Failed to initialize InteractionTargetResolver: {e}")
             self.target_resolver = None
+        
+        # KEGGクライアントを初期化
+        try:
+            from .kegg_client import KEGGClient
+            self.kegg_client = KEGGClient()
+            logger.info("KEGGClient initialized for DDI")
+        except Exception as e:
+            logger.error(f"Failed to initialize KEGGClient: {e}")
+            self.kegg_client = None
         
         logger.info(f"InteractionEngine initialized with {len(self.rules)} rules")
     
@@ -312,7 +321,7 @@ class InteractionEngine:
             return "対象薬の特定に失敗"
     
     def check_drug_interactions(self, drugs: List[dict[str, Any]]) -> dict[str, Any]:
-        """薬剤相互作用の総合チェック（InteractionTargetResolver使用）"""
+        """薬剤相互作用の総合チェック（3層ハイブリッド診断）"""
         try:
             if not drugs:
                 return {
@@ -322,58 +331,77 @@ class InteractionEngine:
                     "summary": "薬剤が検出されませんでした。"
                 }
             
-            # InteractionTargetResolverを使用
+            major_interactions = []
+            moderate_interactions = []
+            
+            # === 第1層：手動ルール（高速・高精度）===
+            logger.info("Layer 1: Manual rules check")
             if self.target_resolver:
                 findings = self.target_resolver.build_report(drugs)
                 
-                if not findings:
-                    return {
-                        "has_interactions": False,
-                        "major_interactions": [],
-                        "moderate_interactions": [],
-                        "summary": "相互作用は検出されませんでした。"
-                    }
-                
-                # 重大度別に分類
-                major_interactions = []
-                moderate_interactions = []
-                
                 for finding in findings:
                     severity = finding.get("severity", "")
-                    logger.info(f"Processing finding: {finding.get('title', '')} with severity: {severity}")
+                    logger.info(f"Manual rule: {finding.get('title', '')} (severity: {severity})")
+                    
+                    interaction = {
+                        "name": finding.get("title", ""),
+                        "target_drugs": finding.get("targets", ""),
+                        "advice": finding.get("action", ""),
+                        "severity": severity,
+                        "source": "手動ルール"
+                    }
                     
                     if severity == "重大":
-                        major_interactions.append({
-                            "name": finding.get("title", ""),
-                            "target_drugs": finding.get("targets", ""),
-                            "advice": finding.get("action", ""),
-                            "severity": "重大"
-                        })
-                        logger.info(f"Added to major_interactions: {finding.get('title', '')}")
+                        major_interactions.append(interaction)
                     else:
-                        moderate_interactions.append({
-                            "name": finding.get("title", ""),
-                            "target_drugs": finding.get("targets", ""),
-                            "advice": finding.get("action", ""),
-                            "severity": "併用注意"
-                        })
-                        logger.info(f"Added to moderate_interactions: {finding.get('title', '')}")
+                        moderate_interactions.append(interaction)
+            
+            # === 第2層：KEGG DDI（公式データベース）===
+            logger.info("Layer 2: KEGG DDI check")
+            if self.kegg_client:
+                kegg_interactions = self._check_kegg_ddi(drugs)
                 
-                has_interactions = len(major_interactions) > 0 or len(moderate_interactions) > 0
-                summary = f"重大な相互作用: {len(major_interactions)}件、注意すべき相互作用: {len(moderate_interactions)}件" if has_interactions else "相互作用は検出されませんでした。"
+                for interaction in kegg_interactions:
+                    # 重複チェック（手動ルールで既に検出されているものは除外）
+                    is_duplicate = False
+                    for existing in major_interactions + moderate_interactions:
+                        if self._is_similar_interaction(existing, interaction):
+                            is_duplicate = True
+                            logger.info(f"KEGG DDI duplicate skipped: {interaction.get('name', '')}")
+                            break
+                    
+                    if not is_duplicate:
+                        logger.info(f"KEGG DDI found: {interaction.get('name', '')} (severity: {interaction.get('severity', '')})")
+                        if interaction.get("severity") == "重大":
+                            major_interactions.append(interaction)
+                        else:
+                            moderate_interactions.append(interaction)
+            
+            # === 第3層：AI補完（未知パターン検出）===
+            # 注：第1層・第2層で検出が少ない場合のみ実行（コスト管理）
+            total_found = len(major_interactions) + len(moderate_interactions)
+            if total_found == 0 and len(drugs) >= 3:
+                logger.info("Layer 3: AI補完 check (no interactions found in Layer 1-2)")
+                ai_interactions = self._check_ai_interactions(drugs)
                 
-                return {
-                    "has_interactions": has_interactions,
-                    "major_interactions": major_interactions,
-                    "moderate_interactions": moderate_interactions,
-                    "summary": summary
-                }
+                for interaction in ai_interactions:
+                    logger.info(f"AI found: {interaction.get('name', '')} (severity: {interaction.get('severity', '')})")
+                    if interaction.get("severity") == "重大":
+                        major_interactions.append(interaction)
+                    else:
+                        moderate_interactions.append(interaction)
             else:
-                # フォールバック: 古いルールシステム
-                triggered_rules = self.evaluate_rules(drugs)
-                result = self.format_interactions(triggered_rules, drugs)
-                logger.info(f"Interaction check completed: {result['summary']}")
-                return result
+                logger.info(f"Layer 3: AI補完 skipped ({total_found} interactions found in Layer 1-2)")
+            
+            has_interactions = len(major_interactions) > 0 or len(moderate_interactions) > 0
+            summary = f"重大な相互作用: {len(major_interactions)}件、注意すべき相互作用: {len(moderate_interactions)}件" if has_interactions else "相互作用は検出されませんでした。"
+            
+            return {
+                "has_interactions": has_interactions,
+                "major_interactions": major_interactions,
+                "moderate_interactions": moderate_interactions,
+                "summary": summary
+            }
             
         except Exception as e:
             logger.error(f"Interaction check failed: {e}")
@@ -384,3 +412,149 @@ class InteractionEngine:
                 "summary": "相互作用チェック中にエラーが発生しました。",
                 "error": str(e)
             }
+    
+    def _check_kegg_ddi(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
+        """KEGG DDIで薬剤間相互作用をチェック"""
+        interactions = []
+        
+        try:
+            # 各薬剤のKEGG IDを取得
+            drug_kegg_ids = []
+            for drug in drugs:
+                generic = drug.get('generic', drug.get('name', drug.get('raw', '')))
+                
+                # KEGG検索
+                kegg_info = self.kegg_client.best_kegg_and_atc(generic)
+                if kegg_info and kegg_info.get('kegg_id'):
+                    drug_kegg_ids.append({
+                        'name': generic,
+                        'kegg_id': kegg_info['kegg_id']
+                    })
+            
+            logger.info(f"Found KEGG IDs for {len(drug_kegg_ids)} drugs")
+            
+            # 薬剤ペアごとにDDIをチェック
+            for i in range(len(drug_kegg_ids)):
+                for j in range(i + 1, len(drug_kegg_ids)):
+                    drug1 = drug_kegg_ids[i]
+                    drug2 = drug_kegg_ids[j]
+                    
+                    ddi_results = self.kegg_client.get_drug_interactions(
+                        drug1['kegg_id'], 
+                        drug2['kegg_id']
+                    )
+                    
+                    for ddi in ddi_results:
+                        interactions.append({
+                            'name': f"{drug1['name']} × {drug2['name']}",
+                            'target_drugs': f"{drug1['name']}、{drug2['name']}",
+                            'advice': ddi.get('description', '相互作用が報告されています。'),
+                            'severity': ddi.get('severity', '併用注意'),
+                            'source': 'KEGG'
+                        })
+            
+            logger.info(f"KEGG DDI check completed: {len(interactions)} interactions found")
+            return interactions
+            
+        except Exception as e:
+            logger.error(f"KEGG DDI check failed: {e}")
+            return []
+    
+    def _check_ai_interactions(self, drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
+        """AI（LLM）で未知の相互作用をチェック"""
+        interactions = []
+        
+        try:
+            import os
+            from openai import OpenAI
+            
+            # OpenAI APIキーの確認
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                logger.warning("OpenAI API key not found, skipping AI check")
+                return []
+            
+            client = OpenAI(api_key=api_key)
+            
+            # 薬剤名リストを作成
+            drug_names = [d.get('generic', d.get('name', d.get('raw', ''))) for d in drugs]
+            drug_list_str = "、".join(drug_names)
+            
+            prompt = f"""以下の薬剤の組み合わせについて、重要な薬物相互作用を分析してください。
+
+薬剤リスト：{drug_list_str}
+
+以下の形式でJSON配列として回答してください（相互作用がない場合は空配列）：
+[
+  {{
+    "drug1": "薬剤名1",
+    "drug2": "薬剤名2",
+    "severity": "重大" または "併用注意",
+    "description": "相互作用の内容と対応方法"
+  }}
+]
+
+注意点：
+- 臨床的に重要な相互作用のみを報告してください
+- 禁忌・重大な相互作用は「重大」、その他は「併用注意」としてください
+- 対応方法も具体的に記載してください"""
+            
+            logger.info("Calling OpenAI API for AI interaction check")
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "あなたは薬剤師です。薬物相互作用の分析を行ってください。"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=1500
+            )
+            
+            # レスポンスをパース
+            import json
+            import re
+            
+            content = response.choices[0].message.content.strip()
+            
+            # JSON部分を抽出（コードブロックで囲まれている場合に対応）
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', content)
+            if json_match:
+                content = json_match.group(1)
+            elif '```' in content:
+                content = re.sub(r'```[^\n]*\n', '', content).replace('```', '')
+            
+            ai_results = json.loads(content)
+            
+            for result in ai_results:
+                interactions.append({
+                    'name': f"{result.get('drug1', '')} × {result.get('drug2', '')}",
+                    'target_drugs': f"{result.get('drug1', '')}、{result.get('drug2', '')}",
+                    'advice': result.get('description', ''),
+                    'severity': result.get('severity', '併用注意'),
+                    'source': 'AI'
+                })
+            
+            logger.info(f"AI check completed: {len(interactions)} interactions found")
+            return interactions
+            
+        except Exception as e:
+            logger.error(f"AI interaction check failed: {e}")
+            return []
+    
+    def _is_similar_interaction(self, interaction1: dict[str, Any], interaction2: dict[str, Any]) -> bool:
+        """2つの相互作用が類似しているかチェック（重複除去用）"""
+        try:
+            # 対象薬名で比較
+            targets1 = set(interaction1.get('target_drugs', '').split('、'))
+            targets2 = set(interaction2.get('target_drugs', '').split('、'))
+            
+            # 対象薬が完全一致または大部分が一致していれば類似とみなす
+            common = targets1 & targets2
+            if len(common) >= 2 or (len(targets1) <= 2 and len(common) == len(targets1)):
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Similarity check failed: {e}")
+            return False

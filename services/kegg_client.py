@@ -226,3 +226,74 @@ class KEGGClient:
         except Exception as e:
             logger.error(f"Failed to get BRITE info for {drug_name}: {e}")
             return {}
+    
+    @functools.lru_cache(maxsize=1024)
+    def get_drug_interactions(self, kegg_id1: str, kegg_id2: str) -> list[dict[str, Any]]:
+        """2つのKEGG IDから相互作用情報を取得（KEGG DDI）"""
+        try:
+            # KEGG IDの形式を正規化
+            def normalize_kegg_id(kid):
+                if kid.startswith("dr:"):
+                    return kid[3:]  # dr:D00903 -> D00903
+                elif kid.startswith("drug:"):
+                    return kid[5:]  # drug:D00903 -> D00903
+                return kid
+            
+            kid1 = normalize_kegg_id(kegg_id1)
+            kid2 = normalize_kegg_id(kegg_id2)
+            
+            # KEGG DDI API（注：実際のエンドポイントはKEGG公式ドキュメント参照）
+            # https://rest.kegg.jp/ddi/D00903+D00564
+            url = f"{self.BASE}/ddi/{kid1}+{kid2}"
+            logger.info(f"Fetching DDI: {url}")
+            
+            try:
+                response = _http_get(url, timeout=5, retries=1)
+                interactions = []
+                
+                if response and response.text:
+                    # レスポンスをパース
+                    for line in response.text.strip().split('\n'):
+                        if not line or line.startswith('#'):
+                            continue
+                        
+                        parts = line.split('\t')
+                        if len(parts) >= 3:
+                            interactions.append({
+                                'drug1': parts[0],
+                                'drug2': parts[1],
+                                'description': parts[2] if len(parts) > 2 else '',
+                                'severity': self._parse_severity(parts[2] if len(parts) > 2 else ''),
+                                'source': 'KEGG'
+                            })
+                
+                logger.info(f"Found {len(interactions)} DDI entries")
+                return interactions
+                
+            except Exception as e:
+                # DDIが存在しない場合は404エラーが返る（正常）
+                if "404" in str(e) or "Not Found" in str(e):
+                    logger.info(f"No DDI found for {kid1}+{kid2} (expected for no interaction)")
+                    return []
+                else:
+                    logger.warning(f"DDI fetch error for {kid1}+{kid2}: {e}")
+                    return []
+                
+        except Exception as e:
+            logger.error(f"Failed to get drug interactions: {e}")
+            return []
+    
+    def _parse_severity(self, description: str) -> str:
+        """DDI説明文から重大度を推定"""
+        desc_lower = description.lower()
+        
+        # 禁忌・重大パターン
+        if any(keyword in desc_lower for keyword in ['contraindicated', 'severe', 'serious', 'major', '禁忌', '重大']):
+            return '重大'
+        
+        # 注意パターン
+        if any(keyword in desc_lower for keyword in ['caution', 'monitor', 'moderate', '注意', 'モニタリング']):
+            return '併用注意'
+        
+        # デフォルト
+        return '併用注意'
