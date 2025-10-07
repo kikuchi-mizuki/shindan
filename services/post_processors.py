@@ -23,9 +23,12 @@ def fix_dosage_forms(drug: dict) -> dict:
     strength = drug.get('strength', '')
     
     # ナルフラフィン塩酸塩（µg単位）→ カプセル
-    if "ナルフラフィン" in generic and "µg" in strength:
+    if "ナルフラフィン" in generic:
         drug["dose"] = "1カプセル"
         drug["dose_form"] = "カプセル"
+        # strengthの単位も修正（2.5μg/錠 → 2.5μg/カプセル）
+        if strength:
+            drug["strength"] = strength.replace("/錠", "/カプセル").replace("錠", "カプセル")
     
     # リナクロチドは日本では錠剤が正しいので修正しない
     
