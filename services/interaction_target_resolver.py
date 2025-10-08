@@ -167,6 +167,11 @@ class InteractionTargetResolver:
         """下剤の多剤併用（2剤以上）"""
         pool = bx.get("LAXATIVE", [])
         return sorted(set(pool)) if len(set(pool)) >= 2 else []
+
+    def rule_poly_stim_lax(self, bx: Dict[str, List[str]]) -> List[str]:
+        """刺激性下剤の重複（2剤以上）"""
+        pool = bx.get("STIM_LAX", [])
+        return sorted(set(pool)) if len(set(pool)) >= 2 else []
     
     def rule_glycyrrhiza_stim_lax(self, bx: Dict[str, List[str]]) -> List[str]:
         """甘草 + 刺激性下剤（低K血症リスク）"""
@@ -178,6 +183,11 @@ class InteractionTargetResolver:
         """Ca製剤による吸収低下（一般的注意）"""
         pool = bx.get("CALCIUM_BINDER", [])
         return sorted(set(pool)) if pool else []
+
+    def rule_phosphate_binder_interval(self, bx: Dict[str, List[str]]) -> List[str]:
+        """リン吸着薬（Ca製剤/ビキサロマー等）の間隔ルールを通知"""
+        pool = sorted(set(bx.get("CALCIUM_BINDER", []) + bx.get("PHOSPHATE_BINDER", [])))
+        return pool if pool else []
     
     def rule_calcimimetic_electrolyte(self, bx: Dict[str, List[str]]) -> List[str]:
         """カルシミメティクス + 下剤多剤（低Ca/QT延長リスク）"""
@@ -329,6 +339,17 @@ class InteractionTargetResolver:
                     "action": "CYP3A阻害によりDHP-CCBの曝露上昇。過度の降圧・浮腫に注意。血圧・腎機能モニタリング強化。",
                     "priority": 2  # 血圧異常リスク
                 })
+
+            # Ca拮抗薬の重複（DHP-CCB重複）
+            dhp_pool = bx.get("DHP_CCB", []) + [d for d in bx.get("CCB", []) if d not in bx.get("DHP_CCB", [])]
+            if len(set(dhp_pool)) >= 2:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "Ca拮抗薬の重複",
+                    "targets": self.join_targets(sorted(set(dhp_pool))),
+                    "action": "低血圧・浮腫・反射性頻脈などに注意。目的がなければ再検討。",
+                    "priority": 2
+                })
             
             # 鎮静薬多剤（注意）
             t = self.rule_poly_sedatives(bx)
@@ -350,6 +371,17 @@ class InteractionTargetResolver:
                     "targets": self.join_targets(t),
                     "action": "下痢・脱水・電解質異常（特にK）に注意。便回数・体重・血圧のモニタリング。必要性を再評価し簡素化を検討。",
                     "priority": 2  # 電解質異常リスク
+                })
+
+            # 刺激性下剤の重複（注意）
+            t = self.rule_poly_stim_lax(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "刺激性下剤の重複",
+                    "targets": self.join_targets(t),
+                    "action": "腹痛/下痢/依存に注意。便秘治療の再評価（用量/剤形調整等）。",
+                    "priority": 2
                 })
             
             # 甘草 + 刺激性下剤（注意）
@@ -377,6 +409,17 @@ class InteractionTargetResolver:
                     "targets": self.join_targets(t),
                     "action": "キレート・吸着による他剤の吸収低下に注意。該当薬（ニューキノロン、テトラサイクリン、甲状腺薬、ビスホスホネート、ミコフェノール酸、鉄剤など）は2時間以上間隔をあける。",
                     "priority": 4  # 一般注意（該当薬なしの場合は影響小）
+                })
+
+            # リン吸着薬（間隔ルールの一般注意）
+            t = self.rule_phosphate_binder_interval(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "リン吸着薬による吸収低下（間隔ルール）",
+                    "targets": self.join_targets(t),
+                    "action": "他剤と原則2時間以上あける（抗菌薬・甲状腺薬・鉄剤・ビスホスホネート等）。",
+                    "priority": 3
                 })
             
             # カルシミメティクス + 下剤多剤（状況依存の注意）
