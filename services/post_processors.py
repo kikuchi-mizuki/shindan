@@ -128,6 +128,16 @@ def normalize_frequency_standard(drug: dict) -> dict:
     return drug
 
 
+def ensure_pain_combo_class(drug: dict) -> dict:
+    """トラマドール/アセトアミノフェンの分類を補完"""
+    g = drug.get('generic', '')
+    if 'トラマドール' in g and 'アセトアミノフェン' in g:
+        current = drug.get('final_classification') or ''
+        if not current or current == '分類未設定':
+            drug['final_classification'] = '鎮痛薬（弱オピオイド＋解熱鎮痛薬）'
+    return drug
+
+
 def normalize_meal_timing(drug: dict) -> dict:
     """食事タイミングをenum化し、表示用は従来の日本語を維持"""
     raw_timing = drug.get('freq', '') or drug.get('timing', '')

@@ -727,11 +727,13 @@ def handle_image_message(event):
             clean_drugs = remove_noise(combined_drugs)
             
             # 重複統合（配合錠と単剤の二重取りを防ぐ）
-            from services.deduper import collapse_combos, dedupe_with_form_agnostic, dedupe_by_name_only
+            from services.deduper import collapse_combos, dedupe_with_form_agnostic, dedupe_by_name_only, collapse_brand_generic_duplicates
             unique_drugs = collapse_combos(clean_drugs)
             unique_drugs, removed_count = dedupe_with_form_agnostic(unique_drugs)
             # 同義語による重複除去（センナ・センナ実配合 → センナ・センナ実）
             unique_drugs, name_removed = dedupe_by_name_only(unique_drugs)
+            # ブランド/一般名の重複（例：エンレスト vs サクビトリル/バルサルタン）を統合
+            unique_drugs = collapse_brand_generic_duplicates(unique_drugs)
             
             # 形態補正（ピコスルファートNaの錠/液を補正）
             try:
@@ -739,7 +741,7 @@ def handle_image_message(event):
                     fix_picosulfate_form, fix_dosage_forms, 
                     fix_frequency_normalization, fix_tramadol_display, fix_entresto_dosage,
                     fix_calcium_carbonate, fix_kicklin_form, fix_tramadol_display_v2, normalize_frequency_standard,
-                    normalize_meal_timing, fix_aspirin_classification, extract_component_strengths
+                    normalize_meal_timing, fix_aspirin_classification, extract_component_strengths, ensure_pain_combo_class
                 )
                 unique_drugs = [fix_picosulfate_form(d) for d in unique_drugs]
                 unique_drugs = [fix_dosage_forms(d) for d in unique_drugs]
@@ -753,6 +755,7 @@ def handle_image_message(event):
                 unique_drugs = [normalize_meal_timing(d) for d in unique_drugs]
                 unique_drugs = [fix_aspirin_classification(d) for d in unique_drugs]
                 unique_drugs = [extract_component_strengths(d) for d in unique_drugs]
+                unique_drugs = [ensure_pain_combo_class(d) for d in unique_drugs]
             except Exception as _pp_err:
                 logger.warning(f"Post processing failed (dosage forms): {_pp_err}")
             

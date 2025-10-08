@@ -201,6 +201,32 @@ def canonical_key_form_agnostic(name: str) -> str:
         return "レンボレキサント"
     return normalized.replace(" ", "")
 
+def collapse_brand_generic_duplicates(drugs: List[dict[str, Any]]) -> List[dict[str, Any]]:
+    """ブランド名と一般名の重複（例：エンレスト vs サクビトリル/バルサルタン）を統合。
+    一般名を優先し、strength/dose/freqが充実している方を残す。
+    """
+    if not drugs:
+        return drugs
+    groups = {}
+    def norm(n: str) -> str:
+        return normalize_generic(n)
+    for d in drugs:
+        g = d.get('generic') or d.get('name') or d.get('raw', '')
+        k = norm(g)
+        groups.setdefault(k, []).append(d)
+    result = []
+    for k, items in groups.items():
+        if len(items) == 1:
+            result.append(items[0])
+            continue
+        # 最良の候補を選択（情報量の多さで比較）
+        best = max(items, key=lambda x: (
+            bool(x.get('generic')), bool(x.get('strength')), bool(x.get('dose')), bool(x.get('freq')),
+            float(x.get('confidence', 0))
+        ))
+        result.append(best)
+    return result
+
 def dedupe_with_form_agnostic(drugs: List[dict[str, Any]]) -> Tuple[List[dict[str, Any]], int]:
     """剤形無視の重複統合も併用"""
     if not drugs:
