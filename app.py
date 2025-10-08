@@ -49,6 +49,23 @@ else:
             return _decorator
     handler = _DummyHandler()
 
+# FollowEvent（友だち追加）への簡易応答
+try:
+    from linebot.v3.webhooks import FollowEvent
+    @handler.add(FollowEvent)
+    def on_follow(event):
+        try:
+            (messaging_api or MessagingApi(ApiClient(Configuration(access_token="")))).reply_message(
+                ReplyMessageRequest(
+                    replyToken=getattr(event, 'reply_token', ''),
+                    messages=[TextMessage(text="友だち追加ありがとうございます！\n処方箋の画像を送ると自動解析します。『診断』で飲み合わせチェックも可能です。")]
+                )
+            )
+        except Exception:
+            pass
+except Exception:
+    pass
+
 # ユーザーごとの薬剤名バッファ
 user_drug_buffer = {}
 
@@ -721,7 +738,8 @@ def handle_image_message(event):
                 from services.post_processors import (
                     fix_picosulfate_form, fix_dosage_forms, 
                     fix_frequency_normalization, fix_tramadol_display, fix_entresto_dosage,
-                    fix_calcium_carbonate, fix_kicklin_form, fix_tramadol_display_v2, normalize_frequency_standard
+                    fix_calcium_carbonate, fix_kicklin_form, fix_tramadol_display_v2, normalize_frequency_standard,
+                    normalize_meal_timing, fix_aspirin_classification, extract_component_strengths
                 )
                 unique_drugs = [fix_picosulfate_form(d) for d in unique_drugs]
                 unique_drugs = [fix_dosage_forms(d) for d in unique_drugs]
@@ -732,6 +750,9 @@ def handle_image_message(event):
                 unique_drugs = [fix_kicklin_form(d) for d in unique_drugs]
                 unique_drugs = [fix_tramadol_display_v2(d) for d in unique_drugs]
                 unique_drugs = [normalize_frequency_standard(d) for d in unique_drugs]
+                unique_drugs = [normalize_meal_timing(d) for d in unique_drugs]
+                unique_drugs = [fix_aspirin_classification(d) for d in unique_drugs]
+                unique_drugs = [extract_component_strengths(d) for d in unique_drugs]
             except Exception as _pp_err:
                 logger.warning(f"Post processing failed (dosage forms): {_pp_err}")
             

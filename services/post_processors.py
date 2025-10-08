@@ -128,3 +128,50 @@ def normalize_frequency_standard(drug: dict) -> dict:
     return drug
 
 
+def normalize_meal_timing(drug: dict) -> dict:
+    """食事タイミングをenum化し、表示用は従来の日本語を維持"""
+    raw_timing = drug.get('freq', '') or drug.get('timing', '')
+    timing_map = {
+        '食直前': 'before_meal',
+        '食前': 'before_meal',
+        '食後': 'after_meal',
+        '食直後': 'after_meal',
+    }
+    if raw_timing:
+        key = None
+        for k in timing_map.keys():
+            if k in raw_timing:
+                key = k
+                break
+        if key:
+            drug['timing_norm'] = timing_map[key]
+    return drug
+
+
+def fix_aspirin_classification(drug: dict) -> dict:
+    """アスピリン腸溶は用途分類で『抗血小板薬』に寄せる（NSAIDsを外す）"""
+    name = drug.get('generic', '') or drug.get('name', '')
+    strength = (drug.get('strength') or '').replace('／', '/').replace(' ', '')
+    if name.startswith('アスピリン'):
+        # 低用量抗血小板の代表用量 81/100mg を優先
+        if '81mg' in strength or '100mg' in strength or '腸溶' in name:
+            drug['final_classification'] = '抗血小板薬'
+    return drug
+
+
+def extract_component_strengths(drug: dict) -> dict:
+    """配合剤の成分強度を抽出して component_strengths に格納する"""
+    import re
+    text_sources = [
+        drug.get('raw', ''),
+        drug.get('original_name', ''),
+        drug.get('name', ''),
+        drug.get('strength', ''),
+    ]
+    joined = ' '.join([t for t in text_sources if t])
+    m = re.search(r'(\d+\.?\d*\s*(?:mg|μg))\s*/\s*(\d+\.?\d*\s*(?:mg|μg))', joined)
+    if m:
+        drug['component_strengths'] = [m.group(1), m.group(2)]
+    return drug
+
+

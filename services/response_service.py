@@ -530,7 +530,11 @@ class ResponseService:
                     if 'ロキソプロフェン' in drug_name and 'Naテープ' not in drug_name:
                         drug_name = drug_name.replace('ロキソプロフェン', 'ロキソプロフェンNaテープ')
                     classification = drug.get('final_classification', '分類未設定')
+                    # 用量：配合成分が取れていれば併記
                     strength = drug.get('strength', '')
+                    comp = drug.get('component_strengths')
+                    if (not strength) and comp:
+                        strength = f"1錠（{comp[0]}/{comp[1]}）"
                     dose = drug.get('dose', '')
                     freq = drug.get('freq', '')
                     
@@ -553,6 +557,9 @@ class ResponseService:
                             response_parts.append(f"   用法: {display_dose}")
                     if freq:
                         response_parts.append(f"   頻度: {nz(freq)}")
+                    # アスピリン腸溶は『抗血小板薬』に統一
+                    if drug_name.startswith('アスピリン') and classification and '抗血小板' in classification:
+                        classification = '抗血小板薬'
                     response_parts.append(f"   分類: {classification}")
                     response_parts.append("")
                 else:
