@@ -135,6 +135,13 @@ class AIExtractorService:
             
             # 信頼度評価
             confidence = self._evaluate_confidence(extracted_data, ocr_text)
+
+            # クリティック（低〜中信頼/欠損時のみ再評価）
+            if self._should_run_critic(extracted_data, confidence):
+                logger.info("Critic LLM activated (low confidence or missing fields)")
+                extracted_data = self._run_critic(ocr_text, extracted_data)
+                # 再評価
+                confidence = self._evaluate_confidence(extracted_data, ocr_text)
             
             result = {
                 'drugs': extracted_data.get('drugs', []),
@@ -158,6 +165,59 @@ class AIExtractorService:
                 'error': str(e),
                 'raw_text': ocr_text
             }
+
+    def _should_run_critic(self, extracted_data: dict, confidence: str) -> bool:
+        try:
+            if confidence in ('low', 'medium'):
+                return True
+            drugs = extracted_data.get('drugs', [])
+            if not drugs:
+                return True
+            # 必須フィールド欠損が多い場合のみ
+            missing = 0
+            for d in drugs:
+                if not (d.get('generic') or d.get('brand')):
+                    missing += 1
+                if not d.get('dose') and not d.get('quantity'):
+                    missing += 1
+            return missing >= max(1, len(drugs)//3)
+        except Exception:
+            return False
+
+    def _run_critic(self, ocr_text: str, extracted_data: dict) -> dict:
+        """抽出JSONを批評・最小修正する。トークンと時間を厳格制限。"""
+        try:
+            if not self.openai_client:
+                return extracted_data
+            critic_prompt = {
+                "role": "system",
+                "content": (
+                    "あなたは薬剤抽出JSONの検証器です。入力JSONの誤補完は禁止。\n"
+                    "規則: (1) 未記載は不明のまま (2) あり得ない単位/場所を修正 (3) 外用は数量/規格優先 (4) 回数系は dose='1回1錠', freq='1日3回' のように (5) JSON以外書かない。"
+                )
+            }
+            user_prompt = {
+                "role": "user",
+                "content": json.dumps({
+                    "ocr_text": ocr_text[:2000],  # 長文制限
+                    "extracted": extracted_data
+                }, ensure_ascii=False)
+            }
+            resp = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[critic_prompt, user_prompt],
+                temperature=0.0,
+                max_tokens=800,
+                timeout=8
+            )
+            txt = (resp.choices[0].message.content or '').strip()
+            fixed = self._parse_ai_response(txt) or extracted_data
+            # 最小の整合性チェックをもう一度
+            fixed = self._validate_extraction(fixed)
+            return fixed
+        except Exception as e:
+            logger.warning(f"Critic execution skipped: {e}")
+            return extracted_data
     
     def _apply_normalization(self, extracted_data: dict) -> dict:
         """抽出された薬剤データに正規化処理を適用"""
