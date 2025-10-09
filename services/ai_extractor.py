@@ -168,19 +168,26 @@ class AIExtractorService:
 
     def _should_run_critic(self, extracted_data: dict, confidence: str) -> bool:
         try:
-            if confidence in ('low', 'medium'):
-                return True
+            # Criticは低信頼度で薬剤が検出された場合のみ実行
+            if confidence == 'low':
+                drugs = extracted_data.get('drugs', [])
+                if drugs:  # 薬剤が検出されている場合のみ
+                    return True
+            
+            # 薬剤が全く検出されなかった場合
             drugs = extracted_data.get('drugs', [])
             if not drugs:
                 return True
-            # 必須フィールド欠損が多い場合のみ
+            
+            # 必須フィールド欠損が多い場合（より厳しい条件）
             missing = 0
             for d in drugs:
                 if not (d.get('generic') or d.get('brand')):
                     missing += 1
                 if not d.get('dose') and not d.get('quantity'):
                     missing += 1
-            return missing >= max(1, len(drugs)//3)
+            # 50%以上が欠損している場合のみCriticを実行
+            return missing > len(drugs) // 2
         except Exception:
             return False
 
@@ -188,7 +195,11 @@ class AIExtractorService:
         """抽出JSONを批評・最小修正する。トークンと時間を厳格制限。"""
         try:
             if not self.openai_client:
+                logger.info("Critic LLM skipped: OpenAI client not available")
                 return extracted_data
+            
+            logger.info(f"Critic LLM starting with {len(extracted_data.get('drugs', []))} drugs")
+            
             critic_prompt = {
                 "role": "system",
                 "content": (
@@ -211,12 +222,22 @@ class AIExtractorService:
                 timeout=8
             )
             txt = (resp.choices[0].message.content or '').strip()
-            fixed = self._parse_ai_response(txt) or extracted_data
+            logger.info(f"Critic LLM response received: {len(txt)} characters")
+            
+            fixed = self._parse_ai_response(txt)
+            if not fixed or not fixed.get('drugs'):
+                logger.warning("Critic LLM parsing failed, using original data")
+                return extracted_data
+            
+            logger.info(f"Critic LLM parsed {len(fixed.get('drugs', []))} drugs")
+            
             # 最小の整合性チェックをもう一度
             fixed = self._validate_extraction(fixed)
+            logger.info(f"Critic LLM validation completed: {len(fixed.get('drugs', []))} drugs")
+            
             return fixed
         except Exception as e:
-            logger.warning(f"Critic execution skipped: {e}")
+            logger.warning(f"Critic execution error, using original data: {e}")
             return extracted_data
     
     def _apply_normalization(self, extracted_data: dict) -> dict:
