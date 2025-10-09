@@ -96,16 +96,24 @@ class InteractionTargetResolver:
         return name
     
     def index_by_class(self, drugs: List[Dict[str, Any]]) -> Dict[str, List[str]]:
-        """薬剤を薬効クラス別にインデックス化"""
+        """薬剤を薬効クラス別にインデックス化（元の表記を保持）"""
         buckets = {}
-        for d in drugs:
-            # 薬剤名の取得（generic > name > brand > raw の順で優先）
-            drug_name = d.get("generic") or d.get("name") or d.get("brand") or d.get("raw", "")
-            gname = self.canonicalize(drug_name)
-            for cls in self.CLASS_MAP.get(gname, []):
-                buckets.setdefault(cls, []).append(gname)
+        name_map = {}  # 正規化名 -> 元の表記のマッピング
         
-        # 重複除去
+        for d in drugs:
+            # 元の薬剤名の取得（generic > name > brand > raw の順で優先）
+            original_name = d.get("generic") or d.get("name") or d.get("brand") or d.get("raw", "")
+            # 正規化名
+            gname = self.canonicalize(original_name)
+            
+            # 元の表記を保持（剤形情報含む）
+            if gname not in name_map:
+                name_map[gname] = original_name
+            
+            for cls in self.CLASS_MAP.get(gname, []):
+                buckets.setdefault(cls, []).append(original_name)
+        
+        # 重複除去（元の表記で）
         for k in buckets:
             buckets[k] = sorted(set(buckets[k]))
         return buckets
@@ -412,17 +420,34 @@ class InteractionTargetResolver:
             phosphate_drugs = bx.get("PHOSPHATE_BINDER", [])
             combined_drugs = sorted(set(ca_drugs + phosphate_drugs))
             if combined_drugs:
-                # キレート対象薬が含まれているかチェック
-                chelate_sensitive = ["ニューキノロン", "テトラサイクリン", "甲状腺", "ビスホスホネート", "ミコフェノール", "鉄剤", "レボチロキシン", "シプロフロキサシン", "レボフロキサシン"]
-                has_chelate_target = any(any(keyword in d.get('generic', d.get('name', d.get('raw', ''))).lower() for keyword in chelate_sensitive) for d in drugs)
+                # キレート対象薬が含まれているかチェック（より厳密な判定）
+                chelate_sensitive = [
+                    "レボフロキサシン", "シプロフロキサシン", "モキシフロキサシン", "トスフロキサシン",  # ニューキノロン
+                    "ミノサイクリン", "ドキシサイクリン", "テトラサイクリン",  # テトラサイクリン
+                    "レボチロキシン", "リオチロニン",  # 甲状腺ホルモン
+                    "アレンドロネート", "リセドロネート", "ミノドロネート",  # ビスホスホネート
+                    "ミコフェノール",  # 免疫抑制薬
+                    "硫酸鉄", "フマル酸第一鉄", "クエン酸第一鉄"  # 鉄剤
+                ]
+                has_chelate_target = any(
+                    any(keyword in d.get('generic', d.get('name', d.get('raw', ''))).lower() 
+                        for keyword in chelate_sensitive) 
+                    for d in drugs
+                )
                 
-                note = "" if has_chelate_target else "（該当薬なし：一般注意）"
+                if has_chelate_target:
+                    note = "（該当薬あり：2時間以上間隔をあける）"
+                    action = "併用薬に吸収低下リスク薬あり。服用間隔を2時間以上あける。"
+                else:
+                    note = "（該当薬なし：一般注意）"
+                    action = "他剤と原則2時間以上あける（抗菌薬・甲状腺薬・鉄剤・ビスホスホネート等）。"
+                
                 findings.append({
                     "severity": "併用注意",
                     "title": f"リン吸着薬／Ca製剤による他剤の吸収低下{note}",
                     "targets": self.join_targets(combined_drugs),
-                    "action": "他剤と原則2時間以上あける（抗菌薬・甲状腺薬・鉄剤・ビスホスホネート等）。",
-                    "priority": 3
+                    "action": action,
+                    "priority": 3 if not has_chelate_target else 2  # 該当薬ありの場合は優先度を上げる
                 })
             
             # カルシミメティクス + 下剤多剤（状況依存の注意）
