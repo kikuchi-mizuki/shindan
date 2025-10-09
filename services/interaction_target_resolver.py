@@ -231,6 +231,10 @@ class InteractionTargetResolver:
             # 余分な空白を整理
             name = re.sub(r'\s+', '', name).strip()
             
+            # 剤形情報の補完（臨床的に重要な区別）
+            if 'ニフェジピン' in name and '徐放' not in name:
+                name = name.replace('ニフェジピン', 'ニフェジピン徐放')
+            
             # 一般名に変換
             return GENERIC_DISPLAY.get(name, name) if PREFER_GENERIC else name
         
