@@ -65,6 +65,8 @@ class InteractionTargetResolver:
             "芍薬甘草湯": ["GLYCYRRHIZA", "KAMPO"],
             "沈降炭酸カルシウム": ["CALCIUM_BINDER", "PHOSPHATE_BINDER"],
             "エボカルセト": ["CALCIMIMETIC"],
+            # リン吸着薬の追加
+            "キックリン": ["PHOSPHATE_BINDER"],
         }
     
     def sanitize_name(self, s: str) -> str:
@@ -179,15 +181,6 @@ class InteractionTargetResolver:
             return sorted(set(bx["GLYCYRRHIZA"] + bx["STIM_LAX"]))
         return []
     
-    def rule_calcium_binder_caution(self, bx: Dict[str, List[str]]) -> List[str]:
-        """Ca製剤による吸収低下（一般的注意）"""
-        pool = bx.get("CALCIUM_BINDER", [])
-        return sorted(set(pool)) if pool else []
-
-    def rule_phosphate_binder_interval(self, bx: Dict[str, List[str]]) -> List[str]:
-        """リン吸着薬（Ca製剤/ビキサロマー等）の間隔ルールを通知"""
-        pool = sorted(set(bx.get("CALCIUM_BINDER", []) + bx.get("PHOSPHATE_BINDER", [])))
-        return pool if pool else []
     
     def rule_calcimimetic_electrolyte(self, bx: Dict[str, List[str]]) -> List[str]:
         """カルシミメティクス + 下剤多剤（低Ca/QT延長リスク）"""
@@ -395,9 +388,11 @@ class InteractionTargetResolver:
                     "priority": 1  # 患者安全への影響が大きい
                 })
             
-            # Ca製剤による吸収低下（注意）
-            t = self.rule_calcium_binder_caution(bx)
-            if t:
+            # リン吸着薬／Ca製剤による吸収低下（統合）
+            ca_drugs = bx.get("CALCIUM_BINDER", [])
+            phosphate_drugs = bx.get("PHOSPHATE_BINDER", [])
+            combined_drugs = sorted(set(ca_drugs + phosphate_drugs))
+            if combined_drugs:
                 # キレート対象薬が含まれているかチェック
                 chelate_sensitive = ["ニューキノロン", "テトラサイクリン", "甲状腺", "ビスホスホネート", "ミコフェノール", "鉄剤", "レボチロキシン", "シプロフロキサシン", "レボフロキサシン"]
                 has_chelate_target = any(any(keyword in d.get('generic', d.get('name', d.get('raw', ''))).lower() for keyword in chelate_sensitive) for d in drugs)
@@ -405,19 +400,8 @@ class InteractionTargetResolver:
                 note = "" if has_chelate_target else "（該当薬なし：一般注意）"
                 findings.append({
                     "severity": "併用注意",
-                    "title": f"Ca製剤による他剤の吸収低下{note}",
-                    "targets": self.join_targets(t),
-                    "action": "キレート・吸着による他剤の吸収低下に注意。該当薬（ニューキノロン、テトラサイクリン、甲状腺薬、ビスホスホネート、ミコフェノール酸、鉄剤など）は2時間以上間隔をあける。",
-                    "priority": 4  # 一般注意（該当薬なしの場合は影響小）
-                })
-
-            # リン吸着薬（間隔ルールの一般注意）
-            t = self.rule_phosphate_binder_interval(bx)
-            if t:
-                findings.append({
-                    "severity": "併用注意",
-                    "title": "リン吸着薬による吸収低下（間隔ルール）",
-                    "targets": self.join_targets(t),
+                    "title": f"リン吸着薬／Ca製剤による他剤の吸収低下{note}",
+                    "targets": self.join_targets(combined_drugs),
                     "action": "他剤と原則2時間以上あける（抗菌薬・甲状腺薬・鉄剤・ビスホスホネート等）。",
                     "priority": 3
                 })
