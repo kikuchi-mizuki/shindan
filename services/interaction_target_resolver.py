@@ -56,6 +56,7 @@ class InteractionTargetResolver:
             "フルボキサミン": ["SSRI", "RAMELTEON_CONTRA_PAIR"],
             "アムロジピン": ["DHP_CCB", "CCB"],
             "ニフェジピン": ["DHP_CCB", "CCB"],
+            "ニフェジピン徐放": ["DHP_CCB", "CCB"],
             "エソメプラゾール": ["PPI"],
             
             # 今回の11剤に対応するクラス
@@ -98,19 +99,22 @@ class InteractionTargetResolver:
     def index_by_class(self, drugs: List[Dict[str, Any]]) -> Dict[str, List[str]]:
         """薬剤を薬効クラス別にインデックス化（元の表記を保持）"""
         buckets = {}
-        name_map = {}  # 正規化名 -> 元の表記のマッピング
         
         for d in drugs:
             # 元の薬剤名の取得（generic > name > brand > raw の順で優先）
             original_name = d.get("generic") or d.get("name") or d.get("brand") or d.get("raw", "")
-            # 正規化名
-            gname = self.canonicalize(original_name)
             
-            # 元の表記を保持（剤形情報含む）
-            if gname not in name_map:
-                name_map[gname] = original_name
+            # クラス判定用に正規化名と元の名前の両方をチェック
+            # まず元の名前で直接チェック（「ニフェジピン徐放」など剤形情報を保持）
+            classes = self.CLASS_MAP.get(original_name, [])
             
-            for cls in self.CLASS_MAP.get(gname, []):
+            # 見つからない場合は正規化名でチェック
+            if not classes:
+                gname = self.canonicalize(original_name)
+                classes = self.CLASS_MAP.get(gname, [])
+            
+            # クラスに追加
+            for cls in classes:
                 buckets.setdefault(cls, []).append(original_name)
         
         # 重複除去（元の表記で）
