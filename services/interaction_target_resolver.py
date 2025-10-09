@@ -54,11 +54,14 @@ class InteractionTargetResolver:
             "レンボレキサント": ["OREXIN_ANTAGONIST", "SEDATIVE"],
             "ラメルテオン": ["MELATONIN_AGONIST", "SEDATIVE", "RAMELTEON"],
             "フルボキサミン": ["SSRI", "RAMELTEON_CONTRA_PAIR"],
-            "アムロジピン": ["DHP_CCB"],
+            "アムロジピン": ["DHP_CCB", "CCB"],
+            "ニフェジピン": ["DHP_CCB", "CCB"],
             "エソメプラゾール": ["PPI"],
             
             # 今回の11剤に対応するクラス
             "センノシド": ["STIM_LAX", "LAXATIVE"],
+            "センナ": ["STIM_LAX", "LAXATIVE"],
+            "センナ・センナ実": ["STIM_LAX", "LAXATIVE"],
             "ピコスルファートナトリウム": ["STIM_LAX", "LAXATIVE"],
             "リナクロチド": ["GCC_AGONIST", "LAXATIVE"],
             "エロビキシバット": ["IBAT_INHIB", "LAXATIVE"],
@@ -170,11 +173,6 @@ class InteractionTargetResolver:
         pool = bx.get("LAXATIVE", [])
         return sorted(set(pool)) if len(set(pool)) >= 2 else []
 
-    def rule_poly_stim_lax(self, bx: Dict[str, List[str]]) -> List[str]:
-        """刺激性下剤の重複（2剤以上）"""
-        pool = bx.get("STIM_LAX", [])
-        return sorted(set(pool)) if len(set(pool)) >= 2 else []
-    
     def rule_glycyrrhiza_stim_lax(self, bx: Dict[str, List[str]]) -> List[str]:
         """甘草 + 刺激性下剤（低K血症リスク）"""
         if bx.get("GLYCYRRHIZA") and bx.get("STIM_LAX"):
@@ -182,6 +180,16 @@ class InteractionTargetResolver:
         return []
     
     
+    def rule_dhp_ccb_overlap(self, bx: Dict[str, List[str]]) -> List[str]:
+        """DHP-CCBの重複（2剤以上）"""
+        pool = bx.get("DHP_CCB", [])
+        return sorted(set(pool)) if len(set(pool)) >= 2 else []
+
+    def rule_stim_lax_overlap(self, bx: Dict[str, List[str]]) -> List[str]:
+        """刺激性下剤の重複（2剤以上）"""
+        pool = bx.get("STIM_LAX", [])
+        return sorted(set(pool)) if len(set(pool)) >= 2 else []
+
     def rule_calcimimetic_electrolyte(self, bx: Dict[str, List[str]]) -> List[str]:
         """カルシミメティクス + 下剤多剤（低Ca/QT延長リスク）"""
         if bx.get("CALCIMIMETIC") and bx.get("LAXATIVE") and len(set(bx.get("LAXATIVE", []))) >= 2:
@@ -366,17 +374,6 @@ class InteractionTargetResolver:
                     "priority": 2  # 電解質異常リスク
                 })
 
-            # 刺激性下剤の重複（注意）
-            t = self.rule_poly_stim_lax(bx)
-            if t:
-                findings.append({
-                    "severity": "併用注意",
-                    "title": "刺激性下剤の重複",
-                    "targets": self.join_targets(t),
-                    "action": "腹痛/下痢/依存に注意。便秘治療の再評価（用量/剤形調整等）。",
-                    "priority": 2
-                })
-            
             # 甘草 + 刺激性下剤（注意）
             t = self.rule_glycyrrhiza_stim_lax(bx)
             if t:
@@ -386,6 +383,28 @@ class InteractionTargetResolver:
                     "targets": self.join_targets(t),
                     "action": "低K血症（偽性アルドステロン症）や浮腫・高血圧のリスク。K値・血圧・浮腫を定期確認。",
                     "priority": 1  # 患者安全への影響が大きい
+                })
+            
+            # Ca拮抗薬の重複
+            t = self.rule_dhp_ccb_overlap(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "Ca拮抗薬の重複",
+                    "targets": self.join_targets(t),
+                    "action": "低血圧・浮腫などに留意。目的がなければ再検討。",
+                    "priority": 2  # 中リスク
+                })
+
+            # 刺激性下剤の重複
+            t = self.rule_stim_lax_overlap(bx)
+            if t:
+                findings.append({
+                    "severity": "併用注意",
+                    "title": "刺激性下剤の重複",
+                    "targets": self.join_targets(t),
+                    "action": "腹痛/下痢/依存リスクに注意。便秘コントロールの再評価（用量調整や浸透圧性下剤の併用検討など）。",
+                    "priority": 1  # 高リスク
                 })
             
             # リン吸着薬／Ca製剤による吸収低下（統合）
